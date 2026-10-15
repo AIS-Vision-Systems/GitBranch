@@ -1,0 +1,9 @@
+# Claude Code personal overrides
+.claude/settings.local.json
+
+# Build outputs (populated from Phase 0)
+node_modules/
+dist/
+target/
+src-tauri/gen/schemas/
+*.log

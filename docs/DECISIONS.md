@@ -1,0 +1,44 @@
+# Decision log
+
+Format: `D-nnn · status · date` then context / decision / consequences. Status: **accepted**, **open** (needs the
+owner), **superseded**. Claude records routine decisions here on its own; **open** ones are the only reason to
+interrupt the owner (see `.claude/skills/decide`).
+
+## D-001 · accepted · 2026-10-15 — Tauri 2 + React/TS over Electron or .NET/Avalonia
+Context: GitKraken is Electron + bundled git (1.3 GB). The owner wants a much lighter client for Windows and Linux.
+Decision: Tauri 2 with a Rust core and a React/TypeScript frontend.
+Consequences: installer in the 10–25 MB range; Linux build needs WebKitGTK; team conventions for C# do not apply here.
+
+## D-002 · accepted · 2026-10-15 — System `git` CLI as the only backend (no libgit2)
+Context: worktrees, stash, rebase, hooks, credential helpers and config semantics must match the terminal exactly.
+Decision: spawn the user's `git` with machine-readable flags; no libgit2 / git2-rs; never bundle git.
+Consequences: requires git >= 2.31 on the machine; parsers live in `crates/git-core` and are tested against real git.
+
+## D-003 · accepted · 2026-10-15 — Targets: Windows + Linux. macOS not targeted.
+Consequences: CI matrix windows-latest + ubuntu-22.04; no code-signing for macOS; keyring backends: Credential Manager + Secret Service.
+
+## D-004 · open — GitHub OAuth App registration (owner action)
+Context: GitHub integration uses the Device Flow of an OAuth App; the app only embeds the public client_id.
+Needed from the owner, before Phase 5 starts:
+1. https://github.com/settings/developers → *OAuth Apps* → *New OAuth App*.
+   Name `GitBranch`, Homepage URL = the repo URL, Authorization callback URL = `http://127.0.0.1/unused` (required field, not used by Device Flow).
+2. In the app settings tick **Enable Device Flow**.
+3. Paste the **Client ID** into `crates/github-api/src/auth.rs` (`CLIENT_ID`). Do not generate or share a client secret.
+Decision pending: owner confirms the app is created and provides the client_id.
+
+## D-005 · accepted · 2026-10-15 — Scopes `repo read:org` by default; `workflow` optional
+Context: private repos require `repo`; org repo listing requires `read:org`; pushing workflow files requires `workflow`.
+Decision: request `repo read:org` at login; a settings toggle re-authorizes with `workflow` when the user needs it.
+
+## D-006 · open — Auto-update channel
+Options: (a) none, user downloads installers from GitHub Releases; (b) `tauri-plugin-updater` with a signing key kept by the owner.
+Default if no answer by Phase 6: (a).
+
+## D-007 · accepted · 2026-10-15 — No telemetry, no crash reporting services
+Decision: local rotating log file only (`tracing` + `tracing-appender`). Nothing leaves the machine except git/GitHub traffic the user triggers.
+
+## D-008 · accepted · 2026-10-15 — Repo docs and code in English; chat with the owner in Catalan
+Reason: cheaper tokens, consistent with the team convention (comments and commits in English).
+
+## D-009 · accepted · 2026-10-15 — Graph rendering: SVG per virtualized row; canvas fallback only if measured > 4 ms/row
+Reason: SVG keeps hit-testing and styling trivial; virtualization bounds the cost to visible rows.

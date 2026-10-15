@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CARGO_TERM_COLOR": "never",
+    "NO_COLOR": "1",
+    "GIT_PAGER": "cat",
+    "RUST_BACKTRACE": "0"
+  },
+  "bashOutputMaxChars": 12000,
+  "permissions": {
+    "allow": [
+      "Bash(cargo *)",
+      "Bash(rustup *)",
+      "Bash(rustfmt *)",
+      "Bash(pnpm *)",
+      "Bash(corepack *)",
+      "Bash(node *)",
+      "Bash(npx *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git tag *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git stash*)",
+      "Bash(git worktree *)",
+      "Bash(git fetch*)",
+      "Bash(git init *)",
+      "Bash(git -C *)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "Bash(ls *)",
+      "Bash(tail *)",
+      "Bash(head *)",
+      "Bash(wc *)",
+      "Bash(du *)",
+      "Read",
+      "Edit(src/**)",
+      "Edit(src-tauri/**)",
+      "Edit(crates/**)",
+      "Edit(docs/**)",
+      "Edit(.claude/**)",
+      "Edit(.github/**)",
+      "Edit(*.json)",
+      "Edit(*.ts)",
+      "Edit(*.toml)",
+      "Edit(*.md)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh release *)",
+      "Bash(gh repo *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)"
+    ],
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(rm -rf /*)",
+      "Edit(~/.gitconfig)",
+      "Read(~/.ssh/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/format.mjs\"",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
