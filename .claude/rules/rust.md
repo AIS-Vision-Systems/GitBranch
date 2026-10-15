@@ -16,7 +16,8 @@ paths:
 - Keep tauri commands thin: argument parsing, call into git-core, map errors to `AppError`.
 - Logging via `tracing`; never log tokens, full argv of askpass, or file contents.
 - Windows: use `std::os::windows::process::CommandExt::creation_flags(CREATE_NO_WINDOW)` behind `#[cfg(windows)]`.
-- Tests: fixtures via `crates/git-core/tests/fixtures.rs` (`FixtureRepo::linear(n)`, `::merge()`, `::octopus()`,
-  `::with_stash()`...). Set `GIT_CONFIG_GLOBAL=/dev/null`-equivalent and explicit `user.name/email` so tests ignore
-  the developer's global config.
+- Tests: fixtures via `git_core::fixtures::FixtureRepo` (`::linear(n)`, `::merge()`, `::octopus()`, `::orphan()`,
+  `::tags()`, `::with_stash()`; `repo.git(&[..])`, `repo.commit_file(..)`, `repo.rev_parse(..)`). Feature `fixtures`
+  is enabled for tests by the self dev-dependency. Fixture git runs with global/system config disabled and fixed
+  identity/dates, so oids are deterministic.
 - Format with rustfmt (hook), lint with `clippy -D warnings`; allow lints only with a one-line reason.

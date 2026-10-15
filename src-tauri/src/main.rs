@@ -1,6 +1,8 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+//! GitBranch desktop entry point.
+
+// Prevents an additional console window on Windows in release. Do not remove.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    gitbranch_lib::run()
+    gitbranch_lib::run();
 }

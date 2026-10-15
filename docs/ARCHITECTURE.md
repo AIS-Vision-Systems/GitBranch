@@ -2,14 +2,14 @@
 
 ## Stack
 
-| Layer | Choice | Reason |
-|---|---|---|
-| Shell | Tauri 2 (Rust), WebView2 on Windows, WebKitGTK 4.1 on Linux | ~10–20 MB installer, no bundled browser |
-| Frontend | React 19 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual` | small, boring, fast to iterate |
-| Git backend | system `git` CLI spawned from Rust (`crates/git-core`) | only path that covers worktrees, stash, rebase, hooks, credential helpers exactly like the terminal |
-| GitHub | REST v3 via `reqwest` (`crates/github-api`), OAuth App Device Flow, token in OS keyring | no secret in the app, works headless |
-| Diffs | `git diff -p` parsed in Rust into hunks; custom React diff view | avoids Monaco (5 MB) |
-| Styling | CSS modules + design tokens (`src/styles/tokens.css`), dark/light | no Tailwind runtime |
+| Layer       | Choice                                                                                  | Reason                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Shell       | Tauri 2 (Rust), WebView2 on Windows, WebKitGTK 4.1 on Linux                             | ~10–20 MB installer, no bundled browser                                                             |
+| Frontend    | React 19 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual`              | small, boring, fast to iterate                                                                      |
+| Git backend | system `git` CLI spawned from Rust (`crates/git-core`)                                  | only path that covers worktrees, stash, rebase, hooks, credential helpers exactly like the terminal |
+| GitHub      | REST v3 via `reqwest` (`crates/github-api`), OAuth App Device Flow, token in OS keyring | no secret in the app, works headless                                                                |
+| Diffs       | `git diff -p` parsed in Rust into hunks; custom React diff view                         | avoids Monaco (5 MB)                                                                                |
+| Styling     | CSS modules + design tokens (`src/styles/tokens.css`), dark/light                       | no Tailwind runtime                                                                                 |
 
 Not used on purpose: libgit2/git2-rs (worktree + credential gaps, duplicate behaviour), Electron, any GitKraken package.
 
@@ -44,7 +44,9 @@ GitBranch/
       src/parse/{refs,log,status,diff,worktree,stash}.rs
       src/graph/{layout,color}.rs
       src/ops/{branch,stash,merge,rebase,remote,worktree,...}.rs
-      tests/fixtures.rs        # builds fixture repos
+      src/fixtures.rs          # FixtureRepo builders (feature `fixtures`, dev-dep enables it for tests)
+      tests/{fixtures,runner}.rs
+      examples/make_fixture.rs # cargo run -p git-core --features fixtures --example make_fixture -- <kind> <dir>
     github-api/
       src/{auth,client,models,prs,repos}.rs
   docs/
@@ -62,12 +64,17 @@ pub async fn run(&self, repo: &Path, args: &[&str], opts: RunOpts) -> Result<Out
 ```
 
 - Env on every spawn: `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `GIT_OPTIONAL_LOCKS=0`, `GIT_PAGER=cat`,
-  `GIT_ASKPASS=<self exe> --askpass` (only when an HTTPS GitHub token exists), `-c core.quotepath=false`.
+  `GIT_EDITOR=:`, `GIT_SEQUENCE_EDITOR=:`, `SSH_ASKPASS_REQUIRE=never`, `GIT_ASKPASS=<self exe> --askpass` (only when
+  an HTTPS GitHub token exists), `-c core.quotepath=false`. Inherited `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`/
+  `GIT_CONFIG_*`/... are removed (`runner::SCRUB_ENV`) so launching GitBranch from a hook or worktree shell is safe.
+- Timeouts are opt-in per call (`RunOpts::timeout`), used for network and read-only calls only (D-012); dropping the
+  returned future kills the child (cancellation). stdin is fed concurrently with draining stdout/stderr.
 - Machine-readable output only: `-z`, `--porcelain=v2`, `--format` with `%x00` separators. Never parse human output.
 - Long-running ops (fetch/push/clone/rebase) stream stderr lines to the UI as progress events; cancellation kills the child.
 - Windows: `CREATE_NO_WINDOW`; Linux: nothing special. Paths are always passed as-is (no shell).
-- `GitError { kind: ExitCode(i32) | Timeout | NotARepo | Conflict | AuthRequired | NotFound, stderr: String }`
-  classified from stderr patterns so the UI can react (e.g. `AuthRequired` opens the login dialog).
+- `GitError { kind: ExitCode(i32) | Timeout | NotARepo | Conflict | AuthRequired | NotFound | Spawn, stderr, args }`
+  classified from `fatal:`/`error:` stderr lines (conflicts from stdout) so the UI can react (e.g. `AuthRequired`
+  opens the login dialog). URL credentials are redacted (`runner::redact_credentials`) before anything is logged.
 
 ## Graph layout (the product)
 
@@ -84,7 +91,7 @@ Algorithm (standard "active lanes" sweep, as used by git-graph tools):
    lanes waiting for C are merge-in edges ending at C's lane and are freed.
 3. Replace C's lane target with `parents[0]`. For each extra parent P: if some lane already waits for P, draw a
    branch-out edge to it; else allocate a free lane for P. A lane whose target is `None` is free.
-4. Colors: assigned per lane *segment* (a lane keeps its color from allocation to being freed), palette of 12.
+4. Colors: assigned per lane _segment_ (a lane keeps its color from allocation to being freed), palette of 12.
 5. Emit edges for the segment between row i and i+1 so each row can be drawn independently (needed for virtualization).
 
 Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to the frontend (binary via

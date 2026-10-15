@@ -6,8 +6,11 @@ use crate::AppError;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
+    /// GitBranch version (Cargo package version).
     pub version: String,
+    /// `git-core` crate version.
     pub git_core_version: String,
+    /// `github-api` crate version.
     pub github_api_version: String,
 }
 

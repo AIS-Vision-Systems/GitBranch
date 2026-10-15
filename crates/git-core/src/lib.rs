@@ -7,5 +7,13 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod runner;
+
+pub use runner::{GitError, GitErrorKind, GitOutput, GitRunner, GitVersion, RunOpts};
+
+/// Throwaway repositories built with real `git`, for tests and debugging (feature `fixtures`).
+#[cfg(feature = "fixtures")]
+pub mod fixtures;
+
 /// Crate version, reported by the Tauri shell.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

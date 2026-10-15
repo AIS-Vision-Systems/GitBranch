@@ -7,11 +7,24 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lints]
+workspace = true
+
+[features]
+# Throwaway-repository helpers for tests and the `make_fixture` example.
+fixtures = ["dep:tempfile"]
+
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true
+git-core = { path = ".", features = ["fixtures"] }
+
+[[example]]
+name = "make_fixture"
+required-features = ["fixtures"]

@@ -14,12 +14,22 @@ pub struct AppError {
 }
 
 impl AppError {
+    /// An error with a code and a one-line message.
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self { code: code.into(), message: message.into(), detail: None }
     }
 
+    /// Attaches a long detail (stderr, context).
+    #[must_use]
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
+    }
+}
+
+impl From<git_core::GitError> for AppError {
+    fn from(err: git_core::GitError) -> Self {
+        let message = err.to_string();
+        AppError::new(err.code(), message).with_detail(err.stderr.clone())
     }
 }
