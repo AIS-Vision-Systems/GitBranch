@@ -46,9 +46,12 @@ Reason: SVG keeps hit-testing and styling trivial; virtualization bounds the cos
 ## D-010 · accepted · 2026-10-15 — Toolchain installed per-user; Tauri CLI from npm, not `cargo install`
 Context: `corepack enable` needs admin rights on this machine (writes to `C:\Program Files\nodejs`); compiling
 `tauri-cli` with cargo takes minutes and is not pinned by any lockfile.
-Decision: `pnpm` installed with `npm install -g pnpm` (user profile) and pinned via `packageManager` in `package.json`;
-the Tauri CLI is the `@tauri-apps/cli` devDependency (prebuilt binary, pinned in `pnpm-lock.yaml`), invoked as `pnpm tauri`.
-Consequences: CI installs the same versions from the lockfile; no `cargo install tauri-cli` anywhere.
+Decision: `pnpm` through corepack shims in a user directory: `corepack enable --install-directory %LOCALAPPDATA%\pnpm`
+(already on PATH), version pinned via `packageManager` in `package.json`. The Tauri CLI is the `@tauri-apps/cli`
+devDependency (prebuilt binary, pinned in `pnpm-lock.yaml`), invoked as `pnpm tauri`.
+Consequences: CI installs the same versions from the lockfile; no `cargo install tauri-cli` anywhere. The
+`npm install -g pnpm` shim was tried first and dropped: its `.cmd` wrapper breaks when a child shell (Tauri's
+`beforeBuildCommand`, nested `pnpm` scripts) invokes it on Windows.
 
 ## D-011 · accepted · 2026-10-15 — Cargo workspace root at the repo root; edition 2024; React 19
 Context: ARCHITECTURE.md placed the workspace root in `src-tauri/Cargo.toml`, but `crates/` lives next to `src-tauri/`

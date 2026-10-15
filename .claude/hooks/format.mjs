@@ -31,7 +31,7 @@ const run = (cmd, args) => {
 };
 
 if (ext === ".rs") {
-  run("rustfmt", ["--edition", "2021", file]);
+  run("rustfmt", ["--edition", "2024", file]);
 } else if ([".ts", ".tsx", ".js", ".mjs", ".css", ".json", ".md", ".html"].includes(ext)) {
   const local = resolve(repo, "node_modules", ".bin", process.platform === "win32" ? "prettier.cmd" : "prettier");
   if (existsSync(local)) run(local, ["--log-level", "silent", "--write", file]);

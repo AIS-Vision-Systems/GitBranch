@@ -20,7 +20,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[?]` blocked on
 
 - Rust stable (1.97) + `rustup component add rustfmt clippy` (done)
 - Tauri CLI: `@tauri-apps/cli` devDependency, run as `pnpm tauri` (see D-010; done)
-- Node 24 + pnpm (`npm install -g pnpm`, pinned by `packageManager`; done)
+- Node 24 + pnpm via `corepack enable --install-directory %LOCALAPPDATA%\pnpm` (pinned by `packageManager`; done)
 - Windows: WebView2 runtime (ships with Win 11), MSVC build tools (present, Rust works).
 - Linux: `libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev` (CI only until a Linux box is available).
 - A GitHub **OAuth App** registered by the owner with *Device Flow* enabled (needed from Phase 5). Only the public `client_id` is embedded. See DECISIONS.md D-004.
