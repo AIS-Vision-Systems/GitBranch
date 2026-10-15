@@ -36,11 +36,11 @@ Goal: an empty window that opens, builds on both OSes in CI, with the Rust/TS la
 - [x] 0.1 Install toolchain (rustfmt, clippy, tauri-cli, pnpm). Record versions in `docs/CHANGELOG.md`.
 - [x] 0.2 `pnpm create tauri-app` (React + TS + Vite, pnpm). App id `ai.rosepetal.gitbranch`, product name `GitBranch`.
 - [x] 0.3 Cargo workspace: `src-tauri` (thin commands) + `crates/git-core` (no Tauri dependency) + `crates/github-api`.
-- [ ] 0.4 `git-core::runner`: spawn `git` with fixed env (`GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `GIT_OPTIONAL_LOCKS=0`), timeout, stdout/stderr capture, typed `GitError`.
-- [ ] 0.5 Test fixture helper: build throwaway repos with `git` in a temp dir (linear, merge, octopus, orphan, tags, stash). Used by every later phase.
-- [ ] 0.6 Frontend scaffolding: Zustand store, typed `invoke` wrappers in `src/ipc/`, error toast, dark/light theme tokens.
-- [ ] 0.7 CI: GitHub Actions matrix (windows-latest, ubuntu-22.04): clippy, test, `tauri build`, upload artifacts.
-- [ ] 0.8 Lint/format: rustfmt.toml, clippy pedantic subset, prettier + eslint (flat config), `pnpm check` runs all.
+- [x] 0.4 `git-core::runner`: spawn `git` with fixed env (`GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `GIT_OPTIONAL_LOCKS=0`), timeout, stdout/stderr capture, typed `GitError`.
+- [x] 0.5 Test fixture helper: build throwaway repos with `git` in a temp dir (linear, merge, octopus, orphan, tags, stash). Used by every later phase.
+- [x] 0.6 Frontend scaffolding: Zustand store, typed `invoke` wrappers in `src/ipc/`, error toast, dark/light theme tokens.
+- [x] 0.7 CI: GitHub Actions matrix (windows-latest, ubuntu-22.04): clippy, test, `tauri build`, upload artifacts.
+- [x] 0.8 Lint/format: rustfmt.toml, clippy pedantic subset, prettier + eslint (flat config), `pnpm check` runs all.
 
 Acceptance: `pnpm tauri dev` opens a window on Windows; CI green on both OSes; installer artifact < 25 MB.
 

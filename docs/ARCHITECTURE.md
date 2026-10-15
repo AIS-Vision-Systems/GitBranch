@@ -2,14 +2,14 @@
 
 ## Stack
 
-| Layer       | Choice                                                                                  | Reason                                                                                              |
-| ----------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Shell       | Tauri 2 (Rust), WebView2 on Windows, WebKitGTK 4.1 on Linux                             | ~10–20 MB installer, no bundled browser                                                             |
-| Frontend    | React 19 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual`              | small, boring, fast to iterate                                                                      |
-| Git backend | system `git` CLI spawned from Rust (`crates/git-core`)                                  | only path that covers worktrees, stash, rebase, hooks, credential helpers exactly like the terminal |
-| GitHub      | REST v3 via `reqwest` (`crates/github-api`), OAuth App Device Flow, token in OS keyring | no secret in the app, works headless                                                                |
-| Diffs       | `git diff -p` parsed in Rust into hunks; custom React diff view                         | avoids Monaco (5 MB)                                                                                |
-| Styling     | CSS modules + design tokens (`src/styles/tokens.css`), dark/light                       | no Tailwind runtime                                                                                 |
+| Layer | Choice | Reason |
+|---|---|---|
+| Shell | Tauri 2 (Rust), WebView2 on Windows, WebKitGTK 4.1 on Linux | ~10–20 MB installer, no bundled browser |
+| Frontend | React 19 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual` | small, boring, fast to iterate |
+| Git backend | system `git` CLI spawned from Rust (`crates/git-core`) | only path that covers worktrees, stash, rebase, hooks, credential helpers exactly like the terminal |
+| GitHub | REST v3 via `reqwest` (`crates/github-api`), OAuth App Device Flow, token in OS keyring | no secret in the app, works headless |
+| Diffs | `git diff -p` parsed in Rust into hunks; custom React diff view | avoids Monaco (5 MB) |
+| Styling | CSS modules + design tokens (`src/styles/tokens.css`), dark/light | no Tailwind runtime |
 
 Not used on purpose: libgit2/git2-rs (worktree + credential gaps, duplicate behaviour), Electron, any GitKraken package.
 
@@ -91,7 +91,7 @@ Algorithm (standard "active lanes" sweep, as used by git-graph tools):
    lanes waiting for C are merge-in edges ending at C's lane and are freed.
 3. Replace C's lane target with `parents[0]`. For each extra parent P: if some lane already waits for P, draw a
    branch-out edge to it; else allocate a free lane for P. A lane whose target is `None` is free.
-4. Colors: assigned per lane _segment_ (a lane keeps its color from allocation to being freed), palette of 12.
+4. Colors: assigned per lane *segment* (a lane keeps its color from allocation to being freed), palette of 12.
 5. Emit edges for the segment between row i and i+1 so each row can be drawn independently (needed for virtualization).
 
 Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to the frontend (binary via
