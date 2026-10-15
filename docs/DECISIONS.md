@@ -42,3 +42,17 @@ Reason: cheaper tokens, consistent with the team convention (comments and commit
 
 ## D-009 · accepted · 2026-10-15 — Graph rendering: SVG per virtualized row; canvas fallback only if measured > 4 ms/row
 Reason: SVG keeps hit-testing and styling trivial; virtualization bounds the cost to visible rows.
+
+## D-010 · accepted · 2026-10-15 — Toolchain installed per-user; Tauri CLI from npm, not `cargo install`
+Context: `corepack enable` needs admin rights on this machine (writes to `C:\Program Files\nodejs`); compiling
+`tauri-cli` with cargo takes minutes and is not pinned by any lockfile.
+Decision: `pnpm` installed with `npm install -g pnpm` (user profile) and pinned via `packageManager` in `package.json`;
+the Tauri CLI is the `@tauri-apps/cli` devDependency (prebuilt binary, pinned in `pnpm-lock.yaml`), invoked as `pnpm tauri`.
+Consequences: CI installs the same versions from the lockfile; no `cargo install tauri-cli` anywhere.
+
+## D-011 · accepted · 2026-10-15 — Cargo workspace root at the repo root; edition 2024; React 19
+Context: ARCHITECTURE.md placed the workspace root in `src-tauri/Cargo.toml`, but `crates/` lives next to `src-tauri/`
+and `cargo check -p git-core` must work from the repo root. `create-tauri-app` generates edition 2024 and React 19.
+Decision: `Cargo.toml` (workspace, shared `[workspace.package]` and `[workspace.dependencies]`, release profile) at the
+repo root; members `src-tauri`, `crates/git-core`, `crates/github-api`. Edition 2024, MSRV 1.85. React 19.
+Consequences: `.claude/rules/rust.md` and ARCHITECTURE.md updated accordingly; `pnpm tauri` detects the workspace itself.

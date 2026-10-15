@@ -6,7 +6,7 @@ paths:
 
 # Rust conventions (GitBranch)
 
-- Edition 2021, `#![deny(unsafe_code)]` in git-core and github-api. `anyhow` only in binaries; crates expose typed errors
+- Edition 2024 (MSRV 1.85), `#![deny(unsafe_code)]` in git-core and github-api. `anyhow` only in binaries; crates expose typed errors
   (`thiserror`).
 - Spawn git with `std::process::Command` / `tokio::process::Command`; never `sh -c`. Pass `--` before user-supplied paths.
 - Parse only machine-readable git output. Parsers are pure functions `fn parse_x(bytes: &[u8]) -> Result<T, ParseError>`

@@ -1,9 +1,18 @@
 # Claude Code personal overrides
 .claude/settings.local.json
 
-# Build outputs (populated from Phase 0)
+# Node / Vite
 node_modules/
 dist/
+*.local
+*.log
+
+# Rust / Tauri
 target/
 src-tauri/gen/schemas/
-*.log
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store

@@ -18,9 +18,9 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[?]` blocked on
 
 ## Prerequisites (one-time, Phase 0 installs them)
 
-- Rust stable (present: 1.97) + `rustup component add rustfmt clippy` (not yet installed)
-- `cargo install tauri-cli --version "^2"` (not yet installed)
-- Node 24 (present) + `corepack enable` for pnpm (not yet installed)
+- Rust stable (1.97) + `rustup component add rustfmt clippy` (done)
+- Tauri CLI: `@tauri-apps/cli` devDependency, run as `pnpm tauri` (see D-010; done)
+- Node 24 + pnpm (`npm install -g pnpm`, pinned by `packageManager`; done)
 - Windows: WebView2 runtime (ships with Win 11), MSVC build tools (present, Rust works).
 - Linux: `libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev` (CI only until a Linux box is available).
 - A GitHub **OAuth App** registered by the owner with *Device Flow* enabled (needed from Phase 5). Only the public `client_id` is embedded. See DECISIONS.md D-004.
@@ -33,9 +33,9 @@ a tagged commit `phase-N`, PLAN.md checkboxes updated, and a short note in `docs
 ### Phase 0 — Skeleton and toolchain
 Goal: an empty window that opens, builds on both OSes in CI, with the Rust/TS layering in place.
 
-- [ ] 0.1 Install toolchain (rustfmt, clippy, tauri-cli, pnpm). Record versions in `docs/CHANGELOG.md`.
-- [ ] 0.2 `pnpm create tauri-app` (React + TS + Vite, pnpm). App id `ai.rosepetal.gitbranch`, product name `GitBranch`.
-- [ ] 0.3 Cargo workspace: `src-tauri` (thin commands) + `crates/git-core` (no Tauri dependency) + `crates/github-api`.
+- [x] 0.1 Install toolchain (rustfmt, clippy, tauri-cli, pnpm). Record versions in `docs/CHANGELOG.md`.
+- [x] 0.2 `pnpm create tauri-app` (React + TS + Vite, pnpm). App id `ai.rosepetal.gitbranch`, product name `GitBranch`.
+- [x] 0.3 Cargo workspace: `src-tauri` (thin commands) + `crates/git-core` (no Tauri dependency) + `crates/github-api`.
 - [ ] 0.4 `git-core::runner`: spawn `git` with fixed env (`GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `GIT_OPTIONAL_LOCKS=0`), timeout, stdout/stderr capture, typed `GitError`.
 - [ ] 0.5 Test fixture helper: build throwaway repos with `git` in a temp dir (linear, merge, octopus, orphan, tags, stash). Used by every later phase.
 - [ ] 0.6 Frontend scaffolding: Zustand store, typed `invoke` wrappers in `src/ipc/`, error toast, dark/light theme tokens.

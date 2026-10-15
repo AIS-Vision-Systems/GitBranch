@@ -5,7 +5,7 @@
 | Layer | Choice | Reason |
 |---|---|---|
 | Shell | Tauri 2 (Rust), WebView2 on Windows, WebKitGTK 4.1 on Linux | ~10–20 MB installer, no bundled browser |
-| Frontend | React 18 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual` | small, boring, fast to iterate |
+| Frontend | React 19 + TypeScript + Vite, Zustand for state, `@tanstack/react-virtual` | small, boring, fast to iterate |
 | Git backend | system `git` CLI spawned from Rust (`crates/git-core`) | only path that covers worktrees, stash, rebase, hooks, credential helpers exactly like the terminal |
 | GitHub | REST v3 via `reqwest` (`crates/github-api`), OAuth App Device Flow, token in OS keyring | no secret in the app, works headless |
 | Diffs | `git diff -p` parsed in Rust into hunks; custom React diff view | avoids Monaco (5 MB) |
@@ -17,6 +17,7 @@ Not used on purpose: libgit2/git2-rs (worktree + credential gaps, duplicate beha
 
 ```
 GitBranch/
+  Cargo.toml                   # workspace root: src-tauri + crates/*, shared deps, release profile
   package.json  pnpm-lock.yaml  vite.config.ts  tsconfig.json
   src/                         # frontend
     main.tsx  App.tsx
@@ -31,7 +32,7 @@ GitBranch/
       github/                  # Login (device flow UI), Account, RepoPicker
     styles/tokens.css
   src-tauri/
-    Cargo.toml                 # workspace root
+    Cargo.toml                 # the Tauri binary crate (member of the root workspace)
     src/
       main.rs                  # tauri::Builder, --askpass entry point
       commands/                # #[tauri::command] fns, THIN: parse args -> git-core -> serialize
