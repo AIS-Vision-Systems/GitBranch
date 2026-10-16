@@ -70,3 +70,28 @@ export function commitDetails(repoId: RepoId, oid: string): Promise<CommitDetail
 export function fileDiff(repoId: RepoId, target: DiffTarget): Promise<FileDiff> {
   return call<FileDiff>("file_diff", { repoId, target });
 }
+
+export interface CommitArgs {
+  message: string;
+  amend: boolean;
+  signoff: boolean;
+  allowEmpty: boolean;
+  noVerify: boolean;
+}
+
+export interface CommitTemplate {
+  message: string;
+  source: "mergeMsg" | "squashMsg" | "configTemplate";
+}
+
+export function commit(repoId: RepoId, args: CommitArgs): Promise<string> {
+  return call<string>("commit", { repoId, args });
+}
+
+export function commitTemplate(repoId: RepoId): Promise<CommitTemplate | null> {
+  return call<CommitTemplate | null>("commit_template", { repoId });
+}
+
+export function headMessage(repoId: RepoId): Promise<string> {
+  return call<string>("head_message", { repoId });
+}
