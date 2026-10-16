@@ -5,6 +5,7 @@
 mod commands;
 mod error;
 mod state;
+mod watcher;
 
 pub use error::AppError;
 
@@ -19,6 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(commands::graph::GraphCache::default())
+        .manage(watcher::Watchers::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             app.manage(AppState::new(GitRunner::from_env(), dir.join("recent.json")));

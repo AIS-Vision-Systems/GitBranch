@@ -29,6 +29,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tracing.workspace = true
+notify = "8"
 
 [dev-dependencies]
 tempfile.workspace = true
+git-core = { workspace = true, features = ["fixtures"] }

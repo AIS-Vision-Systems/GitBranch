@@ -5,7 +5,9 @@ use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 
 use crate::AppError;
+use crate::commands::graph::GraphCache;
 use crate::state::{AppState, RecentRepo};
+use crate::watcher::{self, Watchers};
 
 /// Result of opening a repository.
 #[derive(Debug, Clone, Serialize)]
@@ -43,9 +45,15 @@ pub async fn pick_repo_dir(app: tauri::AppHandle) -> Result<Option<String>, AppE
 
 /// Discovers and registers a repository; a linked worktree stays a worktree (see `main_work_tree`).
 #[tauri::command]
-pub async fn open_repo(state: State<'_, AppState>, path: String) -> Result<OpenedRepo, AppError> {
+pub async fn open_repo(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    watchers: State<'_, Watchers>,
+    path: String,
+) -> Result<OpenedRepo, AppError> {
     let info = git_core::repo::discover(&state.runner, Path::new(&path)).await?;
     let repo = state.open(info);
+    watchers.start(repo.id.clone(), repo.info.clone(), watcher::tauri_emitter(app))?;
     let work_tree = s(&repo.info.work_tree);
     let name = repo
         .info
@@ -79,7 +87,14 @@ pub async fn remove_recent(state: State<'_, AppState>, path: String) -> Result<(
 
 /// Forgets an open repository.
 #[tauri::command]
-pub async fn close_repo(state: State<'_, AppState>, repo_id: String) -> Result<(), AppError> {
+pub async fn close_repo(
+    state: State<'_, AppState>,
+    watchers: State<'_, Watchers>,
+    cache: State<'_, GraphCache>,
+    repo_id: String,
+) -> Result<(), AppError> {
+    watchers.stop(&repo_id);
+    cache.forget(&repo_id);
     state.close(&repo_id);
     Ok(())
 }
