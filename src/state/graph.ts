@@ -5,6 +5,8 @@ import { undoPreview, type UndoInfo } from "../ipc/reflog";
 import { stashList, type StashEntry } from "../ipc/stash";
 import type { Change } from "../ipc/events";
 import type { Commit, GraphQuery, Ref, RepoId, Refs, Row, Status } from "../ipc/types";
+import { useRemotesStore } from "./remotes";
+import { submodulesOf, useSubmodulesStore } from "./submodules";
 import { reportError } from "./ui";
 
 export const FIRST_PAGE = 2000;
@@ -186,6 +188,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     load: async (repoId) => {
       set({ selectedOid: null, hoverOid: null });
+      void useRemotesStore.getState().load(repoId);
+      void useSubmodulesStore.getState().load(repoId);
       await reload(repoId, true);
     },
 
@@ -222,6 +226,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     refresh: async (repoId, what) => {
       if (get().byRepo[repoId] === undefined) return;
+      if (what.includes("refs")) void useRemotesStore.getState().load(repoId);
+      if (
+        what.includes("head") ||
+        what.includes("index") ||
+        (what.includes("workingTree") &&
+          submodulesOf(useSubmodulesStore.getState(), repoId).length > 0)
+      ) {
+        void useSubmodulesStore.getState().load(repoId);
+      }
       if (what.includes("head") || what.includes("refs")) {
         await reload(repoId, false);
         return;
@@ -244,6 +257,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     forget: (repoId) => {
       bump(repoId);
+      useRemotesStore.getState().clear(repoId);
+      useSubmodulesStore.getState().clear(repoId);
       set((s) => {
         const byRepo = { ...s.byRepo };
         delete byRepo[repoId];

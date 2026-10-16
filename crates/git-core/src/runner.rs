@@ -8,10 +8,12 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::{Child, Command};
+use tokio_util::sync::CancellationToken;
 
 /// Minimum supported git version (worktree + `GIT_OPTIONAL_LOCKS`).
 pub const MIN_GIT_VERSION: GitVersion = GitVersion { major: 2, minor: 31, patch: 0 };
@@ -31,6 +33,7 @@ pub(crate) const SCRUB_ENV: &[&str] = &[
     "GIT_PREFIX",
     "GIT_CEILING_DIRECTORIES",
     "GIT_ASKPASS",
+    "GITBRANCH_ASKPASS",
 ];
 
 /// Why a git invocation failed.
@@ -48,8 +51,12 @@ pub enum GitErrorKind {
     AuthRequired,
     /// A revision, ref, path or remote object does not exist.
     NotFound,
+    /// The remote rejected a ref update (non-fast-forward, stale lease, hook).
+    Rejected,
     /// The git executable could not be started at all (or is too old).
     Spawn,
+    /// The caller cancelled the operation; the process tree was killed.
+    Cancelled,
 }
 
 /// A failed git invocation. `stderr` and `args` are already lossily decoded and have any
@@ -75,7 +82,9 @@ impl GitError {
             GitErrorKind::Conflict => "git.conflict",
             GitErrorKind::AuthRequired => "git.auth_required",
             GitErrorKind::NotFound => "git.not_found",
+            GitErrorKind::Rejected => "git.rejected",
             GitErrorKind::Spawn => "git.spawn",
+            GitErrorKind::Cancelled => "git.cancelled",
         }
     }
 
@@ -88,7 +97,9 @@ impl GitError {
             GitErrorKind::Conflict => format!("git {cmd} stopped with conflicts"),
             GitErrorKind::AuthRequired => "authentication required".to_string(),
             GitErrorKind::NotFound => format!("git {cmd}: not found"),
+            GitErrorKind::Rejected => format!("git {cmd}: the remote rejected the update"),
             GitErrorKind::Spawn => "could not start git".to_string(),
+            GitErrorKind::Cancelled => "Cancelled".to_string(),
         }
     }
 
@@ -122,6 +133,10 @@ impl GitError {
             "pathspec",
             "Needed a single revision",
         ];
+        let rejected = stderr.lines().any(|l| {
+            let l = l.trim_start_matches("remote:").trim_start();
+            l.starts_with("! [rejected]") || l.starts_with("! [remote rejected]")
+        }) || stdout.lines().any(|l| l.starts_with("!\t"));
         let git_lines = || {
             stderr.lines().map(str::trim_start).filter(|l| {
                 l.starts_with("fatal:") || l.starts_with("error:") || l.starts_with("remote:")
@@ -136,6 +151,8 @@ impl GitError {
             GitErrorKind::Conflict
         } else if has(AUTH) {
             GitErrorKind::AuthRequired
+        } else if rejected {
+            GitErrorKind::Rejected
         } else if has(NOT_FOUND) {
             GitErrorKind::NotFound
         } else {
@@ -192,7 +209,9 @@ impl GitOutput {
 /// Per-invocation options.
 #[derive(Debug, Clone, Default)]
 pub struct RunOpts {
-    /// Wall-clock limit. `None` (the default) means no limit: killing a *local write* midway can
+    /// Wall-clock limit for [`GitRunner::run`]; in [`GitRunner::run_streaming`] it is an
+    /// *inactivity* limit that restarts whenever git writes to stdout or stderr, so a long
+    /// transfer that keeps reporting progress is not killed. `None` (the default) means no limit: killing a *local write* midway can
     /// leave `.git/index.lock` behind, so timeouts are for network and read-only calls, and the
     /// UI cancels anything else by dropping the future (which kills the child).
     pub timeout: Option<Duration>,
@@ -201,9 +220,17 @@ pub struct RunOpts {
     /// Extra environment variables for this call only (e.g. `GIT_SEQUENCE_EDITOR`). Applied
     /// after the fixed environment, so they can override it.
     pub env: Vec<(String, String)>,
+    /// Expose the askpass bridge (`GIT_ASKPASS`) to this call. Only network calls set it, so hooks
+    /// run by commit/merge/rebase cannot query it (D-024).
+    pub askpass: bool,
 }
 
 impl RunOpts {
+    /// Options for a network call: the given timeout and the askpass bridge enabled.
+    pub fn network(timeout: Duration) -> Self {
+        Self { timeout: Some(timeout), askpass: true, ..Self::default() }
+    }
+
     /// Options with the given timeout.
     pub fn with_timeout(timeout: Duration) -> Self {
         Self { timeout: Some(timeout), ..Self::default() }
@@ -309,6 +336,72 @@ impl GitRunner {
         Ok(v)
     }
 
+    /// Spawns git for `args`; returns the child and the credential-redacted argv.
+    ///
+    /// `group` puts the child in its own process group (Unix) so [`kill_tree`] can signal the
+    /// whole tree; on Windows `taskkill /T` walks the tree instead.
+    fn spawn<S: AsRef<OsStr>>(
+        &self,
+        cwd: &Path,
+        args: &[S],
+        opts: &RunOpts,
+        group: bool,
+    ) -> Result<(Child, Vec<String>), GitError> {
+        let argv: Vec<String> =
+            args.iter().map(|a| redact_credentials(&a.as_ref().to_string_lossy())).collect();
+        let mut cmd = self.command(cwd, opts.askpass);
+        cmd.args(args);
+        for (k, v) in &opts.env {
+            cmd.env(k, v);
+        }
+        cmd.stdin(if opts.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+        #[cfg(unix)]
+        if group {
+            cmd.process_group(0);
+        }
+        #[cfg(not(unix))]
+        let _ = group;
+
+        tracing::debug!(target: "git", cwd = %cwd.display(), args = ?argv, "spawn");
+
+        match cmd.spawn() {
+            Ok(child) => Ok((child, argv)),
+            Err(e) => Err(GitError {
+                kind: GitErrorKind::Spawn,
+                stderr: format!("{}: {e}", self.git_path.display()),
+                args: argv,
+            }),
+        }
+    }
+
+    /// Turns a finished child into the result: output on success, a classified error otherwise.
+    fn finish(
+        status: std::process::ExitStatus,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
+        argv: Vec<String>,
+    ) -> Result<GitOutput, GitError> {
+        if status.success() {
+            return Ok(GitOutput { stdout, stderr });
+        }
+        let status = status.code().unwrap_or(-1);
+        let out_text = String::from_utf8_lossy(&stdout);
+        let err_text = redact_credentials(String::from_utf8_lossy(&stderr).trim());
+        tracing::debug!(target: "git", status, args = ?argv, "failed");
+        let kind = GitError::classify(status, &out_text, &err_text);
+        // `git push --porcelain` reports rejected refs on stdout; keep them for the caller.
+        let err_text = if kind == GitErrorKind::Rejected {
+            let refs: Vec<&str> = out_text.lines().filter(|l| l.starts_with("!\t")).collect();
+            redact_credentials(&format!("{}\n{err_text}", refs.join("\n"))).trim().to_string()
+        } else {
+            err_text
+        };
+        Err(GitError { kind, stderr: err_text, args: argv })
+    }
+
     /// Runs `git <args>` with `cwd` as the working directory.
     ///
     /// Returns [`GitOutput`] on exit status 0; otherwise a [`GitError`] classified from the
@@ -320,25 +413,7 @@ impl GitRunner {
         args: &[S],
         opts: RunOpts,
     ) -> Result<GitOutput, GitError> {
-        let argv: Vec<String> =
-            args.iter().map(|a| redact_credentials(&a.as_ref().to_string_lossy())).collect();
-        let mut cmd = self.command(cwd);
-        cmd.args(args);
-        for (k, v) in &opts.env {
-            cmd.env(k, v);
-        }
-        cmd.stdin(if opts.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
-
-        tracing::debug!(target: "git", cwd = %cwd.display(), args = ?argv, "spawn");
-
-        let mut child = cmd.spawn().map_err(|e| GitError {
-            kind: GitErrorKind::Spawn,
-            stderr: format!("{}: {e}", self.git_path.display()),
-            args: argv.clone(),
-        })?;
+        let (mut child, argv) = self.spawn(cwd, args, &opts, false)?;
 
         // Feed stdin concurrently with draining stdout/stderr: writing first would deadlock when
         // both the input and the output exceed the pipe buffers (`cat-file --batch`, `apply`).
@@ -373,20 +448,143 @@ impl GitRunner {
             stderr: e.to_string(),
             args: argv.clone(),
         })?;
-
-        if output.status.success() {
-            return Ok(GitOutput { stdout: output.stdout, stderr: output.stderr });
-        }
-        let status = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = redact_credentials(String::from_utf8_lossy(&output.stderr).trim());
-        tracing::debug!(target: "git", status, args = ?argv, "failed");
-        let kind = GitError::classify(status, &stdout, &stderr);
-        Err(GitError { kind, stderr, args: argv })
+        Self::finish(output.status, output.stdout, output.stderr, argv)
     }
 
+    /// Like [`run`](Self::run) but reports stderr incrementally and can be cancelled.
+    ///
+    /// stderr is split on `\r` and `\n` (git redraws progress lines with `\r`); `sink` gets every
+    /// non-empty trimmed line as it arrives. When `cancel` fires the whole process tree is killed
+    /// and [`GitErrorKind::Cancelled`] is returned. `opts.stdin` must be `None`. The child is in
+    /// its own process group on Unix.
+    pub async fn run_streaming<S: AsRef<OsStr>>(
+        &self,
+        cwd: &Path,
+        args: &[S],
+        opts: RunOpts,
+        sink: &mut (dyn FnMut(&str) + Send),
+        cancel: &CancellationToken,
+    ) -> Result<GitOutput, GitError> {
+        if opts.stdin.is_some() {
+            return Err(GitError {
+                kind: GitErrorKind::Spawn,
+                stderr: "stdin is not supported in streaming mode".into(),
+                args: args
+                    .iter()
+                    .map(|a| redact_credentials(&a.as_ref().to_string_lossy()))
+                    .collect(),
+            });
+        }
+        // Inactivity clock shared by the readers and the timeout branch. Atomic (not `Cell`) so
+        // the future stays `Send` for the Tauri command runtime.
+        let started = Instant::now();
+        let last_activity_ms = AtomicU64::new(0);
+        let touch = || {
+            let ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            last_activity_ms.store(ms, Ordering::Relaxed);
+        };
+        let last_activity =
+            || started + Duration::from_millis(last_activity_ms.load(Ordering::Relaxed));
+        let (mut child, argv) = self.spawn(cwd, args, &opts, true)?;
+        let (Some(mut out_pipe), Some(mut err_pipe)) = (child.stdout.take(), child.stderr.take())
+        else {
+            return Err(GitError {
+                kind: GitErrorKind::Spawn,
+                stderr: "missing child pipes".into(),
+                args: argv,
+            });
+        };
+
+        let read_out = async {
+            let mut buf = Vec::new();
+            let mut chunk = vec![0u8; 8192];
+            loop {
+                match out_pipe.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        touch();
+                        buf.extend_from_slice(&chunk[..n]);
+                    }
+                }
+            }
+            buf
+        };
+        let read_err = async {
+            let mut all = Vec::new();
+            let mut line = Vec::new();
+            let mut chunk = vec![0u8; 4096];
+            loop {
+                let n = match err_pipe.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => n,
+                };
+                touch();
+                all.extend_from_slice(&chunk[..n]);
+                for &b in &chunk[..n] {
+                    if b == b'\r' || b == b'\n' {
+                        emit_line(&mut line, sink);
+                    } else {
+                        line.push(b);
+                    }
+                }
+            }
+            emit_line(&mut line, sink);
+            all
+        };
+        let limit = opts.timeout;
+        let timeout = async {
+            let Some(d) = limit else { return std::future::pending().await };
+            loop {
+                let deadline = last_activity() + d;
+                tokio::time::sleep_until(deadline.into()).await;
+                if last_activity() + d <= Instant::now() {
+                    break;
+                }
+            }
+        };
+
+        let outcome = {
+            let work = async {
+                let (status, out, err) = tokio::join!(child.wait(), read_out, read_err);
+                Outcome::Done(status, out, err)
+            };
+            // Biased, work first: a cancel racing a command that already finished must not turn
+            // a completed push into `Cancelled`.
+            tokio::select! {
+                biased;
+                o = work => o,
+                () = cancel.cancelled() => Outcome::Cancelled,
+                () = timeout => Outcome::TimedOut,
+            }
+        };
+        match outcome {
+            Outcome::Done(status, stdout, stderr) => {
+                let status = status.map_err(|e| GitError {
+                    kind: GitErrorKind::Spawn,
+                    stderr: e.to_string(),
+                    args: argv.clone(),
+                })?;
+                Self::finish(status, stdout, stderr, argv)
+            }
+            Outcome::Cancelled => {
+                kill_tree(&mut child).await;
+                Err(GitError { kind: GitErrorKind::Cancelled, stderr: String::new(), args: argv })
+            }
+            Outcome::TimedOut => {
+                kill_tree(&mut child).await;
+                Err(GitError {
+                    kind: GitErrorKind::Timeout,
+                    stderr: format!("no output for {:?}", limit.unwrap_or_default()),
+                    args: argv,
+                })
+            }
+        }
+    }
     /// Builds the base command: executable, cwd, fixed environment, `-c core.quotepath=false`.
-    pub(crate) fn command(&self, cwd: &Path) -> Command {
+    ///
+    /// `GIT_ASKPASS`/`GITBRANCH_ASKPASS` are set only when an askpass program is configured and
+    /// `askpass` is true.
+    pub(crate) fn command(&self, cwd: &Path, askpass: bool) -> Command {
         let mut cmd = Command::new(&self.git_path);
         cmd.current_dir(cwd).arg("-c").arg("core.quotepath=false");
         for key in SCRUB_ENV {
@@ -405,8 +603,10 @@ impl GitRunner {
         for (k, v) in &self.env {
             cmd.env(k, v);
         }
-        if let Some(p) = &self.askpass {
-            cmd.env("GIT_ASKPASS", p);
+        if let (Some(p), true) = (&self.askpass, askpass) {
+            // The app binary answers git's prompts itself and recognises that mode by this flag
+            // plus a prompt-shaped argument (D-024 amendment).
+            cmd.env("GIT_ASKPASS", p).env("GITBRANCH_ASKPASS", "1");
         }
         #[cfg(windows)]
         {
@@ -418,6 +618,57 @@ impl GitRunner {
     }
 }
 
+/// How a streaming run ended.
+enum Outcome {
+    Done(std::io::Result<std::process::ExitStatus>, Vec<u8>, Vec<u8>),
+    Cancelled,
+    TimedOut,
+}
+
+fn emit_line(line: &mut Vec<u8>, sink: &mut (dyn FnMut(&str) + Send)) {
+    if !line.is_empty() {
+        let text = String::from_utf8_lossy(line);
+        let text = text.trim();
+        if !text.is_empty() {
+            // Servers can echo URLs with embedded credentials.
+            sink(&redact_credentials(text));
+        }
+        line.clear();
+    }
+}
+
+/// `%SystemRoot%\System32\<name>`, or the bare name when `SystemRoot` is unset.
+#[cfg(windows)]
+fn system_tool(name: &str) -> PathBuf {
+    std::env::var_os("SystemRoot")
+        .map_or_else(|| PathBuf::from(name), |r| Path::new(&r).join("System32").join(name))
+}
+
+/// Kills `child` and everything it spawned (`git-remote-https`, `ssh`, hooks).
+///
+/// Windows: runs `taskkill /T /F /PID <pid>`, an external tool that ships with every Windows;
+/// there is no safe-Rust way to walk the tree (Job Objects need `unsafe`). Unix: the child was
+/// spawned as a process-group leader, so `kill -TERM -- -<pid>` signals the whole group (also via
+/// an external tool, for the same no-`unsafe` reason). Both are followed by `child.kill()`.
+pub(crate) async fn kill_tree(child: &mut Child) {
+    if let Some(pid) = child.id() {
+        #[cfg(windows)]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            let mut cmd = Command::new(system_tool("taskkill.exe"));
+            cmd.args(["/T", "/F", "/PID", &pid.to_string()]).creation_flags(CREATE_NO_WINDOW);
+            let _ = cmd.stdout(Stdio::null()).stderr(Stdio::null()).status().await;
+        }
+        #[cfg(unix)]
+        {
+            let mut cmd =
+                Command::new(if Path::new("/bin/kill").exists() { "/bin/kill" } else { "kill" });
+            cmd.args(["-TERM", "--", &format!("-{pid}")]);
+            let _ = cmd.stdout(Stdio::null()).stderr(Stdio::null()).status().await;
+        }
+    }
+    let _ = child.kill().await;
+}
 /// `GITBRANCH_GIT` when set and non-empty, else `git` from `PATH`.
 pub(crate) fn git_path_from_env() -> PathBuf {
     std::env::var_os("GITBRANCH_GIT")
@@ -428,6 +679,16 @@ pub(crate) fn git_path_from_env() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn emit_line_redacts_credentials() {
+        let mut got = Vec::new();
+        let mut sink = |l: &str| got.push(l.to_string());
+        let mut line = b"  redirect to https://u:tok@host/x.git ".to_vec();
+        emit_line(&mut line, &mut sink);
+        assert_eq!(got, ["redirect to https://***@host/x.git"]);
+        assert!(line.is_empty());
+    }
 
     #[test]
     fn parses_versions() {
@@ -465,6 +726,11 @@ mod tests {
         // Hook chatter is not git's own diagnostics.
         assert_eq!(k("sh: eslint: command not found\n"), GitErrorKind::ExitCode(128));
         assert_eq!(k("warning: templates not found\nerror: boom"), GitErrorKind::ExitCode(128));
+        assert_eq!(k(" ! [rejected]        main -> main (fetch first)"), GitErrorKind::Rejected);
+        assert_eq!(
+            GitError::classify(1, "!\trefs/heads/a:refs/heads/a\t[rejected] (stale info)\n", ""),
+            GitErrorKind::Rejected
+        );
         // Conflicts are printed on stdout.
         assert_eq!(
             GitError::classify(1, "CONFLICT (content): Merge conflict in f1.txt\n", ""),
@@ -489,7 +755,7 @@ mod tests {
 
     #[test]
     fn scrubs_inherited_repo_env() {
-        let cmd = GitRunner::new("git").command(Path::new("."));
+        let cmd = GitRunner::new("git").command(Path::new("."), false);
         let envs: Vec<_> = cmd.as_std().get_envs().collect();
         for key in SCRUB_ENV {
             assert!(
@@ -508,17 +774,23 @@ mod tests {
 
     #[test]
     fn askpass_is_set_only_when_configured() {
-        let with = GitRunner::new("git").with_askpass(Some(PathBuf::from("askpass.exe")));
-        let cmd = with.command(Path::new("."));
-        assert!(
-            cmd.as_std().get_envs().any(|(k, v)| k.to_str() == Some("GIT_ASKPASS") && v.is_some())
-        );
-        let without = GitRunner::new("git").command(Path::new("."));
-        assert!(
-            without
-                .as_std()
+        let env_of = |cmd: &Command, name: &str| {
+            cmd.as_std()
                 .get_envs()
-                .any(|(k, v)| k.to_str() == Some("GIT_ASKPASS") && v.is_none())
-        );
+                .find(|(k, _)| k.to_str() == Some(name))
+                .map(|(_, v)| v.map(|v| v.to_string_lossy().into_owned()))
+        };
+        let with = GitRunner::new("git").with_askpass(Some(PathBuf::from("askpass.exe")));
+        let cmd = with.command(Path::new("."), true);
+        assert_eq!(env_of(&cmd, "GIT_ASKPASS"), Some(Some("askpass.exe".to_string())));
+        assert_eq!(env_of(&cmd, "GITBRANCH_ASKPASS"), Some(Some("1".to_string())));
+        // Configured but not a network call: removed, so hooks cannot reach it.
+        let local = with.command(Path::new("."), false);
+        assert_eq!(env_of(&local, "GIT_ASKPASS"), Some(None));
+        assert_eq!(env_of(&local, "GITBRANCH_ASKPASS"), Some(None));
+        let without = GitRunner::new("git").command(Path::new("."), true);
+        // `Some(None)` means "removed from the inherited environment".
+        assert_eq!(env_of(&without, "GIT_ASKPASS"), Some(None));
+        assert_eq!(env_of(&without, "GITBRANCH_ASKPASS"), Some(None));
     }
 }

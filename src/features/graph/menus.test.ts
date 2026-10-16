@@ -109,9 +109,28 @@ describe("refMenu", () => {
       "Create branch from here…",
       "Merge into main…",
       "Rebase main onto this…",
+      "Fetch origin",
     ]);
     find(m, "checkout").onSelect();
     expect(checkout).toHaveBeenCalledWith(repoId, "origin/feat");
+  });
+
+  it("remote branch fetch and local branch push/pull items", () => {
+    const fetch = vi.fn().mockResolvedValue(true);
+    useOpsStore.setState({ fetch });
+    const rm = refMenu(ctx, ref({ name: "feat", kind: { remoteBranch: { remote: "origin" } } }));
+    find(rm, "fetch-remote").onSelect();
+    expect(fetch).toHaveBeenCalledWith(repoId, { remote: "origin", prune: true, tags: false });
+    const other = refMenu(ctx, ref({}));
+    expect(labels(other)).toContain("Push feat…");
+    expect(labels(other)).not.toContain("Pull…");
+    const head = refMenu(ctx, ref({ isHead: true }));
+    expect(labels(head)).toEqual(expect.arrayContaining(["Pull…", "Push feat…"]));
+    find(head, "push").onSelect();
+    expect(useDialogsStore.getState().current).toMatchObject({
+      id: "remote.push",
+      props: { repoId, branch: "feat" },
+    });
   });
 
   it("tag: detached checkout and danger delete", () => {

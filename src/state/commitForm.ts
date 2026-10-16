@@ -3,6 +3,10 @@ import * as ipc from "../ipc/commit";
 import type { CommitTemplate } from "../ipc/commit";
 import { isIpcError } from "../ipc/core";
 import type { RepoId } from "../ipc/types";
+import { pushDefaults } from "../lib/pushTarget";
+import { useGraphStore } from "./graph";
+import { useOpsStore } from "./ops";
+import { remotesOf, useRemotesStore } from "./remotes";
 import { reportError, useUiStore } from "./ui";
 
 export const SIGNOFF_KEY = "gitbranch.commit.signoff";
@@ -27,6 +31,8 @@ interface CommitFormState {
   setSignoff: (on: boolean) => void;
   loadTemplate: (repoId: RepoId) => Promise<void>;
   commit: (repoId: RepoId) => Promise<boolean>;
+  /** Commit, then push the current branch (sets the upstream when it has none). */
+  commitAndPush: (repoId: RepoId) => Promise<boolean>;
   /** Forget one repo's form, or all of them. Invalidates in-flight replies. */
   reset: (repoId?: RepoId) => void;
 }
@@ -56,6 +62,8 @@ export function forRepo(s: Pick<CommitFormState, "byRepo">, repoId: RepoId): For
 export const useCommitFormStore = create<CommitFormState>((set, get) => {
   // Bumped by reset(); async replies captured before a reset are dropped.
   let generation = 0;
+  // Oid of the commit made by the latest commit() call (for commitAndPush messages).
+  let lastOid = "";
 
   const patch = (repoId: RepoId, p: Partial<FormState>): void =>
     set((s) => ({ byRepo: { ...s.byRepo, [repoId]: { ...forRepo(s, repoId), ...p } } }));
@@ -140,6 +148,7 @@ export const useCommitFormStore = create<CommitFormState>((set, get) => {
           allowEmpty: false,
           noVerify: false,
         });
+        lastOid = oid;
         patch(repoId, { ...EMPTY_FORM });
         useUiStore.getState().pushToast({ kind: "success", title: `Committed ${oid.slice(0, 7)}` });
         return true;
@@ -152,6 +161,33 @@ export const useCommitFormStore = create<CommitFormState>((set, get) => {
         }
         return false;
       }
+    },
+
+    commitAndPush: async (repoId) => {
+      const ui = useUiStore.getState();
+      if (useOpsStore.getState().busy) {
+        ui.pushToast({ kind: "error", title: "Another operation is running" });
+        return false;
+      }
+      if (!(await get().commit(repoId))) return false;
+      const label = `Committed ${lastOid.slice(0, 7)}`;
+      const skip = (reason: string): false => {
+        useUiStore.getState().pushToast({ kind: "info", title: `${label}, not pushed: ${reason}` });
+        return false;
+      };
+      const refs = useGraphStore.getState().byRepo[repoId]?.refs ?? null;
+      if (refs === null) return skip("refs not loaded");
+      const d = pushDefaults(refs, remotesOf(useRemotesStore.getState(), repoId));
+      if (d === null) return skip("no remotes");
+      if (d.branch === null) return skip("HEAD is detached");
+      return useOpsStore.getState().push(repoId, {
+        remote: d.remote,
+        branch: d.branch,
+        remoteBranch: d.remoteBranch,
+        setUpstream: d.setUpstream,
+        tags: false,
+        forceWithLease: false,
+      });
     },
 
     reset: (repoId) => {

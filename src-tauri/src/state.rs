@@ -2,12 +2,16 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::AppError;
+use crate::commands::invalid_arg;
 use git_core::GitRunner;
 use git_core::repo::RepoInfo;
 use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 
 /// Maximum number of remembered recent repositories.
 pub const MAX_RECENT: usize = 20;
@@ -40,6 +44,36 @@ pub struct AppState {
     repos: Mutex<HashMap<String, OpenRepo>>,
     recent: Mutex<Vec<RecentRepo>>,
     recent_file: PathBuf,
+    /// Running cancellable operations by UI-chosen op id.
+    ops: Arc<OpMap>,
+    op_serial: AtomicU64,
+}
+
+type OpMap = Mutex<HashMap<String, (u64, CancellationToken)>>;
+
+/// Keeps an operation registered; removes it on drop (only if still its own entry).
+pub struct OpGuard {
+    ops: Arc<OpMap>,
+    id: String,
+    serial: u64,
+    token: CancellationToken,
+}
+
+impl OpGuard {
+    /// The token cancelled by `cancel_op`.
+    pub fn token(&self) -> CancellationToken {
+        self.token.clone()
+    }
+}
+
+impl Drop for OpGuard {
+    fn drop(&mut self) {
+        if let Ok(mut m) = self.ops.lock()
+            && m.get(&self.id).is_some_and(|(s, _)| *s == self.serial)
+        {
+            m.remove(&self.id);
+        }
+    }
 }
 
 /// Short stable id: first 12 hex digits of 64-bit FNV-1a over the path bytes.
@@ -65,7 +99,35 @@ impl AppState {
             .ok()
             .and_then(|b| serde_json::from_slice::<Vec<RecentRepo>>(&b).ok())
             .unwrap_or_default();
-        Self { runner, repos: Mutex::new(HashMap::new()), recent: Mutex::new(recent), recent_file }
+        Self {
+            runner,
+            repos: Mutex::new(HashMap::new()),
+            recent: Mutex::new(recent),
+            recent_file,
+            ops: Arc::new(Mutex::new(HashMap::new())),
+            op_serial: AtomicU64::new(0),
+        }
+    }
+
+    /// Registers a cancellable operation; the entry lives until the guard drops.
+    pub fn register_op(&self, id: &str) -> Result<OpGuard, AppError> {
+        let mut m = self.ops.lock().map_err(|_| invalid_arg("op registry"))?;
+        if m.contains_key(id) {
+            return Err(invalid_arg("op id (already running)"));
+        }
+        let serial = self.op_serial.fetch_add(1, Ordering::Relaxed);
+        let token = CancellationToken::new();
+        m.insert(id.to_string(), (serial, token.clone()));
+        Ok(OpGuard { ops: Arc::clone(&self.ops), id: id.to_string(), serial, token })
+    }
+
+    /// Cancels a running operation; `false` when the id is unknown (already finished).
+    pub fn cancel_op(&self, id: &str) -> bool {
+        let token = self.ops.lock().ok().and_then(|m| m.get(id).map(|(_, t)| t.clone()));
+        token.is_some_and(|t| {
+            t.cancel();
+            true
+        })
     }
 
     /// Registers an opened repository and returns it.
@@ -179,6 +241,24 @@ mod tests {
         let reloaded = state(d.path());
         assert_eq!(reloaded.recent(), s.recent());
         assert_eq!(reloaded.recent().len(), 1);
+    }
+
+    #[test]
+    fn op_registry_register_cancel_drop() {
+        let d = tempfile::tempdir().unwrap();
+        let s = state(d.path());
+        let g = s.register_op("a1").unwrap();
+        let t = g.token();
+        assert!(!t.is_cancelled());
+        assert!(s.register_op("a1").is_err());
+        assert!(s.cancel_op("a1"));
+        assert!(t.is_cancelled());
+        drop(g);
+        assert!(!s.cancel_op("a1"));
+        let g2 = s.register_op("a1").unwrap();
+        assert!(!g2.token().is_cancelled());
+        drop(g2);
+        assert!(!s.cancel_op("unknown"));
     }
 
     #[test]

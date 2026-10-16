@@ -300,3 +300,58 @@
   display: flex;
   gap: var(--space-1);
 }
+
+.submoduleTag {
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-fg-muted);
+  font-size: 0.8em;
+}
+
+.submoduleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  min-width: 0;
+}
+
+.submodulePath {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, monospace);
+}
+
+.submoduleOid {
+  font-family: var(--font-mono, monospace);
+  color: var(--color-fg-muted);
+}
+
+.stateBadge {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+
+.state_clean {
+  color: var(--color-success);
+}
+
+.state_modified {
+  color: var(--color-warning);
+}
+
+.state_uninitialized {
+  color: var(--color-fg-muted);
+}
+
+.state_conflict {
+  color: var(--color-danger);
+}

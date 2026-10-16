@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- 2026-10-16: Progress and cancel (item 3.3): fetch/pull/push/clone stream git's `--progress` lines to a slim
+  progress bar (phase, percentage, last line, elapsed) with Cancel (Esc) that kills the whole git process tree;
+  network timeouts are now inactivity-based. Clone dialog (item 3.4): URL, parent folder picker, name, branch,
+  shallow depth, submodules; Ctrl+Shift+C from the Welcome screen or the toolbar. Submodule status (item 3.5):
+  a Submodules section in the WIP pane (path, state, commit, describe) and a tag on gitlink status entries.
+- 2026-10-16: Askpass bridge (item 3.2, D-024): git over HTTPS gets the app's GitHub token from the OS keyring
+  through the GitBranch binary itself (`GIT_ASKPASS`, network calls only); strict prompt parsing (https, exact
+  `github.com`); SSH remotes keep using the system agent. The token itself is stored by the Phase 5 login.
+- 2026-10-16: Remotes (item 3.1): Remotes dialog (list/add/remove/rename), Fetch (all, prune) / Pull (ff-only,
+  rebase, merge or the repository default) / Push (set upstream, tags, force-with-lease only) from the toolbar,
+  branch chips and shortcuts (Ctrl+Shift+F/L/P); "Commit and push" enabled. Rejected pushes and missing
+  credentials get their own toasts; embedded credentials in remote URLs are refused and redacted.
 - 2026-10-16: Graph look and feel (item 2.10, D-023): GitKraken-style three-column graph (BRANCH / TAG · GRAPH ·
   COMMIT MESSAGE) with a column header, ref chips with local/remote/tag icons, local+upstream folded into one chip with
   `↑n ↓n`, `+N` pill for crowded commits, initials avatars ringed in the lane colour, rounded lane curves, full-row
@@ -17,6 +29,25 @@
   files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
+
+### Phase 3 demo (2026-10-16, branch `phase/3`)
+- Open a repo with a remote: the toolbar shows Fetch / Pull… / Push… (with the ahead count) / Clone… / Remotes…;
+  fetch updates the graph in place, Pull offers ff-only / rebase / merge / repository default, Push shows the exact
+  target (`main → origin/main`), set-upstream, tags and force-with-lease (never plain force; `--force-if-includes`
+  refuses to overwrite a remote tip you have not integrated). Rejected pushes and missing credentials get their own
+  toasts; "Commit and push" works.
+- Every network operation streams git's progress to a slim bar with phase, percentage and the last line, and Cancel
+  (Esc) kills the whole git process tree; Clone… (Ctrl+Shift+C, also from the Welcome screen) takes a URL, parent
+  folder, name, branch, shallow depth and submodules, and opens the clone when done.
+- HTTPS to github.com uses the app's own token through the binary itself as `GIT_ASKPASS` (keyring, strict prompt
+  parsing, network calls only); SSH stays with the system agent. The token is stored by the Phase 5 login, or now with
+  `echo <token> | cargo run -p github-api --example store_token -- <login>`.
+- Submodules show up in the WIP pane with their state (clean / modified / not initialised / conflict) and commit.
+- 262 Rust tests on real git fixtures (+76, including file:// remotes, a hanging TCP server for cancel/timeout and
+  crafted askpass prompts), 322 vitest tests (+54); `pnpm check` green; release build 3 min 34 s; installer 1.7 MB,
+  `gitbranch.exe` 5.0 MB (target < 25 MB). Verified by hand in the app on a file:// fixture: fetch, pull, push,
+  rejected push, force-with-lease, remotes add/remove, clone, submodule badge. HTTPS against a private GitHub repo
+  still needs a token in the keyring (owner action, see the report).
 
 ### Phase 2 demo (2026-10-16, branch `phase/2`)
 - Open a dirty repo: the WIP pane lists Staged/Unstaged/Untracked with per-file Stage/Unstage/Discard; click a file,

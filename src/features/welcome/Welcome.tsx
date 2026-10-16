@@ -1,3 +1,4 @@
+import { openClone } from "../dialogs/open";
 import { useReposStore } from "../../state/repos";
 import styles from "./Welcome.module.css";
 
@@ -14,6 +15,9 @@ export function Welcome() {
       </h1>
       <button type="button" className={styles["primary"]} onClick={() => void openViaDialog()}>
         Open repository…
+      </button>
+      <button type="button" className={styles["secondary"]} onClick={openClone}>
+        Clone…
       </button>
       <h2 className={styles["heading"]}>Recent</h2>
       {recent.length === 0 ? (

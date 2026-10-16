@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use git_core::fixtures::FixtureRepo;
 use git_core::{GitErrorKind, GitRunner, RunOpts};
+use tokio_util::sync::CancellationToken;
 
 fn runner() -> GitRunner {
     GitRunner::from_env()
@@ -174,4 +175,180 @@ async fn fixture_oids_are_deterministic() {
     let a = FixtureRepo::linear(3);
     let b = FixtureRepo::linear(3);
     assert_eq!(a.rev_parse("HEAD"), b.rev_parse("HEAD"));
+}
+
+#[tokio::test]
+async fn streaming_delivers_progress_lines() {
+    let src = FixtureRepo::linear(30);
+    let dest = tempfile::tempdir().expect("tempdir");
+    let target = dest.path().join("clone");
+    let url = src.path().to_string_lossy().into_owned();
+    let mut lines: Vec<String> = Vec::new();
+    let mut sink = |l: &str| lines.push(l.to_string());
+    let out = src
+        .runner()
+        .run_streaming(
+            dest.path(),
+            &["clone", "--progress", "--no-local", &url, target.to_str().expect("utf8")],
+            RunOpts::default(),
+            &mut sink,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect("clone succeeds");
+    assert!(!lines.is_empty(), "no stderr lines");
+    assert!(lines.iter().all(|l| !l.is_empty() && l.trim() == l));
+    assert!(
+        lines.iter().any(|l| git_core::parse::progress::parse_progress_line(l).is_some()),
+        "no progress line in {lines:?}"
+    );
+    // The full stderr is still returned.
+    assert!(out.stderr_str().contains("objects"));
+}
+
+#[tokio::test]
+async fn streaming_classifies_failures_like_run() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut sink = |_: &str| {};
+    let err = runner()
+        .run_streaming(
+            dir.path(),
+            &["rev-parse", "HEAD"],
+            RunOpts::default(),
+            &mut sink,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect_err("not a repo");
+    assert_eq!(err.kind, GitErrorKind::NotARepo);
+}
+
+/// A server that accepts connections and never answers. Each accepted socket is watched: the
+/// channel receives `true` when the peer closes it (read returns 0) within 10 s.
+fn hanging_server() -> (u16, std::sync::mpsc::Receiver<bool>) {
+    use std::io::Read;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("addr").port();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        while let Ok((mut s, _)) = listener.accept() {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                s.set_read_timeout(Some(Duration::from_secs(10))).ok();
+                let mut buf = [0u8; 1024];
+                let closed = loop {
+                    match s.read(&mut buf) {
+                        Ok(0) => break true,
+                        Ok(_) => {}
+                        Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => break true,
+                        Err(_) => break false,
+                    }
+                };
+                let _ = tx.send(closed);
+            });
+        }
+    });
+    (port, rx)
+}
+
+fn no_proxy() -> Vec<(String, String)> {
+    let mut env: Vec<(String, String)> = Vec::new();
+    for k in ["NO_PROXY", "no_proxy"] {
+        env.push((k.into(), "*".into()));
+    }
+    for k in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"] {
+        env.push((k.into(), String::new()));
+    }
+    env
+}
+
+fn hang_opts(timeout: Duration) -> RunOpts {
+    RunOpts { timeout: Some(timeout), env: no_proxy(), ..RunOpts::default() }
+}
+
+#[tokio::test]
+async fn cancel_kills_a_hanging_fetch() {
+    let (port, closed) = hanging_server();
+    let repo = FixtureRepo::linear(1);
+    let url = format!("http://127.0.0.1:{port}/x.git");
+    repo.git(&["remote", "add", "hang", &url]);
+
+    let cancel = CancellationToken::new();
+    let trigger = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        trigger.cancel();
+    });
+    let started = std::time::Instant::now();
+    let mut sink = |_: &str| {};
+    let err = repo
+        .runner()
+        .run_streaming(
+            repo.path(),
+            &["fetch", "--progress", "hang"],
+            hang_opts(Duration::from_secs(60)),
+            &mut sink,
+            &cancel,
+        )
+        .await
+        .expect_err("cancelled");
+    assert_eq!(err.kind, GitErrorKind::Cancelled);
+    assert_eq!(err.code(), "git.cancelled");
+    assert!(started.elapsed() < Duration::from_secs(5), "took {:?}", started.elapsed());
+    // The connection is held by git-remote-http; EOF proves the whole tree died.
+    let eof = closed.recv_timeout(Duration::from_secs(5)).expect("server saw a connection");
+    assert!(eof, "socket not closed after cancel: git-remote-http survived");
+}
+
+#[tokio::test]
+async fn streaming_inactivity_timeout_fires_without_cancel() {
+    let (port, _closed) = hanging_server();
+    let repo = FixtureRepo::linear(1);
+    repo.git(&["remote", "add", "hang", &format!("http://127.0.0.1:{port}/x.git")]);
+    let mut sink = |_: &str| {};
+    let err = repo
+        .runner()
+        .run_streaming(
+            repo.path(),
+            &["fetch", "hang"],
+            hang_opts(Duration::from_secs(2)),
+            &mut sink,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect_err("timeout");
+    assert_eq!(err.kind, GitErrorKind::Timeout);
+}
+
+#[tokio::test]
+async fn cancel_after_completion_does_not_turn_success_into_cancelled() {
+    let repo = FixtureRepo::linear(1);
+    let cancel = CancellationToken::new();
+    let mut sink = |_: &str| {};
+    let out = repo
+        .runner()
+        .run_streaming(repo.path(), &["--version"], RunOpts::default(), &mut sink, &cancel)
+        .await
+        .expect("completes");
+    cancel.cancel();
+    assert!(out.stdout_str().starts_with("git version"));
+}
+
+#[tokio::test]
+async fn streaming_rejects_stdin() {
+    let repo = FixtureRepo::linear(1);
+    let mut sink = |_: &str| {};
+    let err = repo
+        .runner()
+        .run_streaming(
+            repo.path(),
+            &["--version"],
+            RunOpts::with_stdin("x"),
+            &mut sink,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect_err("stdin rejected");
+    assert_eq!(err.kind, GitErrorKind::Spawn);
+    assert_eq!(err.stderr, "stdin is not supported in streaming mode");
 }

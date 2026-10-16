@@ -1,12 +1,16 @@
 import { create } from "zustand";
 import * as branchIpc from "../ipc/branch";
 import { isIpcError } from "../ipc/core";
+import * as cloneIpc from "../ipc/clone";
+import type { CloneArgs } from "../ipc/clone";
 import * as conflictIpc from "../ipc/conflict";
 import type { Side } from "../ipc/conflict";
 import * as historyIpc from "../ipc/history";
 import type { ResetMode } from "../ipc/history";
 import * as mergeIpc from "../ipc/merge";
 import type { MergeMode, MergeOutcome, OpKind, TodoItem } from "../ipc/merge";
+import * as remoteIpc from "../ipc/remote";
+import type { FetchArgs, PullArgs, PushArgs, PushResult } from "../ipc/remote";
 import * as reflogIpc from "../ipc/reflog";
 import type { UndoInfo } from "../ipc/reflog";
 import * as stashIpc from "../ipc/stash";
@@ -14,9 +18,14 @@ import type { StashEntry, StashPushArgs } from "../ipc/stash";
 import * as tagIpc from "../ipc/tag";
 import type { TagArgs } from "../ipc/tag";
 import type { RepoId } from "../ipc/types";
+import { pushSummary } from "../lib/pushTarget";
 import { quotePath, quotePaths } from "../lib/shellQuote";
+import { cloneNameFromUrl } from "../features/dialogs/validate";
 import { confirm } from "./dialogs";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
+import { useReposStore } from "./repos";
+import { useRemotesStore } from "./remotes";
+import { useProgressStore } from "./progress";
 import { reportError, useUiStore } from "./ui";
 
 export const CONFLICT_TITLE = "Conflicts — resolve them in the working tree";
@@ -110,6 +119,47 @@ interface OpsState {
   markResolved: (repoId: RepoId, paths: string[]) => Promise<boolean>;
   openInEditor: (repoId: RepoId, path: string) => Promise<boolean>;
   undoLast: (repoId: RepoId, info: UndoInfo) => Promise<boolean>;
+  clone: (args: CloneArgs) => Promise<string | null>;
+  fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
+  pull: (repoId: RepoId, args: PullArgs) => Promise<boolean>;
+  push: (repoId: RepoId, args: PushArgs) => Promise<boolean>;
+  addRemote: (repoId: RepoId, name: string, url: string) => Promise<boolean>;
+  removeRemote: (repoId: RepoId, name: string) => Promise<boolean>;
+  renameRemote: (repoId: RepoId, old: string, name: string) => Promise<boolean>;
+}
+
+export const AUTH_REQUIRED_TITLE =
+  "Authentication required. GitHub login arrives in Phase 5; SSH remotes use your agent.";
+export const PUSH_REJECTED_HINT = "Pull first, or push again with --force-with-lease.";
+
+/** git.auth_required: one explanatory toast instead of the raw error. */
+function authRequired(e: unknown): boolean {
+  if (!isIpcError(e) || e.error.code !== "git.auth_required") return false;
+  useUiStore.getState().pushToast({ kind: "error", title: AUTH_REQUIRED_TITLE });
+  return true;
+}
+
+function pushRejected(e: unknown): boolean {
+  if (!isIpcError(e) || e.error.code !== "git.rejected") return false;
+  const detail = e.error.detail ?? e.error.message;
+  useUiStore.getState().pushToast({
+    kind: "error",
+    title: "Push rejected",
+    detail: `${detail}
+${PUSH_REJECTED_HINT}`,
+  });
+  return true;
+}
+
+/** Wraps `handled` so a user cancel shows an info toast instead of an error. */
+function cancelledAs(title: string, next?: (e: unknown) => boolean): (e: unknown) => boolean {
+  return (e) => {
+    if (isIpcError(e) && e.error.code === "git.cancelled") {
+      useUiStore.getState().pushToast({ kind: "info", title: `${title} cancelled` });
+      return true;
+    }
+    return next?.(e) ?? false;
+  };
 }
 
 export const useOpsStore = create<OpsState>((set, get) => {
@@ -196,8 +246,131 @@ export const useOpsStore = create<OpsState>((set, get) => {
     return confirmedByUser && ok;
   };
 
+  /** Progress bar around a network op; skipped entirely when another op is already running. */
+  const withProgress = async (
+    repoId: RepoId,
+    title: string,
+    fn: (title: string, opId: string) => Promise<boolean>,
+  ): Promise<boolean> => {
+    if (get().busy) return false;
+    const opId = crypto.randomUUID();
+    useProgressStore.getState().start({ opId, repoId, title });
+    try {
+      return await fn(title, opId);
+    } finally {
+      useProgressStore.getState().finish(opId);
+    }
+  };
+
+  const reloadRemotes = (repoId: RepoId): void => {
+    void useRemotesStore.getState().load(repoId);
+  };
+
   return {
     busy: false,
+
+    clone: async (args) => {
+      const name = cloneNameFromUrl(args.dest);
+      let path: string | null = null;
+      // A clone has no repo yet: repoId is "".
+      const ran = await withProgress("" as RepoId, `Cloning ${name}`, (title, opId) =>
+        run(
+          "Clone failed",
+          async () => {
+            path = (await cloneIpc.clone(args, opId)).path;
+          },
+          undefined,
+          cancelledAs(title, authRequired),
+        ),
+      );
+      if (path === null) {
+        if (!ran && get().busy) {
+          useUiStore.getState().pushToast({ kind: "error", title: "Another operation is running" });
+        }
+        return null;
+      }
+      const opened: string = path;
+      if (await useReposStore.getState().openPath(opened)) toast(`Cloned ${name}`);
+      return opened;
+    },
+
+    fetch: (repoId, args) =>
+      withProgress(
+        repoId,
+        args.remote === null ? "Fetching all remotes" : `Fetching ${args.remote}`,
+        (title, opId) =>
+          run(
+            "Fetch failed",
+            () => remoteIpc.fetch(repoId, args, opId),
+            "Fetched",
+            cancelledAs(title, authRequired),
+          ),
+      ),
+
+    pull: (repoId, args) =>
+      withProgress(repoId, "Pulling", async (title, opId) => {
+        const res: { changed: boolean | null } = { changed: null };
+        const outcome = await runOutcome(
+          "Pull failed",
+          async () => {
+            res.changed = (await remoteIpc.pull(repoId, args, opId)).changed;
+          },
+          undefined,
+          cancelledAs(title, authRequired),
+        );
+        if (outcome === "ok") toast(res.changed === false ? "Already up to date" : "Pulled");
+        return outcome !== "error";
+      }),
+
+    push: (repoId, args) =>
+      withProgress(repoId, `Pushing ${args.branch ?? args.remote}`, async (title, opId) => {
+        const res: { value: PushResult | null } = { value: null };
+        const ok = await run(
+          "Push failed",
+          async () => {
+            res.value = await remoteIpc.push(repoId, args, opId);
+          },
+          undefined,
+          cancelledAs(title, (e) => authRequired(e) || pushRejected(e)),
+        );
+        if (ok) {
+          const summary = res.value === null ? "" : pushSummary(res.value.refs, args.remote);
+          useUiStore.getState().pushToast({
+            kind: "success",
+            title: "Pushed",
+            ...(summary !== "" ? { detail: summary } : {}),
+          });
+        }
+        return ok;
+      }),
+
+    addRemote: async (repoId, name, url) => {
+      const ok = await run("Add remote failed", () => remoteIpc.addRemote(repoId, name, url));
+      if (ok) reloadRemotes(repoId);
+      return ok;
+    },
+
+    removeRemote: async (repoId, name) => {
+      const ok = await confirmed(
+        {
+          title: "Remove remote",
+          message: `Remove remote ${name}? Its remote-tracking branches are deleted locally.`,
+          command: `git remote remove ${quotePath(name)}`,
+          confirmLabel: "Remove",
+          danger: true,
+        },
+        "Remove remote failed",
+        () => remoteIpc.removeRemote(repoId, name),
+      );
+      if (ok) reloadRemotes(repoId);
+      return ok;
+    },
+
+    renameRemote: async (repoId, old, name) => {
+      const ok = await run("Rename remote failed", () => remoteIpc.renameRemote(repoId, old, name));
+      if (ok) reloadRemotes(repoId);
+      return ok;
+    },
 
     createBranch: (repoId, name, startPoint, checkout) =>
       run("Create branch failed", () => branchIpc.createBranch(repoId, name, startPoint, checkout)),

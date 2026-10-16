@@ -14,6 +14,8 @@ export interface FileListItem {
   label: string;
   /** Unmerged entry (listed under Conflicts in the WIP pane). */
   conflicted?: boolean;
+  /** Entry is a submodule gitlink: staging it stages the pointer. */
+  submodule?: boolean;
 }
 
 const BADGE: Record<ChangeKind, string> = {
@@ -85,6 +87,14 @@ const Item = memo(function Item({
           )}
           <PathLabel path={item.path} />
           {item.suffix !== undefined && <span className={styles["suffix"]}> {item.suffix}</span>}
+          {item.submodule === true && (
+            <span
+              className={styles["submoduleTag"]}
+              title="Submodule: staging this entry stages the gitlink (the commit it points to)"
+            >
+              submodule
+            </span>
+          )}
         </span>
       </button>
       {actions !== undefined && <div className={styles["actions"]}>{actions(item)}</div>}

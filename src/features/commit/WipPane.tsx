@@ -1,7 +1,8 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { RepoId } from "../../ipc/types";
 import { useGraphStore } from "../../state/graph";
 import { useOpsStore } from "../../state/ops";
+import { submoduleStateLabel, submodulesOf, useSubmodulesStore } from "../../state/submodules";
 import { useWipStore } from "../../state/wip";
 import { CommitForm } from "./CommitForm";
 import { FileList, type FileListItem } from "./FileList";
@@ -36,6 +37,52 @@ function Section({
       </header>
       {children}
     </section>
+  );
+}
+
+function SubmodulesSection({ repoId }: { repoId: RepoId }) {
+  const subs = useSubmodulesStore((s) => submodulesOf(s, repoId));
+  const [open, setOpen] = useState(true);
+  if (subs.length === 0) return null;
+  return (
+    <Section
+      title="Submodules"
+      count={subs.length}
+      headerAction={
+        <button
+          type="button"
+          className={styles["headerAction"]}
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Collapse" : "Expand"}
+        </button>
+      }
+    >
+      {open && (
+        <div role="list" aria-label="Submodules">
+          {subs.map((m) => (
+            <div
+              key={m.path}
+              role="listitem"
+              className={styles["submoduleRow"]}
+              title={m.url ?? m.path}
+            >
+              <span className={styles["submodulePath"]}>{m.path}</span>
+              <span className={`${styles["stateBadge"]} ${styles[`state_${m.state}`]}`}>
+                {submoduleStateLabel(m.state)}
+              </span>
+              {m.headOid !== null && (
+                <code className={styles["submoduleOid"]}>{m.headOid.slice(0, 7)}</code>
+              )}
+              {m.describe !== null && !(m.headOid ?? "").startsWith(m.describe) && (
+                <span className={styles["suffix"]}>{m.describe}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -203,6 +250,7 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
           />
         </Section>
       )}
+      <SubmodulesSection repoId={repoId} />
       <CommitForm repoId={repoId} stagedCount={stagedCount} dirty={items.length > 0} />
     </>
   );

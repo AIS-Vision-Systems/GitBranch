@@ -83,8 +83,10 @@ Decision: `RunOpts::timeout` defaults to `None`. Fetch/push/clone and read-only 
 local writes are cancelled only by the user (dropping the future kills the child). `GIT_EDITOR`/`GIT_SEQUENCE_EDITOR`
 default to `:` so git never opens an editor; callers override per call. Credentials in URLs are redacted from
 `GitError.args`/`stderr` before logging or reaching the UI.
+Amendment (3.3): in `run_streaming` the timeout is an inactivity limit, reset on every stdout/stderr chunk; `run` keeps total time.
 Consequences: a hung hook blocks the operation until the user cancels. Process-tree kill (Job Object / process
 group) and `index.lock` cleanup are deferred to Phase 2 (2.9 undo/recovery); logged as a known limitation.
+Resolved 2026-10-16 by 3.3: network ops run in their own process group (Unix) and are killed with `taskkill /T /F` (Windows) / `kill -TERM -- -pid` on cancel or timeout (`kill_tree`); `index.lock` cleanup remains with 2.9.
 
 ## D-013 · accepted · 2026-10-15 — Lint baseline: clippy pedantic (allow-listed) via workspace lints; eslint type-checked
 Decision: `[workspace.lints]` in the root `Cargo.toml` with `clippy::pedantic` at warn plus `unwrap_used`,
@@ -167,3 +169,19 @@ colour derived from the author email hash, drawn in the SVG (no network): Gravat
 fetching avatars leaks author emails to a third party by default. The grey "description" text GitKraken shows after the
 subject is not added yet: it needs the commit body in the log format and would grow the 100k-commit payload; revisit
 with the first page only. Dark becomes the default theme; light stays available.
+
+## D-024 · accepted · 2026-10-16 — Askpass bridge: one keyring entry per host, the app binary answers git itself
+Context: item 3.2 needs `git` over HTTPS to use the token the app stores (5.1) without the user's own credential
+helper, and without a second binary in the bundle.
+Decision: `github-api::token` owns the keyring access (service `GitBranch`, account `github.com`; the GitHub login
+is stored next to it as account `github.com#login`, so the askpass answer does not need the API). The Tauri binary
+started by git as its `GIT_ASKPASS` program runs no UI: it answers `x-access-token` to `Username for 'https://github.com'`
+and the keyring token to the matching `Password for` prompt, and exits 1 for any other host or when no token is stored;
+with `GIT_TERMINAL_PROMPT=0` that ends in `AuthRequired`, which the UI reports. `GIT_ASKPASS` points at the current executable on network calls (the runner already
+sets `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=never`, so SSH stays with the system agent). git consults
+`credential.helper` before the askpass program; a user with Git Credential Manager already holding a github.com
+credential keeps using it, which is acceptable until settings (6.3) add a "prefer the app token" switch.
+Consequences: `keyring` 3 with `windows-native` and `sync-secret-service` (needs `libdbus-1-dev` on the Ubuntu CI
+runner); the prompt parser is a pure function with unit tests; the token never appears in logs or `GitError`; askpass env only on network calls so hooks run by commit/merge/rebase cannot query it.
+
+Amendment 2026-10-16 (D-024): git passes the prompt as the only argument, so the askpass mode is selected by the `GITBRANCH_ASKPASS=1` env var the runner sets plus a prompt-shaped argument, not by a `--askpass` flag.

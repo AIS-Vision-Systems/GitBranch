@@ -8,12 +8,18 @@ import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice
 import { GraphView } from "./features/graph/GraphView";
 import { DetailsPane } from "./features/commit/DetailsPane";
 import { onRepoChanged } from "./ipc/events";
+import { onOpProgress } from "./ipc/progress";
+import { useProgressStore } from "./state/progress";
+import { ProgressBar } from "./features/shell/ProgressBar";
 import { useGraphStore } from "./state/graph";
 import { useDetailsWidth } from "./features/shell/detailsWidth";
 import { Splitter } from "./features/shell/Splitter";
 import { DialogHost } from "./features/shell/DialogHost";
 import { Toasts } from "./features/shell/Toasts";
 import { Welcome } from "./features/welcome/Welcome";
+import { useDialogsStore } from "./state/dialogs";
+import { useOpsStore } from "./state/ops";
+import { openClone } from "./features/dialogs/open";
 import { useReposStore } from "./state/repos";
 import { reportError, useUiStore, type Theme } from "./state/ui";
 import styles from "./App.module.css";
@@ -66,6 +72,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    onOpProgress((e) => useProgressStore.getState().update(e)).then(
+      (fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      },
+      (err: unknown) => reportError(err, "Could not subscribe to progress events"),
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
     void loadRecent();
   }, [loadRecent]);
 
@@ -74,6 +96,29 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
         void openViaDialog();
+        return;
+      }
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === "c" &&
+        !e.repeat &&
+        useDialogsStore.getState().current === null &&
+        !useOpsStore.getState().busy
+      ) {
+        const t = e.target;
+        if (
+          t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement ||
+          t instanceof HTMLSelectElement ||
+          (t instanceof HTMLElement &&
+            (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
+        ) {
+          return;
+        }
+        e.preventDefault();
+        openClone();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -102,6 +147,7 @@ export default function App() {
           Theme: {theme}
         </button>
       </header>
+      <ProgressBar />
       {current !== null && <OpBanner repoId={current.repoId} />}
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (

@@ -5,7 +5,7 @@ import { useReposStore } from "../../state/repos";
 import { Welcome } from "./Welcome";
 
 describe("Welcome", () => {
-  const openPath = vi.fn(() => Promise.resolve());
+  const openPath = vi.fn(() => Promise.resolve(true));
   const forgetRecent = vi.fn(() => Promise.resolve());
   const openViaDialog = vi.fn(() => Promise.resolve());
 
