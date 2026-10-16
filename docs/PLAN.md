@@ -51,7 +51,7 @@ Goal: open a local repo, see the full graph with refs, select a commit, see its 
 - [~] 1.1 Open/recent repos (native dialog, persisted list, detect worktree and open main repo).
 - [x] 1.2 `git-core::refs`: `for-each-ref` parser (local, remote, tags, HEAD, upstream + ahead/behind).
 - [x] 1.3 `git-core::log`: streaming `git log --all --date-order --format=<NUL-separated>` parser to `Commit {oid, parents, author, time, subject}`. Paginated (first 2k rows, then chunks).
-- [~] 1.4 `git-core::graph`: lane allocation (see ARCHITECTURE.md, Graph). Output per row: lane, color index, incoming/outgoing edge segments. Property tests with fixture repos; perf test with 100k synthetic commits.
+- [x] 1.4 `git-core::graph`: lane allocation (see ARCHITECTURE.md, Graph). Output per row: lane, color index, incoming/outgoing edge segments. Property tests with fixture repos; perf test with 100k synthetic commits.
 - [x] 1.5 Status: `git status --porcelain=v2 -z` parser (staged/unstaged/untracked/conflicted, renames). Shown as a virtual "WIP" row on top of the graph.
 - [ ] 1.6 Graph UI: virtualized rows (`@tanstack/react-virtual`), SVG lane strip per row, ref chips, hover/selection, keyboard navigation. Stable colors per lane.
 - [ ] 1.7 Commit details panel: metadata + changed files (`git show --name-status -z`).

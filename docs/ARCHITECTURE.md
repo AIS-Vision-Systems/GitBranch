@@ -81,7 +81,7 @@ pub async fn run(&self, repo: &Path, args: &[&str], opts: RunOpts) -> Result<Out
 Input: commits in `--date-order` (or `--topo-order` toggle), each with ordered parents. Output: one `Row` per commit.
 
 ```
-Row { oid, lane: u16, color: u8, edges: Vec<Edge> }   // Edge { from_lane, to_lane, kind: Straight|MergeIn|BranchOut, color }
+Row { oid, lane: u16, color: u8, has_incoming: bool, edges: Vec<Edge> }   // Edge { from_lane, to_lane, kind: Straight|MergeIn|BranchOut, color }
 ```
 
 Algorithm (standard "active lanes" sweep, as used by git-graph tools):
@@ -92,7 +92,13 @@ Algorithm (standard "active lanes" sweep, as used by git-graph tools):
 3. Replace C's lane target with `parents[0]`. For each extra parent P: if some lane already waits for P, draw a
    branch-out edge to it; else allocate a free lane for P. A lane whose target is `None` is free.
 4. Colors: assigned per lane *segment* (a lane keeps its color from allocation to being freed), palette of 12.
-5. Emit edges for the segment between row i and i+1 so each row can be drawn independently (needed for virtualization).
+5. Edge convention: `Row.edges` are the segments from the top of row i to its bottom, so each row is drawn
+   independently (needed for virtualization). `Straight` = passthrough on one lane (the node lane's goes to
+   `parents[0]`); `MergeIn {from L, to node}` = a waiting lane enters from the top and ends at the node;
+   `BranchOut {from node, to L}` = extra parent. A lane already waiting for an extra parent keeps its `Straight`
+   as well (the two join at the bottom); only lanes newly allocated in this row have none.
+   Node lane rule: draw top-to-center only if `has_incoming` (some lane was waiting for this commit; false for
+   branch tips), draw center-to-bottom only if a `Straight`/`BranchOut` edge starts at the node (a root has none).
 
 Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to the frontend (binary via
 `tauri::ipc::Response` if JSON proves slow, > 50k rows). The frontend only draws: for each visible row, an SVG

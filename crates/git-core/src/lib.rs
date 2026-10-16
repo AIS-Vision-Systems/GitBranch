@@ -7,6 +7,7 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod graph;
 pub mod parse;
 pub mod runner;
 
