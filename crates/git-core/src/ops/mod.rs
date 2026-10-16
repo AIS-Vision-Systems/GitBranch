@@ -1,4 +1,17 @@
-//! Repository operations that are not parsers: maintenance, ignore checks, and later writes.
+//! Repository operations that are not parsers: maintenance, ignore checks, and the Phase 2 writes.
 
+pub mod branch;
+pub mod commit;
+pub mod config;
+pub mod conflict;
+pub mod history;
 pub mod ignore;
 pub mod maintenance;
+pub mod merge;
+pub mod patch;
+pub mod rebase;
+pub mod reflog;
+pub mod stage;
+pub mod stash;
+pub mod state;
+pub mod tag;

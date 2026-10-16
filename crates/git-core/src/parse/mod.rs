@@ -5,8 +5,10 @@
 
 pub mod diff;
 pub mod log;
+pub mod reflog;
 pub mod refs;
 pub mod show;
+pub mod stash;
 pub mod status;
 
 /// Error produced when git output does not match the expected machine-readable shape.
