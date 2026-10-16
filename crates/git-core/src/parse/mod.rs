@@ -4,6 +4,7 @@
 //! git) and an `async fn` that runs the corresponding git command through [`crate::GitRunner`].
 
 pub mod log;
+pub mod refs;
 
 /// Error produced when git output does not match the expected machine-readable shape.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
