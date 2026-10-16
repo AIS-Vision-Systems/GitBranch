@@ -2,11 +2,37 @@
 
 ## Unreleased
 
+- 2026-10-16: Graph look and feel (item 2.10, D-023): GitKraken-style three-column graph (BRANCH / TAG · GRAPH ·
+  COMMIT MESSAGE) with a column header, ref chips with local/remote/tag icons, local+upstream folded into one chip with
+  `↑n ↓n`, `+N` pill for crowded commits, initials avatars ringed in the lane colour, rounded lane curves, full-row
+  hover/selection, dark theme by default (persisted).
+- 2026-10-16: Phase 2 — local operations. Stage/unstage/discard per file, hunk and line (patches built in Rust,
+  `git apply --cached`); commit with template/amend/sign-off; branches (create, checkout, rename, safe/force delete,
+  upstream); stash push/list/apply/pop/drop with a stash panel; merge (ff/no-ff/squash), rebase onto and
+  interactive-lite rebase (reorder/squash/fixup/drop); reset/revert/cherry-pick/tags; conflict banner with
+  abort/continue/skip and ours/theirs/mark-resolved; graph context menus and branch drag-and-drop; reflog-based
+  Undo (Ctrl+Z). Every destructive action confirms with the exact git command. Decisions D-018–D-022.
 - 2026-10-16: Phase 1 — open a repository (native picker, recent list, worktree detection, `gitbranch <path>`),
   commit graph for all refs with lanes/colors, ref chips, WIP row, keyboard navigation; commit details with changed
   files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
+
+### Phase 2 demo (2026-10-16, branch `phase/2`)
+- Open a dirty repo: the WIP pane lists Staged/Unstaged/Untracked with per-file Stage/Unstage/Discard; click a file,
+  press "Stage hunk" or select lines in the gutter and stage just those; type a message, Ctrl+Enter: "Committed abc1234".
+- Right-click a commit or a branch chip (or drag a branch onto another): create branch/tag here, checkout, merge
+  (ff/no-ff/squash), rebase onto, interactive rebase (reorder/squash/fixup/drop), cherry-pick, revert, reset
+  (soft/mixed/hard), delete; every destructive step shows the exact git command before running.
+- Merge a conflicting branch: a banner shows "Merge in progress · 1 conflicted file" with Abort/Continue; the WIP pane
+  offers Ours/Theirs/Open/Mark resolved; Continue finishes the merge. Toolbar: Branch…, Stash (push with untracked),
+  Stashes list (apply/pop/drop/show) and Undo (Ctrl+Z, reflog-based, disabled while an operation is in progress).
+- GitKraken-style graph (2.10): BRANCH / TAG column with icon chips and `+N`, initials avatars on the nodes, rounded
+  lanes, full-row selection, dark theme by default.
+- 186 Rust tests on real git fixtures (+95), 268 vitest tests (+175); `pnpm check` green; release build 2 min 03 s
+  (warm); `gitbranch.exe` 4.8 MB, NSIS installer 1.6 MB (target < 25 MB).
+- Verified by hand on a fixture repo through the OS accessibility tree (stage hunk, commit, branch, undo, conflicting
+  merge with take-theirs + continue, stash push/pop, interactive rebase dialog); four issues found and fixed in 8334be7.
 
 ### Phase 1 demo (2026-10-16, branch `phase/1`)
 - `gitbranch C:/Data/RD/_perf/git` (git/git, 85.6k commits, 1,021 refs) paints the first 2,000 rows 197 ms after the

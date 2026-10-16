@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import type { ChangeKind, DiffTarget } from "../../ipc/commit";
 import styles from "./Commit.module.css";
 
@@ -12,6 +12,8 @@ export interface FileListItem {
   target: DiffTarget;
   /** Label shown in the diff toolbar. */
   label: string;
+  /** Unmerged entry (listed under Conflicts in the WIP pane). */
+  conflicted?: boolean;
 }
 
 const BADGE: Record<ChangeKind, string> = {
@@ -50,13 +52,15 @@ const Item = memo(function Item({
   item,
   selected,
   onSelect,
+  actions,
 }: {
   item: FileListItem;
   selected: boolean;
   onSelect: (item: FileListItem) => void;
+  actions?: (item: FileListItem) => ReactNode;
 }) {
   return (
-    <div role="listitem">
+    <div role="listitem" className={styles["fileItem"]}>
       <button
         type="button"
         className={
@@ -83,6 +87,7 @@ const Item = memo(function Item({
           {item.suffix !== undefined && <span className={styles["suffix"]}> {item.suffix}</span>}
         </span>
       </button>
+      {actions !== undefined && <div className={styles["actions"]}>{actions(item)}</div>}
     </div>
   );
 });
@@ -91,14 +96,34 @@ export interface FileListProps {
   files: FileListItem[];
   selectedKey: string | null;
   onSelect: (item: FileListItem) => void;
+  /** Optional hover/focus action buttons rendered at the right of each row. */
+  actions?: (item: FileListItem) => ReactNode;
+  ariaLabel?: string;
+  /** Text shown when empty; null renders nothing. */
+  emptyText?: string | null;
 }
 
-export function FileList({ files, selectedKey, onSelect }: FileListProps) {
-  if (files.length === 0) return <p className={styles["empty"]}>No changed files</p>;
+export function FileList({
+  files,
+  selectedKey,
+  onSelect,
+  actions,
+  ariaLabel = "Changed files",
+  emptyText = "No changed files",
+}: FileListProps) {
+  if (files.length === 0) {
+    return emptyText === null ? null : <p className={styles["empty"]}>{emptyText}</p>;
+  }
   return (
-    <div role="list" aria-label="Changed files" className={styles["fileList"]}>
+    <div role="list" aria-label={ariaLabel} className={styles["fileList"]}>
       {files.map((f) => (
-        <Item key={f.key} item={f} selected={f.key === selectedKey} onSelect={onSelect} />
+        <Item
+          key={f.key}
+          item={f}
+          selected={f.key === selectedKey}
+          onSelect={onSelect}
+          {...(actions !== undefined ? { actions } : {})}
+        />
       ))}
     </div>
   );

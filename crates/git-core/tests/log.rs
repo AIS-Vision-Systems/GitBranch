@@ -102,3 +102,12 @@ async fn utf8_subject() {
     let p = page(&r, &LogQuery::default()).await;
     assert_eq!(p.commits[0].subject, "Año ✓");
 }
+
+#[tokio::test]
+async fn all_excludes_stash_commits() {
+    let r = FixtureRepo::with_stash();
+    let stash = r.rev_parse("refs/stash");
+    let p = page(&r, &q(100, 0, true)).await;
+    assert!(!p.commits.iter().any(|c| c.oid == stash), "stash commit listed in --all");
+    assert!(!p.commits.is_empty());
+}

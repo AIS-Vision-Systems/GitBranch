@@ -1,5 +1,8 @@
 import { create } from "zustand";
 import * as ipc from "../ipc/graph";
+import { opState, type InProgress } from "../ipc/merge";
+import { undoPreview, type UndoInfo } from "../ipc/reflog";
+import { stashList, type StashEntry } from "../ipc/stash";
 import type { Change } from "../ipc/events";
 import type { Commit, GraphQuery, Ref, RepoId, Refs, Row, Status } from "../ipc/types";
 import { reportError } from "./ui";
@@ -15,7 +18,12 @@ export interface GraphState {
   /** oid -> row index. */
   byOid: Map<string, number>;
   refs: Refs | null;
+  stashes: StashEntry[];
   status: Status | null;
+  /** Merge/rebase/cherry-pick/revert currently stopped, if any. */
+  inProgress: InProgress | null;
+  /** What "Undo last operation" would do, if anything. */
+  undo: UndoInfo | null;
   hasMore: boolean;
   nextSkip: number;
   loading: boolean;
@@ -40,7 +48,10 @@ export const EMPTY_GRAPH: GraphState = {
   rows: [],
   byOid: new Map(),
   refs: null,
+  stashes: [],
   status: null,
+  inProgress: null,
+  undo: null,
   hasMore: false,
   nextSkip: 0,
   loading: false,
@@ -86,6 +97,30 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       byRepo: { ...s.byRepo, [id]: { ...(s.byRepo[id] ?? EMPTY_GRAPH), ...p } },
     }));
 
+  /** A failed stash_list must not fail the graph. */
+  const loadStashes = async (repoId: RepoId): Promise<StashEntry[]> => {
+    try {
+      return await stashList(repoId);
+    } catch (e) {
+      reportError(e, "Could not load stashes");
+      return [];
+    }
+  };
+
+  /** Cheap side queries; a failure degrades to `null` with a single error report. */
+  const loadOpState = async (
+    repoId: RepoId,
+  ): Promise<{ inProgress: InProgress | null; undo: UndoInfo | null }> => {
+    const [a, b] = await Promise.allSettled([opState(repoId), undoPreview(repoId)]);
+    const failed: unknown =
+      a.status === "rejected" ? a.reason : b.status === "rejected" ? b.reason : null;
+    if (failed !== null) reportError(failed, "Could not read the operation state");
+    return {
+      inProgress: a.status === "fulfilled" ? a.value : null,
+      undo: b.status === "fulfilled" ? b.value : null,
+    };
+  };
+
   /** Fetch page 0 + refs + status. `reset` blanks the view first (initial load). */
   const reload = async (repoId: RepoId, reset: boolean): Promise<void> => {
     const gen = bump(repoId);
@@ -100,10 +135,12 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         await p,
         performance.now() - t0,
       ];
-      const [[page, tPage], [refs, tRefs], [status, tStatus]] = await Promise.all([
+      const [[page, tPage], [refs, tRefs], [status, tStatus], stashes, opInfo] = await Promise.all([
         timed(ipc.loadGraph(repoId, query(0, FIRST_PAGE))),
         timed(ipc.listRefs(repoId)),
         timed(ipc.repoStatus(repoId)),
+        loadStashes(repoId),
+        loadOpState(repoId),
       ]);
       if (generation.get(repoId) !== gen) return;
       if (import.meta.env.DEV) {
@@ -120,7 +157,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             rows: page.rows,
             byOid,
             refs,
+            stashes,
             status,
+            inProgress: opInfo.inProgress,
+            undo: opInfo.undo,
             hasMore: page.hasMore,
             nextSkip: page.nextSkip,
             loading: false,
@@ -189,9 +229,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (what.includes("index") || what.includes("workingTree")) {
         try {
           const gen = generation.get(repoId) ?? 0;
-          const status = await ipc.repoStatus(repoId);
+          const withOps = what.includes("index");
+          const [status, opInfo] = await Promise.all([
+            ipc.repoStatus(repoId),
+            withOps ? loadOpState(repoId) : Promise.resolve({}),
+          ]);
           if ((generation.get(repoId) ?? 0) !== gen) return;
-          patch(repoId, { status });
+          patch(repoId, { status, ...opInfo });
         } catch (e) {
           reportError(e, "Could not refresh status");
         }

@@ -1,10 +1,16 @@
 :root {
-  --color-bg: #ffffff;
-  --color-bg-elevated: #f3f4f6;
-  --color-fg: #1f2328;
-  --color-fg-muted: #656d76;
-  --color-border: #d0d7de;
-  --color-accent: #0969da;
+  --color-bg: #f1f4f9;
+  --color-bg-elevated: #ffffff;
+  --color-header-bg: #e8edf5;
+  --color-row-hover: #eef3fb;
+  --color-row-selected: #dbe7fb;
+  --color-chip-bg: #e3e9f3;
+  --color-on-accent: #ffffff;
+  --color-shadow: rgb(15 23 42 / 25%);
+  --color-fg: #1f2630;
+  --color-fg-muted: #5f6b7d;
+  --color-border: #d3dae6;
+  --color-accent: #1f6feb;
   --color-danger: #cf222e;
   --color-success: #1a7f37;
   --color-warning: #9a6700;
@@ -23,8 +29,10 @@
   --font-mono:
     ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  --graph-row-h: 24px;
-  --graph-lane-w: 16px;
+  --graph-row-h: 36px;
+  --graph-lane-w: 22px;
+  --graph-header-h: 28px;
+  --graph-refs-w: 240px;
   /* The lane strip is clipped at this width (20 lanes); repos with hundreds of refs stay readable. */
   --graph-max-w: 320px;
   --details-w: 380px;
@@ -38,27 +46,45 @@
   --syntax-string: #0a3069;
   --syntax-comment: #6e7781;
   --syntax-number: #0550ae;
-  --graph-lane-0: #0969da;
-  --graph-lane-1: #cf222e;
-  --graph-lane-2: #1a7f37;
-  --graph-lane-3: #bf8700;
-  --graph-lane-4: #8250df;
-  --graph-lane-5: #bc4c00;
-  --graph-lane-6: #0a8f8f;
-  --graph-lane-7: #bf3989;
-  --graph-lane-8: #4d7c0f;
-  --graph-lane-9: #6e40c9;
-  --graph-lane-10: #0550ae;
-  --graph-lane-11: #7d4e00;
+  /* Avatar fills (white initials on top), shared by both themes. */
+  --avatar-0: #5b7db1;
+  --avatar-1: #7b6bb5;
+  --avatar-2: #a05fa8;
+  --avatar-3: #b5607a;
+  --avatar-4: #b8694f;
+  --avatar-5: #a8803f;
+  --avatar-6: #6f8f3f;
+  --avatar-7: #3f9468;
+  --avatar-8: #3a9a9a;
+  --avatar-9: #4a86a8;
+  --avatar-10: #7a7f8f;
+  --avatar-11: #8a6a56;
+  --graph-lane-0: #0f8fc0;
+  --graph-lane-1: #a621c4;
+  --graph-lane-2: #2d6bdc;
+  --graph-lane-3: #c77f10;
+  --graph-lane-4: #1f9a55;
+  --graph-lane-5: #d63f5a;
+  --graph-lane-6: #7a4bdc;
+  --graph-lane-7: #14a393;
+  --graph-lane-8: #d0449b;
+  --graph-lane-9: #6fa10f;
+  --graph-lane-10: #d9650f;
+  --graph-lane-11: #3b82d6;
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #0d1117;
-  --color-bg-elevated: #161b22;
-  --color-fg: #e6edf3;
-  --color-fg-muted: #8d96a0;
-  --color-border: #30363d;
-  --color-accent: #4493f8;
+  --color-bg: #1b2433;
+  --color-bg-elevated: #202b3b;
+  --color-header-bg: #182130;
+  --color-row-hover: #26334a;
+  --color-row-selected: #2d3d58;
+  --color-chip-bg: #2d3d58;
+  --color-shadow: rgb(0 0 0 / 50%);
+  --color-fg: #e8edf5;
+  --color-fg-muted: #8b9bb4;
+  --color-border: #2f3d55;
+  --color-accent: #3d8bfd;
   --color-danger: #f85149;
   --color-success: #3fb950;
   --color-warning: #d29922;
@@ -73,16 +99,16 @@
   --syntax-comment: #8b949e;
   --syntax-number: #79c0ff;
 
-  --graph-lane-0: #58a6ff;
-  --graph-lane-1: #ff7b72;
-  --graph-lane-2: #56d364;
-  --graph-lane-3: #e3b341;
-  --graph-lane-4: #bc8cff;
-  --graph-lane-5: #ffa657;
-  --graph-lane-6: #39c5cf;
-  --graph-lane-7: #f778ba;
-  --graph-lane-8: #a5d66a;
-  --graph-lane-9: #a371f7;
-  --graph-lane-10: #79c0ff;
-  --graph-lane-11: #d8a657;
+  --graph-lane-0: #2bb4e8;
+  --graph-lane-1: #c445e0;
+  --graph-lane-2: #4c8dff;
+  --graph-lane-3: #f0a33a;
+  --graph-lane-4: #38c172;
+  --graph-lane-5: #ff6b81;
+  --graph-lane-6: #9b6bff;
+  --graph-lane-7: #2dd4bf;
+  --graph-lane-8: #f472b6;
+  --graph-lane-9: #a3e635;
+  --graph-lane-10: #fb923c;
+  --graph-lane-11: #60a5fa;
 }

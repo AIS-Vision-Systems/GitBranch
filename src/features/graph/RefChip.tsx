@@ -1,12 +1,46 @@
-import { memo } from "react";
+import { memo, type DragEvent, type MouseEvent } from "react";
 import type { Ref } from "../../ipc/types";
+import { acceptDrag, endDrag, leaveDrag, startDrag, takeDrop } from "./dnd";
+import { CheckIcon, CloudIcon, LaptopIcon, TagIcon } from "./icons";
+import { remoteTrackingName } from "./menus";
 import styles from "./Graph.module.css";
 
 interface Props {
   gitRef: Ref;
+  /** Stable callback; receives the chip's own ref. */
+  onContextMenu?: (e: MouseEvent, gitRef: Ref) => void;
+  /** Stable callback: a local branch named `source` was dropped on this chip. */
+  onBranchDrop?: (source: string, target: Ref) => void;
+  /** The branch's upstream chip was folded into this one: show the cloud icon. */
+  withUpstream?: boolean;
 }
 
-export const RefChip = memo(function RefChip({ gitRef }: Props) {
+export const RefChip = memo(function RefChip({
+  gitRef,
+  onContextMenu,
+  onBranchDrop,
+  withUpstream = false,
+}: Props) {
+  const hl = styles["dropTarget"];
+  const own = (source: string): boolean => gitRef.kind === "localBranch" && gitRef.name === source;
+  const dropProps =
+    onBranchDrop === undefined
+      ? {}
+      : {
+          onDragOver: (e: DragEvent<HTMLElement>) => acceptDrag(e, hl, own),
+          onDragLeave: (e: DragEvent<HTMLElement>) => leaveDrag(e, hl),
+          onDrop: (e: DragEvent<HTMLElement>) => {
+            const source = takeDrop(e, hl, own);
+            if (source !== null) onBranchDrop(source, gitRef);
+          },
+        };
+  const onMenu =
+    onContextMenu === undefined
+      ? undefined
+      : (e: MouseEvent): void => {
+          e.stopPropagation();
+          onContextMenu(e, gitRef);
+        };
   const { kind, name, upstream, isHead } = gitRef;
   if (kind === "localBranch") {
     const gone = upstream?.gone === true;
@@ -16,32 +50,57 @@ export const RefChip = memo(function RefChip({ gitRef }: Props) {
       isHead ? styles["head"] : "",
       gone ? styles["gone"] : "",
     ];
+    const ahead = upstream !== null && !upstream.gone ? upstream.ahead : 0;
+    const behind = upstream !== null && !upstream.gone ? upstream.behind : 0;
     return (
       <span
         className={cls.join(" ")}
+        onContextMenu={onMenu}
+        draggable
+        onDragStart={(e) => startDrag(e, name)}
+        onDragEnd={endDrag}
+        {...dropProps}
         title={gone ? `${name} (upstream ${upstream?.name ?? ""} is gone)` : name}
       >
+        {isHead && <CheckIcon />}
+        <LaptopIcon />
         {name}
-        {upstream !== null && !upstream.gone && (upstream.ahead > 0 || upstream.behind > 0) && (
+        {withUpstream && <CloudIcon />}
+        {(ahead > 0 || behind > 0) && (
           <span className={styles["sync"]}>
-            {upstream.ahead > 0 && ` ↑${upstream.ahead}`}
-            {upstream.behind > 0 && ` ↓${upstream.behind}`}
+            {ahead > 0 && `↑${ahead}`}
+            {ahead > 0 && behind > 0 && " "}
+            {behind > 0 && `↓${behind}`}
           </span>
         )}
       </span>
     );
   }
   if (typeof kind === "object" && "remoteBranch" in kind) {
-    const remote = kind.remoteBranch.remote;
-    const label = name.startsWith(`${remote}/`) ? name : `${remote}/${name}`;
+    const label = remoteTrackingName(gitRef);
+    const cut = label.indexOf("/") + 1;
     return (
-      <span className={`${styles["chip"]} ${styles["remote"]}`} title={label}>
-        {label}
+      <span
+        className={`${styles["chip"]} ${styles["remote"]}`}
+        title={label}
+        onContextMenu={onMenu}
+        {...dropProps}
+      >
+        <CloudIcon />
+        <span>
+          <span className={styles["remotePrefix"]}>{label.slice(0, cut)}</span>
+          {label.slice(cut)}
+        </span>
       </span>
     );
   }
   return (
-    <span className={`${styles["chip"]} ${styles["tag"]}`} title={`tag ${name}`}>
+    <span
+      className={`${styles["chip"]} ${styles["tag"]}`}
+      title={`tag ${name}`}
+      onContextMenu={onMenu}
+    >
+      <TagIcon />
       {name}
     </span>
   );

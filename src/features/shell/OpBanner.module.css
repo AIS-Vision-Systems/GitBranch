@@ -1,0 +1,37 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-warning);
+  color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.text {
+  font-weight: 600;
+}
+
+.count {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.button {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

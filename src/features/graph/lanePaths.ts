@@ -1,5 +1,5 @@
 import type { EdgeKind, Row } from "../../ipc/types";
-import { LANE_W, PALETTE, ROW_H } from "./constants";
+import { CURVE_R, LANE_W, PALETTE, ROW_H } from "./constants";
 
 export interface LanePath {
   d: string;
@@ -11,6 +11,24 @@ export const laneX = (lane: number): number => lane * LANE_W + LANE_W / 2;
 export const colorIndex = (color: number): number => color % PALETTE;
 
 const CY = ROW_H / 2;
+/** Control-point offset of a cubic approximating a quarter circle. */
+const K = 1 - 0.5523;
+const R = CURVE_R;
+
+/** Leaves the lane vertically, bends with radius R and arrives horizontally at the node. */
+function mergeInPath(fx: number, nx: number): string {
+  const dir = nx > fx ? 1 : -1;
+  const y0 = CY - R;
+  const ex = fx + dir * R;
+  return `M ${fx} 0 L ${fx} ${y0} C ${fx} ${y0 + R * (1 - K)} ${fx + dir * R * K} ${CY} ${ex} ${CY} L ${nx} ${CY}`;
+}
+
+/** Leaves the node horizontally, bends with radius R and continues vertically down the new lane. */
+function branchOutPath(nx: number, tx: number): string {
+  const dir = tx > nx ? 1 : -1;
+  const sx = tx - dir * R;
+  return `M ${nx} ${CY} L ${sx} ${CY} C ${sx + dir * R * (1 - K)} ${CY} ${tx} ${CY + R * K} ${tx} ${CY + R} L ${tx} ${ROW_H}`;
+}
 
 /**
  * Path strings for one row, following the edge convention in ARCHITECTURE.md:
@@ -39,14 +57,14 @@ export function lanePaths(row: Row, hasIncoming: boolean): LanePath[] {
         break;
       case "mergeIn":
         out.push({
-          d: `M ${fx} 0 C ${fx} ${CY} ${nx} 0 ${nx} ${CY}`,
+          d: mergeInPath(fx, nx),
           color: e.color,
           kind: e.kind,
         });
         break;
       case "branchOut":
         out.push({
-          d: `M ${nx} ${CY} C ${nx} ${ROW_H} ${tx} ${CY} ${tx} ${ROW_H}`,
+          d: branchOutPath(nx, tx),
           color: e.color,
           kind: e.kind,
         });

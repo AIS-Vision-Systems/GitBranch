@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type MouseEvent } from "react";
 import { WIP_OID } from "../../state/graph";
 import { LANE_W, NODE_R, ROW_H } from "./constants";
 import { rowDomId } from "./domId";
@@ -17,6 +17,8 @@ interface Props {
   hovered: boolean;
   onSelect: (oid: string) => void;
   onHover: (oid: string | null) => void;
+  /** Stable callback; GraphView owns the menu. */
+  onContextMenu?: (e: MouseEvent) => void;
 }
 
 export const WipRow = memo(function WipRow({
@@ -30,6 +32,7 @@ export const WipRow = memo(function WipRow({
   hovered,
   onSelect,
   onHover,
+  onContextMenu,
 }: Props) {
   const x = laneX(lane);
   const laneCls = styles[`lane${colorIndex(color)}`];
@@ -44,7 +47,9 @@ export const WipRow = memo(function WipRow({
       onClick={() => onSelect(WIP_OID)}
       onMouseEnter={() => onHover(WIP_OID)}
       onMouseLeave={() => onHover(null)}
+      onContextMenu={onContextMenu}
     >
+      <span className={styles["refsCell"]} />
       <svg
         className={styles["strip"]}
         width={lanes * LANE_W}
@@ -57,7 +62,7 @@ export const WipRow = memo(function WipRow({
             d={`M ${x} ${ROW_H / 2} L ${x} ${ROW_H}`}
             className={laneCls}
             stroke="currentColor"
-            strokeWidth={2}
+            strokeWidth={2.5}
             strokeDasharray="3 3"
             fill="none"
           />
@@ -72,7 +77,8 @@ export const WipRow = memo(function WipRow({
           fill="none"
         />
       </svg>
-      <span className={styles["subjectCell"]}>
+      <span className={styles["messageCell"]}>
+        <span className={`${styles["bar"]} ${laneCls}`} />
         <span className={`${styles["subject"]} ${styles["wipText"]}`}>
           {`Working tree changes (${fileCount} ${fileCount === 1 ? "file" : "files"})`}
         </span>

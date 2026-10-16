@@ -11,6 +11,7 @@ const r = (over: Partial<Row>): Row => ({
   ...over,
 });
 
+// Snapshots regenerated deliberately for D-023: 36 px rows, 22 px lanes and rounded (radius LANE_W/2) merge/branch curves.
 describe("lanePaths", () => {
   it("branch tip: no top half, bottom half only", () => {
     const row = r({

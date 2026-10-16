@@ -33,6 +33,15 @@ function readView(): DiffViewMode {
   }
 }
 
+/** DiffTarget is a flat object; compare it field by field. */
+export function sameTarget(a: DiffTarget, b: DiffTarget): boolean {
+  const ka = Object.keys(a) as (keyof DiffTarget)[];
+  return (
+    ka.length === Object.keys(b).length &&
+    ka.every((k) => (a as Record<string, unknown>)[k] === (b as Record<string, unknown>)[k])
+  );
+}
+
 let detailsGen = 0;
 let diffGen = 0;
 

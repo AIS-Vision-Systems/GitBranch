@@ -1,11 +1,14 @@
 import { useEffect, useMemo } from "react";
+import type { HunkSelection, PatchOp } from "../../ipc/stage";
 import type { RepoId } from "../../ipc/types";
-import { useDetailsStore } from "../../state/details";
+import { sameTarget, useDetailsStore } from "../../state/details";
 import { EMPTY_GRAPH, useGraphStore, WIP_OID } from "../../state/graph";
+import { useWipStore } from "../../state/wip";
 import { DiffView } from "../diff/DiffView";
 import { CommitDetails } from "./CommitDetails";
-import { FileList, type FileListItem } from "./FileList";
+import type { FileListItem } from "./FileList";
 import { commitItems, wipItems } from "./items";
+import { WipPane } from "./WipPane";
 import styles from "./Commit.module.css";
 
 export function DetailsPane({ repoId }: { repoId: RepoId }) {
@@ -39,20 +42,32 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
     return t.kind === "commit" ? `c:${t.path}` : `${t.kind}:${t.path}`;
   }, [selectedFile]);
 
+  // A fully staged/unstaged/discarded file leaves its section: drop its now-empty diff.
+  useEffect(() => {
+    if (selectedOid !== WIP_OID || selectedKey === null || entries === undefined) return;
+    if (!wip.some((i) => i.key === selectedKey)) clear();
+  }, [selectedOid, selectedKey, wip, entries, clear]);
+
   const onSelectFile = (item: FileListItem): void => {
     void selectFile(repoId, item.target, item.label);
+  };
+
+  const onHunkOp = async (sel: HunkSelection, op: PatchOp): Promise<void> => {
+    const ok = await useWipStore.getState().applyHunk(repoId, sel, op);
+    // On a stale error the store already reloaded the diff.
+    if (!ok || selectedFile === null) return;
+    // The selection may have moved while the op ran; only reload the same file.
+    const now = useDetailsStore.getState().selectedFile;
+    if (now !== null && sameTarget(now.target, selectedFile.target)) {
+      await selectFile(repoId, now.target, now.label);
+    }
   };
 
   let top;
   if (selectedOid === null) {
     top = <p className={styles["placeholder"]}>Select a commit</p>;
   } else if (selectedOid === WIP_OID) {
-    top = (
-      <>
-        <p className={styles["placeholder"]}>Working tree</p>
-        <FileList files={wip} selectedKey={selectedKey} onSelect={onSelectFile} />
-      </>
-    );
+    top = <WipPane repoId={repoId} items={wip} selectedKey={selectedKey} onSelect={onSelectFile} />;
   } else if (details === null) {
     top = <p className={styles["placeholder"]}>{loadingDetails ? "Loading…" : "No details"}</p>;
   } else {
@@ -77,6 +92,8 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
           label={selectedFile.label}
           view={view}
           onViewChange={setView}
+          target={selectedFile.target}
+          onHunkOp={onHunkOp}
         />
       )}
     </div>

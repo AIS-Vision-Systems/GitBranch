@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { appInfo } from "./ipc/app";
 import type { AppInfo } from "./ipc/types";
+import { registerPhase2Dialogs } from "./features/dialogs";
+import { OpBanner } from "./features/shell/OpBanner";
+import { Toolbar } from "./features/shell/Toolbar";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
 import { DetailsPane } from "./features/commit/DetailsPane";
@@ -8,11 +11,14 @@ import { onRepoChanged } from "./ipc/events";
 import { useGraphStore } from "./state/graph";
 import { useDetailsWidth } from "./features/shell/detailsWidth";
 import { Splitter } from "./features/shell/Splitter";
+import { DialogHost } from "./features/shell/DialogHost";
 import { Toasts } from "./features/shell/Toasts";
 import { Welcome } from "./features/welcome/Welcome";
 import { useReposStore } from "./state/repos";
 import { reportError, useUiStore, type Theme } from "./state/ui";
 import styles from "./App.module.css";
+
+registerPhase2Dialogs();
 
 const NEXT_THEME: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
 
@@ -78,6 +84,7 @@ export default function App() {
     <div className={styles["app"]}>
       <header className={styles["header"]}>
         <span className={styles["name"]}>{current !== null ? current.name : "GitBranch"}</span>
+        {current !== null && <Toolbar repoId={current.repoId} />}
         {current !== null && (
           <button
             type="button"
@@ -95,6 +102,7 @@ export default function App() {
           Theme: {theme}
         </button>
       </header>
+      {current !== null && <OpBanner repoId={current.repoId} />}
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (
           <div className={styles["panes"]}>
@@ -116,6 +124,7 @@ export default function App() {
         )}
       </main>
       <WorktreeChoice />
+      <DialogHost />
       <Toasts />
     </div>
   );

@@ -51,6 +51,7 @@ export function wipItems(entries: StatusEntry[]): FileListItem[] {
       suffix,
       target: { kind: t, path: e.path },
       label: `${e.path} ${suffix}`,
+      ...(e.conflicted ? { conflicted: true } : {}),
     });
   };
   for (const e of entries) {

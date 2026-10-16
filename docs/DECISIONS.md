@@ -119,3 +119,51 @@ wraps `GitError | ParseError` transparently; `AppError` maps both so the UI sees
 Why: on git/git (85k commits) the first-page `git log` drops from 640 ms to 124 ms with a commit-graph file.
 It is the same file `git gc` writes, so it is harmless to the user's repository.
 `open_repo` spawns `git commit-graph write --reachable` when absent (errors only logged); an opt-out can come later via settings.
+
+## D-018 · accepted · 2026-10-16 — Mutating commands emit `repo-changed` themselves
+Decision: every Tauri command that writes to the repository emits `repo-changed { repoId, what }` right after git
+succeeds (helper `commands::emit_changed`), in addition to whatever the debounced watcher reports. The UI refresh is
+therefore immediate and deterministic (tests can assert it), and the watcher stays the safety net for external
+changes. A double refresh within the debounce window is cheap (status + refs + first log page).
+
+## D-019 · accepted · 2026-10-16 — Hunk/line staging: the backend rebuilds the patch, the UI only names the selection
+Decision: the UI sends `{ target, hunkIndex, hunkHeader, lines? }`; `git-core::ops::patch` re-runs the file diff,
+checks that the hunk header still matches (else `stage.stale`), builds a minimal unified patch in Rust (unselected
+`+` lines dropped, unselected `-` lines turned into context, counts recomputed) and applies it with
+`git apply --cached [-R] --recount` (stage/unstage) or `git apply -R --recount` (discard in the work tree). No patch
+text crosses IPC, so the patch builder is unit-tested in Rust and the UI never shapes git input. Whole-file
+stage/unstage/discard use `add`/`restore --staged`/`restore` + `clean -f` for untracked files.
+
+## D-020 · accepted · 2026-10-16 — Interactive-lite rebase through a prepared todo file
+Decision: `rebase_interactive` writes the todo list (pick/reword/squash/fixup/drop + reorder) that the UI chose to a
+temp file and runs `git rebase -i <onto>` with `GIT_SEQUENCE_EDITOR="cp '<todo as forward-slash path>'"` (git appends
+the todo path; `cp` exists in git's own `sh` on Windows and in coreutils on Linux). Paths containing `'` are rejected
+with `arg.invalid`. `reword` is not offered (it needs `GIT_EDITOR`); users amend after the rebase instead. Conflicts
+surface as `GitErrorKind::Conflict` and the normal abort/continue flow takes over.
+
+## D-021 · accepted · 2026-10-16 — Undo = reflog step back with `reset --keep`
+Decision: "Undo last operation" reads `git reflog show HEAD -n 2` (NUL/0x1f format), shows the subject of `HEAD@{0}`
+and, when confirmed, runs `git reset --keep HEAD@{1}` on a branch (`--soft` when the entry is a plain `commit:` /
+`commit (amend):`, so the undone commit's changes stay staged), or `git switch <from>` when the last entry is a
+`checkout: moving from A to B`. `--keep` refuses to clobber local changes, so undo is never destructive. The reset target is the current branch's own
+reflog entry {1}, taken only when the branch's latest entry is the same movement as `HEAD@{0}` (same oid and subject,
+or both `rebase (finish)`), so `git stash` (which only writes `reset: moving to HEAD` on HEAD) leaves nothing to undo. Detached HEAD
+or a reflog with one entry disables the action. Branch deletion is undone separately by the delete dialog, which
+reports the deleted tip oid for `branch -c`.
+
+## D-022 · accepted · 2026-10-16 — In-progress operation state read from the git dir, external editor via config
+Decision: `ops::state::in_progress(info)` inspects `git_dir` for `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`,
+`rebase-merge/`, `rebase-apply/` (no git spawn) and reports `{ kind, headName?, onto?, done, total }`; the UI polls it
+with `repo_status` on `head`/`index` changes and shows a conflict banner with abort/continue. "Open in external
+editor" spawns `core.editor` / `$VISUAL` / `$EDITOR` (shell-word split, no shell) with the file inside the work tree, and
+falls back to revealing the file in the file manager (never the OS default handler, which could run a tracked script)
+until settings (6.3) add an editor path.
+
+## D-023 · accepted · 2026-10-16 — Graph visual language follows GitKraken's three-column layout; avatars are offline
+Context: the owner wants the GitKraken look (refs column, graph with avatars, message column, dark theme).
+Decision: item 2.10 restyles the graph only in the frontend: a `BRANCH / TAG` column (fixed width token
+`--graph-refs-w`), the lane strip, and the message column, each row 36 px (`--graph-row-h`). Avatars are initials on a
+colour derived from the author email hash, drawn in the SVG (no network): Gravatar stays a future opt-in setting because
+fetching avatars leaks author emails to a third party by default. The grey "description" text GitKraken shows after the
+subject is not added yet: it needs the commit body in the log format and would grow the 100k-commit payload; revisit
+with the first page only. Dark becomes the default theme; light stays available.
