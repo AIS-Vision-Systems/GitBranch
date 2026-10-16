@@ -48,7 +48,7 @@ Acceptance: `pnpm tauri dev` opens a window on Windows; CI green on both OSes; i
 ### Phase 1 — Open repo and read-only commit graph (validates the core value first)
 Goal: open a local repo, see the full graph with refs, select a commit, see its files.
 
-- [~] 1.1 Open/recent repos (native dialog, persisted list, detect worktree and open main repo).
+- [x] 1.1 Open/recent repos (native dialog, persisted list, detect worktree and open main repo).
 - [x] 1.2 `git-core::refs`: `for-each-ref` parser (local, remote, tags, HEAD, upstream + ahead/behind).
 - [x] 1.3 `git-core::log`: streaming `git log --all --date-order --format=<NUL-separated>` parser to `Commit {oid, parents, author, time, subject}`. Paginated (first 2k rows, then chunks).
 - [x] 1.4 `git-core::graph`: lane allocation (see ARCHITECTURE.md, Graph). Output per row: lane, color index, incoming/outgoing edge segments. Property tests with fixture repos; perf test with 100k synthetic commits.

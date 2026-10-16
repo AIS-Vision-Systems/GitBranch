@@ -11,3 +11,30 @@ export interface AppInfo {
 }
 
 export type RepoId = string & { readonly __brand: "RepoId" };
+
+export interface OpenedRepo {
+  repoId: RepoId;
+  name: string;
+  path: string;
+  gitDir: string;
+  isWorktree: boolean;
+  mainWorkTree: string | null;
+  isBare: boolean;
+}
+
+export interface RecentRepo {
+  path: string;
+  name: string;
+  /** Unix milliseconds. */
+  lastOpened: number;
+}
+
+export interface OpenedRepo {
+  repoId: RepoId;
+  name: string;
+  path: string;
+  gitDir: string;
+  isWorktree: boolean;
+  mainWorkTree: string | null;
+  isBare: boolean;
+}

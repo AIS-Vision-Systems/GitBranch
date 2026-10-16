@@ -1,3 +1,4 @@
+use git_core::parse::{log::LogError, refs::RefsError, status::StatusError};
 use serde::Serialize;
 
 /// Error shape every command returns to the UI (see `docs/ARCHITECTURE.md`, IPC contract).
@@ -33,3 +34,21 @@ impl From<git_core::GitError> for AppError {
         AppError::new(err.code(), message).with_detail(err.stderr.clone())
     }
 }
+
+/// Parse-module errors: git failures keep their `git.*` code, malformed output becomes `parse.invalid`.
+macro_rules! from_parse_module_error {
+    ($t:ident) => {
+        impl From<$t> for AppError {
+            fn from(err: $t) -> Self {
+                match err {
+                    $t::Git(g) => g.into(),
+                    $t::Parse(p) => AppError::new("parse.invalid", p.to_string()),
+                }
+            }
+        }
+    };
+}
+
+from_parse_module_error!(LogError);
+from_parse_module_error!(RefsError);
+from_parse_module_error!(StatusError);

@@ -103,6 +103,12 @@ commits between phases. Branch name uses a slash so it never collides with the `
 to `origin` immediately (standing owner authorization; the old "never push without the owner" rule is superseded for
 ordinary commits — PRs and releases still need the owner). Requested by the owner.
 
+## D-015 · accepted · 2026-10-16 — Repo identity and persistence for item 1.1
+Decision: `RepoId` is a short FNV-1a hash of the normalized work-tree path (stable across restarts, no uuid dep).
+The recent-repos list is a plain JSON file at `<app_config_dir>/recent.json` (max 20, atomic write) — no
+`tauri-plugin-store`. The folder picker runs in Rust via `tauri-plugin-dialog` so the UI keeps calling only typed
+commands. Opening a linked worktree asks "main repository (default) / this worktree" instead of silently redirecting.
+
 ## D-016 · accepted · 2026-10-16 — Machine-readable separators and per-module error enums in `git-core::parse`
 Decision: `git log -z --format=...%x1f...` (NUL between records, 0x1f between fields); `for-each-ref` and
 `status --porcelain=v2 -z` likewise NUL-terminated. Each parse module exposes a pure `parse_*(&[u8])` returning

@@ -9,6 +9,7 @@
 
 pub mod graph;
 pub mod parse;
+pub mod repo;
 pub mod runner;
 
 pub use runner::{GitError, GitErrorKind, GitOutput, GitRunner, GitVersion, RunOpts};
