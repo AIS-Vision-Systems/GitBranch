@@ -6,5 +6,7 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod auth;
+
 /// Crate version, exposed so the Tauri shell can report it in `User-Agent`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

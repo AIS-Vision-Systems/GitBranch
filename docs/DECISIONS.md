@@ -17,7 +17,7 @@ Consequences: requires git >= 2.31 on the machine; parsers live in `crates/git-c
 ## D-003 · accepted · 2026-10-15 — Targets: Windows + Linux. macOS not targeted.
 Consequences: CI matrix windows-latest + ubuntu-22.04; no code-signing for macOS; keyring backends: Credential Manager + Secret Service.
 
-## D-004 · open — GitHub OAuth App registration (owner action)
+## D-004 · accepted · 2026-10-16 — GitHub OAuth App registration (owner action, done)
 Context: GitHub integration uses the Device Flow of an OAuth App; the app only embeds the public client_id.
 Needed from the owner, before Phase 5 starts:
 1. Organization *AIS-Vision-Systems* → *Settings* → *Developer settings* → *OAuth Apps* → *New OAuth App*.
@@ -28,7 +28,8 @@ Needed from the owner, before Phase 5 starts:
    call without a secret on a test app; if it works, the option is switched on in the app settings and the client
    stores the refresh token in the keyring too (8 h access token, 6 months refresh).
 3. Paste the **Client ID** into `crates/github-api/src/auth.rs` (`CLIENT_ID`). Do not generate or share a client secret.
-Decision pending: owner confirms the app is created and provides the client_id.
+Done 2026-10-16: app registered under AIS-Vision-Systems, Device Flow enabled, expiring tokens off, no secret.
+Client ID `Ov23liz0pkJr73cVRaNX` is in `crates/github-api/src/auth.rs`.
 
 ## D-005 · accepted · 2026-10-15 — Scopes `repo read:org` by default; `workflow` optional
 Context: private repos require `repo`; org repo listing requires `read:org`; pushing workflow files requires `workflow`.
