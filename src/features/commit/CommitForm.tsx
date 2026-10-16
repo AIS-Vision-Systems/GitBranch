@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
 import type { CommitTemplate } from "../../ipc/commit";
 import type { RepoId } from "../../ipc/types";
 import { forRepo, useCommitFormStore } from "../../state/commitForm";
+import { EMPTY_GRAPH, useGraphStore } from "../../state/graph";
 import styles from "./Commit.module.css";
 
 const TEMPLATE_LABEL: Record<CommitTemplate["source"], string> = {
@@ -33,9 +34,12 @@ export function CommitForm({ repoId, stagedCount, dirty }: CommitFormProps) {
   const setMessage = (m: string): void => setMessageFor(repoId, m);
   const area = useRef<HTMLTextAreaElement>(null);
 
+  // Reload when the tree turns dirty/clean and when a merge/rebase/cherry-pick starts or ends,
+  // since MERGE_MSG / SQUASH_MSG appear and disappear with the operation.
+  const opKind = useGraphStore((s) => (s.byRepo[repoId] ?? EMPTY_GRAPH).inProgress?.kind ?? null);
   useEffect(() => {
     void loadTemplate(repoId);
-  }, [repoId, dirty, loadTemplate]);
+  }, [repoId, dirty, opKind, loadTemplate]);
 
   useLayoutEffect(() => {
     const el = area.current;

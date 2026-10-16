@@ -24,6 +24,25 @@ beforeEach(() => {
 });
 
 describe("commit form store", () => {
+  it("clears an untouched template once it no longer applies", async () => {
+    m.commitTemplate.mockResolvedValue({ message: "Merge branch 'x'", source: "mergeMsg" });
+    await st().loadTemplate(id);
+    expect(f().message).toBe("Merge branch 'x'");
+    m.commitTemplate.mockResolvedValue(null);
+    await st().loadTemplate(id);
+    expect(f().message).toBe("");
+    expect(f().templateSource).toBeNull();
+  });
+
+  it("keeps an edited template message when the template disappears", async () => {
+    m.commitTemplate.mockResolvedValue({ message: "Merge branch 'x'", source: "mergeMsg" });
+    await st().loadTemplate(id);
+    st().setMessage(id, "Merge branch 'x' (edited)");
+    m.commitTemplate.mockResolvedValue(null);
+    await st().loadTemplate(id);
+    expect(f().message).toBe("Merge branch 'x' (edited)");
+  });
+
   it("amend prefills with HEAD message and restores the previous one", async () => {
     m.headMessage.mockResolvedValue("old subject");
     await st().setAmend(id, true);

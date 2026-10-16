@@ -42,6 +42,7 @@ pub struct UndoInfo {
 }
 
 const CHECKOUT_PREFIX: &str = "checkout: moving from ";
+const REBASE_FINISH: &str = "rebase (finish)";
 
 fn is_full_oid(s: &str) -> bool {
     (s.len() == 40 || s.len() == 64) && s.bytes().all(|b| b.is_ascii_hexdigit())
@@ -78,9 +79,18 @@ pub async fn undo_preview(
     // own reflog: entry {1} is the tip before the movement that just happened.
     let refname = format!("refs/heads/{}", branch.stdout_str());
     let branch_log = ref_reflog(runner, repo, &refname, 2).await?;
-    let [_, before] = &branch_log[..] else {
+    let [latest, before] = &branch_log[..] else {
         return Ok(None);
     };
+    // The branch entry must describe the same movement as HEAD@{0}; otherwise HEAD moved
+    // without the branch (e.g. `git stash` writes "reset: moving to HEAD") and there is
+    // nothing to undo on the branch. git writes the same subject to both reflogs, except
+    // for a finished rebase ("returning to refs/heads/x" vs "refs/heads/x onto <oid>").
+    let same_subject = latest.subject == last.subject
+        || (latest.subject.starts_with(REBASE_FINISH) && last.subject.starts_with(REBASE_FINISH));
+    if latest.oid != last.oid || !same_subject {
+        return Ok(None);
+    }
     let head = runner.run(repo, &["rev-parse", "HEAD"], RunOpts::default()).await?;
     if before.oid == head.stdout_str() {
         return Ok(None);

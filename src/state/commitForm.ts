@@ -110,8 +110,16 @@ export const useCommitFormStore = create<CommitFormState>((set, get) => {
       const gen = generation;
       try {
         const t = await ipc.commitTemplate(repoId);
-        if (gen !== generation || t === null) return;
-        if (cur(repoId).message.trim() !== "" || cur(repoId).amend) return;
+        if (gen !== generation) return;
+        const { message, templateMessage, amend } = cur(repoId);
+        if (t === null) {
+          // The merge/squash message is gone (operation finished or aborted): drop it unless edited.
+          if (templateMessage !== null && message === templateMessage) {
+            patch(repoId, { message: "", templateSource: null, templateMessage: null });
+          }
+          return;
+        }
+        if (message.trim() !== "" || amend) return;
         patch(repoId, { message: t.message, templateSource: t.source, templateMessage: t.message });
       } catch (e) {
         if (gen !== generation) return;

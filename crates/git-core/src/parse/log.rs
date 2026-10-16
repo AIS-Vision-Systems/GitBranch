@@ -145,7 +145,13 @@ pub async fn log_page(
     };
     let mut args: Vec<String> =
         vec!["log".into(), "-z".into(), "--no-show-signature".into(), order.into()];
-    args.push(if query.all { "--all" } else { "HEAD" }.into());
+    if query.all {
+        // Stash entries are listed by the stash panel, not drawn as anonymous commits.
+        args.push("--exclude=refs/stash".into());
+        args.push("--all".into());
+    } else {
+        args.push("HEAD".into());
+    }
     args.push(format!("--skip={}", query.skip));
     args.push(format!("--max-count={}", query.limit.saturating_add(1)));
     args.push("--format=%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%ct%x1f%s".into());

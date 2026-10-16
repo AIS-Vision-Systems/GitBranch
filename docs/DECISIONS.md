@@ -145,7 +145,9 @@ surface as `GitErrorKind::Conflict` and the normal abort/continue flow takes ove
 Decision: "Undo last operation" reads `git reflog show HEAD -n 2` (NUL/0x1f format), shows the subject of `HEAD@{0}`
 and, when confirmed, runs `git reset --keep HEAD@{1}` on a branch (`--soft` when the entry is a plain `commit:` /
 `commit (amend):`, so the undone commit's changes stay staged), or `git switch <from>` when the last entry is a
-`checkout: moving from A to B`. `--keep` refuses to clobber local changes, so undo is never destructive. Detached HEAD
+`checkout: moving from A to B`. `--keep` refuses to clobber local changes, so undo is never destructive. The reset target is the current branch's own
+reflog entry {1}, taken only when the branch's latest entry is the same movement as `HEAD@{0}` (same oid and subject,
+or both `rebase (finish)`), so `git stash` (which only writes `reset: moving to HEAD` on HEAD) leaves nothing to undo. Detached HEAD
 or a reflog with one entry disables the action. Branch deletion is undone separately by the delete dialog, which
 reports the deleted tip oid for `branch -c`.
 

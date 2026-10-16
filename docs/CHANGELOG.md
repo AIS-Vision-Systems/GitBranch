@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- 2026-10-16: Phase 2 — local operations. Stage/unstage/discard per file, hunk and line (patches built in Rust,
+  `git apply --cached`); commit with template/amend/sign-off; branches (create, checkout, rename, safe/force delete,
+  upstream); stash push/list/apply/pop/drop with a stash panel; merge (ff/no-ff/squash), rebase onto and
+  interactive-lite rebase (reorder/squash/fixup/drop); reset/revert/cherry-pick/tags; conflict banner with
+  abort/continue/skip and ours/theirs/mark-resolved; graph context menus and branch drag-and-drop; reflog-based
+  Undo (Ctrl+Z). Every destructive action confirms with the exact git command. Decisions D-018–D-022.
 - 2026-10-16: Phase 1 — open a repository (native picker, recent list, worktree detection, `gitbranch <path>`),
   commit graph for all refs with lanes/colors, ref chips, WIP row, keyboard navigation; commit details with changed
   files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;

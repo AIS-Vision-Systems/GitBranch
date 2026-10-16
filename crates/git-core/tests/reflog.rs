@@ -4,6 +4,7 @@
 use git_core::fixtures::FixtureRepo;
 use git_core::ops::merge::{MergeArgs, MergeMode, merge};
 use git_core::ops::reflog::{UndoAction, undo_last, undo_preview};
+use git_core::ops::stash::{StashPushArgs, stash_push};
 use git_core::parse::reflog::head_reflog;
 
 #[tokio::test]
@@ -115,4 +116,24 @@ async fn undo_after_amend_is_soft_and_keeps_changes_staged() {
     undo_last(&r.runner(), r.path()).await.unwrap();
     assert_eq!(r.rev_parse("HEAD"), before);
     assert_eq!(r.git(&["diff", "--cached", "--name-only"]), "x.txt");
+}
+
+#[tokio::test]
+async fn nothing_to_undo_after_a_stash() {
+    let r = FixtureRepo::linear(2);
+    std::fs::write(
+        r.path().join("f1.txt"),
+        "changed
+",
+    )
+    .unwrap();
+    let args = StashPushArgs {
+        message: None,
+        include_untracked: false,
+        keep_index: false,
+        paths: Vec::new(),
+    };
+    stash_push(&r.runner(), r.path(), &args).await.unwrap();
+    // HEAD@{0} is "reset: moving to HEAD" written by stash; the branch did not move.
+    assert_eq!(undo_preview(&r.runner(), r.path()).await.unwrap(), None);
 }

@@ -42,6 +42,12 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
     return t.kind === "commit" ? `c:${t.path}` : `${t.kind}:${t.path}`;
   }, [selectedFile]);
 
+  // A fully staged/unstaged/discarded file leaves its section: drop its now-empty diff.
+  useEffect(() => {
+    if (selectedOid !== WIP_OID || selectedKey === null || entries === undefined) return;
+    if (!wip.some((i) => i.key === selectedKey)) clear();
+  }, [selectedOid, selectedKey, wip, entries, clear]);
+
   const onSelectFile = (item: FileListItem): void => {
     void selectFile(repoId, item.target, item.label);
   };
