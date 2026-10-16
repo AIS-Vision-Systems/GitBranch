@@ -165,3 +165,78 @@ async fn space_and_utf8_paths_merge_and_root() {
     let d = file_diff(&r.runner(), r.path(), &t).await.unwrap();
     assert_eq!(d.hunks.len(), 1);
 }
+
+#[tokio::test]
+async fn untracked_rejects_escapes_and_non_files() {
+    let repo = FixtureRepo::linear(1);
+    let r = repo.runner();
+    for p in [r"\Windows\win.ini", "/etc/x", "C:foo", "../x", "./f1.txt", "", "a/../f1.txt"] {
+        let res = file_diff(&r, repo.path(), &DiffTarget::Untracked { path: p.into() }).await;
+        assert!(res.is_err(), "{p} should be rejected");
+    }
+    std::fs::create_dir(repo.path().join("sub")).unwrap();
+    let res = file_diff(&r, repo.path(), &DiffTarget::Untracked { path: "sub".into() }).await;
+    assert!(res.is_err());
+    let big = std::fs::File::create(repo.path().join("big.txt")).unwrap();
+    big.set_len(8 * 1024 * 1024 + 1).unwrap();
+    let d = file_diff(&r, repo.path(), &DiffTarget::Untracked { path: "big.txt".into() })
+        .await
+        .unwrap();
+    assert!(d.too_large && d.hunks.is_empty() && !d.binary);
+}
+
+#[tokio::test]
+async fn conflicted_file_is_combined() {
+    let repo = FixtureRepo::merge();
+    repo.commit_file("c.txt", "base\n", "base c");
+    repo.git(&["checkout", "-q", "-b", "side"]);
+    repo.commit_file("c.txt", "side\n", "side c");
+    repo.git(&["checkout", "-q", "main"]);
+    repo.commit_file("c.txt", "main\n", "main c");
+    let r = repo.runner();
+    let merged = r.run(repo.path(), &["merge", "side"], git_core::runner::RunOpts::default()).await;
+    assert!(merged.is_err());
+    let t = DiffTarget::Unstaged { path: "c.txt".into() };
+    let d = file_diff(&r, repo.path(), &t).await.unwrap();
+    assert!(d.combined && d.hunks.is_empty());
+    repo.git(&["merge", "--abort"]);
+}
+
+#[tokio::test]
+async fn merge_commit_diffs_against_first_parent() {
+    let repo = FixtureRepo::merge();
+    let m = repo.rev_parse("HEAD");
+    let t = DiffTarget::Commit { oid: m.clone(), path: "feat2.txt".into() };
+    let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
+    assert_eq!(d.hunks.len(), 1);
+    let expect = repo.git(&["diff", &format!("{m}^1"), &m, "--", "feat2.txt"]);
+    assert_eq!(d, parse_unified(expect.as_bytes()).unwrap());
+    // Changed only on the first-parent side: absent from the diff against it.
+    let t = DiffTarget::Commit { oid: m, path: "f2.txt".into() };
+    let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
+    assert!(d.hunks.is_empty());
+}
+
+#[tokio::test]
+async fn literal_pathspec() {
+    let repo = FixtureRepo::linear(1);
+    repo.commit_file("a[1].txt", "x\n", "add");
+    repo.commit_file("a1.txt", "y\n", "add other");
+    let oid = repo.commit_file("a[1].txt", "x\nz\n", "edit");
+    let t = DiffTarget::Commit { oid, path: "a[1].txt".into() };
+    let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
+    assert_eq!(d.new_path.as_deref(), Some("a[1].txt"));
+    assert_eq!(d.hunks[0].lines.len(), 2);
+    std::fs::write(repo.path().join("a[1].txt"), "x\nz\nw\n").unwrap();
+    let t = DiffTarget::Unstaged { path: "a[1].txt".into() };
+    let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
+    assert_eq!(d.hunks.len(), 1);
+}
+
+#[test]
+fn unquote_c_escapes() {
+    let q = r#""a/x\a\b\f\r\v\\\"\303\251\8.txt""#;
+    let sample = format!("diff --git {q} {q}\n--- {q}\n+++ b/y\n");
+    let d = parse_unified(sample.as_bytes()).unwrap();
+    assert_eq!(d.old_path.as_deref(), Some("x\u{7}\u{8}\u{c}\r\u{b}\\\"\u{e9}8.txt"));
+}

@@ -1,7 +1,7 @@
 //! Per-file unified diffs parsed into hunks with line numbers.
 //!
-//! Commit targets run `diff-tree --root -m --first-parent -p`, i.e. against the first parent
-//! (the empty tree for roots), matching the file list of [`super::show`]. Renamed files are
+//! Commit targets diff `<oid>^1` against `<oid>` explicitly (or use `diff-tree --root` for root
+//! commits), i.e. against the first parent only, matching the file list of [`super::show`]. Renamed files are
 //! requested by their new path only (`-- <path>`), so the diff shows them as additions; pass both
 //! paths later if rename-aware diffs are needed.
 
@@ -98,6 +98,12 @@ pub struct FileDiff {
     pub binary: bool,
     /// Hunks.
     pub hunks: Vec<Hunk>,
+    /// Combined diff of a conflicted file (`diff --cc`): hunks are not parsed.
+    #[serde(default)]
+    pub combined: bool,
+    /// Untracked file above the size cap: content is not read.
+    #[serde(default)]
+    pub too_large: bool,
     /// Old file mode.
     pub old_mode: Option<String>,
     /// New file mode.
@@ -119,7 +125,7 @@ fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
-/// Unquote a git C-style quoted path (`\\`, `\"`, `\t`, `\n`, octal bytes).
+/// Unquote a git C-style quoted path (`\a \b \f \n \r \t \v \\ \"` and octal `\NNN`).
 fn unquote(s: &str) -> String {
     let Some(inner) = s.strip_prefix('"').and_then(|r| r.strip_suffix('"')) else {
         return s.to_string();
@@ -131,12 +137,17 @@ fn unquote(s: &str) -> String {
         if b[i] == b'\\' && i + 1 < b.len() {
             i += 1;
             match b[i] {
-                b't' => out.push(b'\t'),
+                b'a' => out.push(0x07),
+                b'b' => out.push(0x08),
+                b'f' => out.push(0x0c),
                 b'n' => out.push(b'\n'),
+                b'r' => out.push(b'\r'),
+                b't' => out.push(b'\t'),
+                b'v' => out.push(0x0b),
                 c @ b'0'..=b'3'
                     if i + 2 < b.len()
-                        && b[i + 1].is_ascii_digit()
-                        && b[i + 2].is_ascii_digit() =>
+                        && (b'0'..=b'7').contains(&b[i + 1])
+                        && (b'0'..=b'7').contains(&b[i + 2]) =>
                 {
                     out.push((c - b'0') * 64 + (b[i + 1] - b'0') * 8 + (b[i + 2] - b'0'));
                     i += 2;
@@ -244,6 +255,12 @@ pub fn parse_unified(stdout: &[u8]) -> Result<FileDiff, ParseError> {
     }
     for rl in raw {
         let line = text(rl);
+        if cur.is_none() && (line.starts_with("diff --cc ") || line.starts_with("diff --combined "))
+        {
+            d.combined = true;
+            d.hunks.clear();
+            return Ok(d);
+        }
         if let Some(h) = cur.as_mut() {
             if !(line.starts_with("@@") || line.starts_with("diff --git ") && hunk_done(h)) {
                 let mk = |kind, t: &str, o: Option<u32>, n: Option<u32>| DiffLine {
@@ -328,14 +345,26 @@ pub fn parse_unified(stdout: &[u8]) -> Result<FileDiff, ParseError> {
     Ok(d)
 }
 
+/// Largest untracked file whose content is read for a synthetic diff.
+const MAX_UNTRACKED_BYTES: u64 = 8 * 1024 * 1024;
+
 fn untracked_diff(repo: &Path, path: &str) -> Result<FileDiff, ParseError> {
     let rel = Path::new(path);
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, Component::ParentDir)) {
-        return Err(ParseError(format!("invalid untracked path: {path}")));
+    if rel.as_os_str().is_empty() || !rel.components().all(|c| matches!(c, Component::Normal(_))) {
+        return Err(ParseError(format!("path escapes the repository: {path}")));
     }
-    let bytes = std::fs::read(repo.join(rel))
+    let full = repo.join(rel);
+    let meta = std::fs::symlink_metadata(&full)
         .map_err(|e| ParseError(format!("cannot read {path}: {e}")))?;
+    if !meta.is_file() {
+        return Err(ParseError(format!("not a regular file: {path}")));
+    }
     let mut d = FileDiff { new_path: Some(path.to_string()), ..FileDiff::default() };
+    if meta.len() > MAX_UNTRACKED_BYTES {
+        d.too_large = true;
+        return Ok(d);
+    }
+    let bytes = std::fs::read(&full).map_err(|e| ParseError(format!("cannot read {path}: {e}")))?;
     if bytes[..bytes.len().min(8192)].contains(&0) {
         d.binary = true;
         return Ok(d);
@@ -383,13 +412,32 @@ pub async fn file_diff(
     repo: &Path,
     target: &DiffTarget,
 ) -> Result<FileDiff, DiffError> {
-    let common = ["-p", "--no-color", "--no-ext-diff"];
+    let common = [
+        "-p",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+    ];
     let mut args: Vec<&str> = Vec::new();
+    let parent;
     match target {
         DiffTarget::Commit { oid, path } => {
-            args.extend(["diff-tree", "--root", "-m", "--first-parent"]);
-            args.extend(common);
-            args.extend(["-M", "-U3", "--no-commit-id", oid, "--", path]);
+            parent = format!("{oid}^1");
+            let has_parent = runner
+                .run(repo, &["rev-parse", "--verify", "--quiet", &parent], opts())
+                .await
+                .is_ok();
+            if has_parent {
+                args.push("diff-tree");
+                args.extend(common);
+                args.extend(["-M", "-U3", &parent, oid, "--", path]);
+            } else {
+                args.extend(["diff-tree", "--root"]);
+                args.extend(common);
+                args.extend(["-M", "-U3", "--no-commit-id", oid, "--", path]);
+            }
         }
         DiffTarget::Staged { path } => {
             args.extend(["diff", "--cached"]);
@@ -403,6 +451,11 @@ pub async fn file_diff(
         }
         DiffTarget::Untracked { path } => return Ok(untracked_diff(repo, path)?),
     }
-    let out = runner.run(repo, &args, RunOpts::default()).await?;
+    let out = runner.run(repo, &args, opts()).await?;
     Ok(parse_unified(&out.stdout)?)
+}
+
+/// Literal pathspecs: user paths such as `a[1].txt` must not be globs.
+fn opts() -> RunOpts {
+    RunOpts { env: vec![("GIT_LITERAL_PATHSPECS".into(), "1".into())], ..RunOpts::default() }
 }
