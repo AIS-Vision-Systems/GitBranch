@@ -102,3 +102,9 @@ boundary), tag `phase-N` on `main`, and delete `phase/N`. `main` only moves by p
 commits between phases. Branch name uses a slash so it never collides with the `phase-N` tag. Every commit is pushed
 to `origin` immediately (standing owner authorization; the old "never push without the owner" rule is superseded for
 ordinary commits — PRs and releases still need the owner). Requested by the owner.
+
+## D-016 · accepted · 2026-10-16 — Machine-readable separators and per-module error enums in `git-core::parse`
+Decision: `git log -z --format=...%x1f...` (NUL between records, 0x1f between fields); `for-each-ref` and
+`status --porcelain=v2 -z` likewise NUL-terminated. Each parse module exposes a pure `parse_*(&[u8])` returning
+`ParseError` plus an async runner call returning a module error enum (`LogError`, `RefsError`, `StatusError`) that
+wraps `GitError | ParseError` transparently; `AppError` maps both so the UI sees `git.*` / `parse.*` codes.
