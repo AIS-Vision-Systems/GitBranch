@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use git_core::ops::maintenance::{commit_graph_exists, write_commit_graph};
 use serde::Serialize;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
@@ -53,7 +54,26 @@ pub async fn open_repo(
 ) -> Result<OpenedRepo, AppError> {
     let info = git_core::repo::discover(&state.runner, Path::new(&path)).await?;
     let repo = state.open(info);
-    watchers.start(repo.id.clone(), repo.info.clone(), watcher::tauri_emitter(app))?;
+    // A watcher failure must not prevent opening: the UI just loses live refresh.
+    if let Err(e) = watchers.start(
+        repo.id.clone(),
+        repo.info.clone(),
+        state.runner.clone(),
+        watcher::tauri_emitter(app),
+    ) {
+        tracing::warn!(repo_id = %repo.id, code = %e.code, "cannot start repository watcher");
+    }
+    if !commit_graph_exists(&repo.info) {
+        // Background, best effort: speeds up `git log` on large histories (D-017).
+        let runner = state.runner.clone();
+        let info = repo.info.clone();
+        tauri::async_runtime::spawn(async move {
+            match write_commit_graph(&runner, &info).await {
+                Ok(()) => tracing::debug!("commit-graph written"),
+                Err(e) => tracing::warn!(error = %e, "commit-graph write failed"),
+            }
+        });
+    }
     let work_tree = s(&repo.info.work_tree);
     let name = repo
         .info

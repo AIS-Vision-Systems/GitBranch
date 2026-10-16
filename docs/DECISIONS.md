@@ -114,3 +114,8 @@ Decision: `git log -z --format=...%x1f...` (NUL between records, 0x1f between fi
 `status --porcelain=v2 -z` likewise NUL-terminated. Each parse module exposes a pure `parse_*(&[u8])` returning
 `ParseError` plus an async runner call returning a module error enum (`LogError`, `RefsError`, `StatusError`) that
 wraps `GitError | ParseError` transparently; `AppError` maps both so the UI sees `git.*` / `parse.*` codes.
+
+## D-017 · accepted · 2026-10-16 — Write the commit-graph file in the background when missing
+Why: on git/git (85k commits) the first-page `git log` drops from 640 ms to 124 ms with a commit-graph file.
+It is the same file `git gc` writes, so it is harmless to the user's repository.
+`open_repo` spawns `git commit-graph write --reachable` when absent (errors only logged); an opt-out can come later via settings.

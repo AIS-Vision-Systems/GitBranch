@@ -7,6 +7,7 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+use git_core::GitRunner;
 use git_core::repo::RepoInfo;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,8 @@ use crate::AppError;
 pub const EVENT: &str = "repo-changed";
 /// Quiet period before a batch is emitted.
 pub const DEBOUNCE: Duration = Duration::from_millis(150);
+/// Most working-tree paths sent to one `check-ignore` call; beyond it events are emitted as is.
+const MAX_IGNORE_PATHS: usize = 500;
 /// Upper bound between the first event of a batch and its emission.
 const MAX_DELAY: Duration = Duration::from_secs(1);
 
@@ -78,14 +81,15 @@ fn classify_in_git_dir(rel: &[String], own: bool) -> Option<Change> {
         "index" if own && rel.len() == 1 => Some(Change::Index),
         "refs" | "packed-refs" => Some(Change::Refs),
         "logs" => {
-            if rel.len() == 2 && rel[1] == "HEAD" {
+            if own && rel.len() == 2 && rel[1] == "HEAD" {
                 Some(Change::Head)
             } else {
                 Some(Change::Refs)
             }
         }
         "ORIG_HEAD" | "FETCH_HEAD" | "MERGE_HEAD" | "CHERRY_PICK_HEAD" | "REBASE_HEAD"
-        | "MERGE_MSG" | "rebase-merge" | "rebase-apply"
+        | "MERGE_MSG" | "REVERT_HEAD" | "AUTO_MERGE" | "BISECT_LOG" | "rebase-merge"
+        | "rebase-apply" | "sequencer"
             if own =>
         {
             Some(Change::Head)
@@ -144,13 +148,32 @@ pub struct Watchers {
     map: Mutex<HashMap<String, WatchHandle>>,
 }
 
+/// Returns the paths that are ignored, or `None` when the check failed.
+type IgnoreCheck<'a> = &'a (dyn Fn(&[PathBuf]) -> Option<Vec<PathBuf>> + Send);
+
+/// Removes `WorkingTree` from `what` when every collected path of the window is ignored.
+/// Never drops anything on failure, when nothing was collected, or past [`MAX_IGNORE_PATHS`].
+fn drop_ignored(what: &mut BTreeSet<Change>, paths: &BTreeSet<PathBuf>, check: IgnoreCheck<'_>) {
+    if !what.contains(&Change::WorkingTree) || paths.is_empty() || paths.len() > MAX_IGNORE_PATHS {
+        return;
+    }
+    let list: Vec<PathBuf> = paths.iter().cloned().collect();
+    if check(&list).is_some_and(|ign| ign.len() == list.len()) {
+        what.remove(&Change::WorkingTree);
+    }
+}
+
 fn run_loop(
     repo_id: &str,
     info: &RepoInfo,
     rx: &Receiver<Msg>,
     emit: &(dyn Fn(RepoChanged) + Send),
+    check: IgnoreCheck<'_>,
 ) {
     let mut pending: BTreeSet<Change> = BTreeSet::new();
+    // Working-tree paths of the current window; `wt_overflow` once past the cap.
+    let mut wt_paths: BTreeSet<PathBuf> = BTreeSet::new();
+    let mut wt_overflow = false;
     let mut first = Instant::now();
     let mut last = first;
     loop {
@@ -174,7 +197,17 @@ fn run_loop(
                     continue;
                 }
                 let was_empty = pending.is_empty();
-                pending.extend(ev.paths.iter().filter_map(|p| classify(p, info)));
+                for p in &ev.paths {
+                    let Some(c) = classify(p, info) else { continue };
+                    if c == Change::WorkingTree {
+                        if wt_paths.len() < MAX_IGNORE_PATHS {
+                            wt_paths.insert(p.clone());
+                        } else {
+                            wt_overflow = true;
+                        }
+                    }
+                    pending.insert(c);
+                }
                 if !pending.is_empty() {
                     let now = Instant::now();
                     if was_empty {
@@ -185,8 +218,17 @@ fn run_loop(
             }
             Some(Msg::Fs(Err(e))) => tracing::warn!(repo_id, error = %e, "watcher error"),
             None => {
-                let what: Vec<Change> = std::mem::take(&mut pending).into_iter().collect();
-                emit(RepoChanged { repo_id: repo_id.to_owned(), what });
+                let mut set = std::mem::take(&mut pending);
+                let paths = std::mem::take(&mut wt_paths);
+                if !std::mem::take(&mut wt_overflow) {
+                    drop_ignored(&mut set, &paths, check);
+                }
+                if !set.is_empty() {
+                    emit(RepoChanged {
+                        repo_id: repo_id.to_owned(),
+                        what: set.into_iter().collect(),
+                    });
+                }
             }
         }
     }
@@ -199,6 +241,7 @@ impl Watchers {
         &self,
         repo_id: String,
         info: RepoInfo,
+        runner: GitRunner,
         emit: Box<dyn Fn(RepoChanged) + Send + 'static>,
     ) -> Result<(), AppError> {
         let (tx, rx) = mpsc::channel();
@@ -233,7 +276,19 @@ impl Watchers {
         let id = repo_id.clone();
         let thread = std::thread::Builder::new()
             .name("repo-watcher".into())
-            .spawn(move || run_loop(&id, &info, &rx, emit.as_ref()))
+            .spawn(move || {
+                // Build output (`target/`, `node_modules/`) must not trigger refreshes.
+                let check = |paths: &[PathBuf]| {
+                    tauri::async_runtime::block_on(git_core::ops::ignore::ignored(
+                        &runner,
+                        &info.work_tree,
+                        paths,
+                    ))
+                    .map_err(|e| tracing::debug!(error = %e, "check-ignore failed"))
+                    .ok()
+                };
+                run_loop(&id, &info, &rx, emit.as_ref(), &check);
+            })
             .map_err(|e| {
                 AppError::new("watcher.thread", "cannot spawn watcher thread")
                     .with_detail(e.to_string())
@@ -294,6 +349,10 @@ mod tests {
             ("/r/.git/refs/heads/main.lock", None),
             ("/r/.git/packed-refs", Some(Change::Refs)),
             ("/r/.git/logs/HEAD", Some(Change::Head)),
+            ("/r/.git/REVERT_HEAD", Some(Change::Head)),
+            ("/r/.git/AUTO_MERGE", Some(Change::Head)),
+            ("/r/.git/BISECT_LOG", Some(Change::Head)),
+            ("/r/.git/sequencer/todo", Some(Change::Head)),
             ("/r/.git/logs/refs/heads/main", Some(Change::Refs)),
             ("/r/.git/ORIG_HEAD", Some(Change::Head)),
             ("/r/.git/rebase-merge/done", Some(Change::Head)),
@@ -316,6 +375,7 @@ mod tests {
             ("/r/.git/worktrees/wt/index", Some(Change::Index)),
             ("/r/.git/worktrees/other/index", None),
             ("/r/.git/HEAD", None),
+            ("/r/.git/logs/HEAD", Some(Change::Refs)),
             ("/r/.git/refs/heads/x", Some(Change::Refs)),
             ("/r/.git/packed-refs", Some(Change::Refs)),
             ("/wt/.git", None),
@@ -324,6 +384,25 @@ mod tests {
         for (p, want) in cases {
             assert_eq!(classify(Path::new(p), &w), *want, "{p}");
         }
+    }
+
+    #[test]
+    fn drop_ignored_rules() {
+        let paths: BTreeSet<PathBuf> =
+            ["/r/target/a", "/r/src/b"].iter().map(PathBuf::from).collect();
+        let base: BTreeSet<Change> = [Change::WorkingTree, Change::Refs].into();
+        // Only some ignored: keep.
+        let mut w = base.clone();
+        drop_ignored(&mut w, &paths, &|_| Some(vec![PathBuf::from("/r/target/a")]));
+        assert!(w.contains(&Change::WorkingTree));
+        // All ignored: drop WorkingTree only.
+        let mut w = base.clone();
+        drop_ignored(&mut w, &paths, &|p| Some(p.to_vec()));
+        assert_eq!(w, [Change::Refs].into());
+        // Failure: keep.
+        let mut w = base.clone();
+        drop_ignored(&mut w, &paths, &|_| None);
+        assert_eq!(w, base);
     }
 
     type Sink = Arc<Mutex<Vec<RepoChanged>>>;
@@ -348,7 +427,8 @@ mod tests {
         let got: Sink = Arc::default();
         let sink = got.clone();
         let w = Watchers::default();
-        w.start("r".into(), info, Box::new(move |c| sink.lock().unwrap().push(c))).expect("start");
+        w.start("r".into(), info, runner.clone(), Box::new(move |c| sink.lock().unwrap().push(c)))
+            .expect("start");
 
         std::fs::write(fx.path().join("new.txt"), "hi").unwrap();
         assert!(

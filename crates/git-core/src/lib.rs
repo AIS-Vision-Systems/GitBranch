@@ -8,6 +8,7 @@
 #![warn(missing_docs)]
 
 pub mod graph;
+pub mod ops;
 pub mod parse;
 pub mod repo;
 pub mod runner;
