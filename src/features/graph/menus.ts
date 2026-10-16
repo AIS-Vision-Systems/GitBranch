@@ -2,6 +2,8 @@ import {
   openCreateBranch,
   openCreateTag,
   openMerge,
+  openPull,
+  openPush,
   openRebase,
   openReset,
   openRenameBranch,
@@ -10,6 +12,7 @@ import {
 } from "../dialogs/open";
 import type { Commit, Head, Ref, RepoId, StatusEntry } from "../../ipc/types";
 import { shortOid, useOpsStore } from "../../state/ops";
+import { remotesOf, useRemotesStore } from "../../state/remotes";
 import { useWipStore } from "../../state/wip";
 import { wipItems } from "../commit/items";
 import type { MenuItem } from "../shell/ContextMenu";
@@ -133,6 +136,7 @@ export function commitMenu(ctx: MenuContext): MenuItem[] {
 export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
   const { repoId } = ctx;
   const ops = (): ReturnType<typeof useOpsStore.getState> => useOpsStore.getState();
+  const noRemotes = (): boolean => remotesOf(useRemotesStore.getState(), repoId).length === 0;
   const from = (name: string): MenuItem => ({
     kind: "item",
     id: "create-branch",
@@ -166,6 +170,25 @@ export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
         onSelect: () => openSetUpstream(repoId, ref.name, ref.upstream?.name ?? null),
       },
       SEP,
+      ...(ref.isHead
+        ? [
+            {
+              kind: "item",
+              id: "pull",
+              label: "Pull…",
+              disabled: ctx.inProgress || noRemotes() || ops().busy,
+              onSelect: () => openPull(repoId),
+            } satisfies MenuItem,
+          ]
+        : []),
+      {
+        kind: "item",
+        id: "push",
+        label: `Push ${ref.name}…`,
+        disabled: noRemotes() || ops().busy,
+        onSelect: () => openPush(repoId, ref.name),
+      },
+      SEP,
       {
         kind: "item",
         id: "delete-branch",
@@ -178,6 +201,7 @@ export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
   }
   if (typeof ref.kind === "object" && "remoteBranch" in ref.kind) {
     const full = remoteTrackingName(ref);
+    const remote = ref.kind.remoteBranch.remote;
     return [
       {
         kind: "item",
@@ -189,6 +213,13 @@ export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
       from(full),
       SEP,
       ...integrateItems(ctx, full, full, false, "this"),
+      SEP,
+      {
+        kind: "item",
+        id: "fetch-remote",
+        label: `Fetch ${remote}`,
+        onSelect: () => void ops().fetch(repoId, { remote, prune: true, tags: false }),
+      },
     ];
   }
   return [

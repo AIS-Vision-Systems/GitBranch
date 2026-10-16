@@ -46,3 +46,11 @@ export const openBranchDrop = (
   targetLabel: string,
   targetKind: DropTargetKind,
 ): void => open(DIALOG.branchDrop, { repoId, source, target, targetLabel, targetKind });
+
+export const openPull = (repoId: RepoId): void => open(DIALOG.pull, { repoId });
+
+/** `branch` null = the current branch. */
+export const openPush = (repoId: RepoId, branch: string | null = null): void =>
+  open(DIALOG.push, { repoId, branch });
+
+export const openRemotes = (repoId: RepoId): void => open(DIALOG.remotes, { repoId });

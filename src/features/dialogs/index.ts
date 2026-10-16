@@ -5,7 +5,10 @@ import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranch
 import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
 import { DIALOG } from "./ids";
 import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
+import { PullDialog, type PullDialogProps } from "./PullDialog";
+import { PushDialog, type PushDialogProps } from "./PushDialog";
 import { RebaseDialog, type RebaseDialogProps } from "./RebaseDialog";
+import { RemotesDialog, type RemotesDialogProps } from "./RemotesDialog";
 import { RenameBranchDialog, type RenameBranchDialogProps } from "./RenameBranchDialog";
 import { ResetDialog, type ResetDialogProps } from "./ResetDialog";
 import { SetUpstreamDialog, type SetUpstreamDialogProps } from "./SetUpstreamDialog";
@@ -57,5 +60,14 @@ export function registerPhase2Dialogs(): void {
       ...(p as unknown as Props<BranchDropDialogProps>),
       onClose,
     }),
+  );
+  registerDialog(DIALOG.pull, (p, onClose) =>
+    createElement(PullDialog, { ...(p as unknown as Props<PullDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.push, (p, onClose) =>
+    createElement(PushDialog, { ...(p as unknown as Props<PushDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.remotes, (p, onClose) =>
+    createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),
   );
 }

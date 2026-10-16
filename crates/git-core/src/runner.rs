@@ -48,6 +48,8 @@ pub enum GitErrorKind {
     AuthRequired,
     /// A revision, ref, path or remote object does not exist.
     NotFound,
+    /// The remote rejected a ref update (non-fast-forward, stale lease, hook).
+    Rejected,
     /// The git executable could not be started at all (or is too old).
     Spawn,
 }
@@ -75,6 +77,7 @@ impl GitError {
             GitErrorKind::Conflict => "git.conflict",
             GitErrorKind::AuthRequired => "git.auth_required",
             GitErrorKind::NotFound => "git.not_found",
+            GitErrorKind::Rejected => "git.rejected",
             GitErrorKind::Spawn => "git.spawn",
         }
     }
@@ -88,6 +91,7 @@ impl GitError {
             GitErrorKind::Conflict => format!("git {cmd} stopped with conflicts"),
             GitErrorKind::AuthRequired => "authentication required".to_string(),
             GitErrorKind::NotFound => format!("git {cmd}: not found"),
+            GitErrorKind::Rejected => format!("git {cmd}: the remote rejected the update"),
             GitErrorKind::Spawn => "could not start git".to_string(),
         }
     }
@@ -122,6 +126,10 @@ impl GitError {
             "pathspec",
             "Needed a single revision",
         ];
+        let rejected = stderr.lines().any(|l| {
+            let l = l.trim_start_matches("remote:").trim_start();
+            l.starts_with("! [rejected]") || l.starts_with("! [remote rejected]")
+        }) || stdout.lines().any(|l| l.starts_with("!\t"));
         let git_lines = || {
             stderr.lines().map(str::trim_start).filter(|l| {
                 l.starts_with("fatal:") || l.starts_with("error:") || l.starts_with("remote:")
@@ -136,6 +144,8 @@ impl GitError {
             GitErrorKind::Conflict
         } else if has(AUTH) {
             GitErrorKind::AuthRequired
+        } else if rejected {
+            GitErrorKind::Rejected
         } else if has(NOT_FOUND) {
             GitErrorKind::NotFound
         } else {
@@ -382,6 +392,13 @@ impl GitRunner {
         let stderr = redact_credentials(String::from_utf8_lossy(&output.stderr).trim());
         tracing::debug!(target: "git", status, args = ?argv, "failed");
         let kind = GitError::classify(status, &stdout, &stderr);
+        // `git push --porcelain` reports rejected refs on stdout; keep them for the caller.
+        let stderr = if kind == GitErrorKind::Rejected {
+            let refs: Vec<&str> = stdout.lines().filter(|l| l.starts_with("!\t")).collect();
+            redact_credentials(&format!("{}\n{stderr}", refs.join("\n"))).trim().to_string()
+        } else {
+            stderr
+        };
         Err(GitError { kind, stderr, args: argv })
     }
 
@@ -465,6 +482,11 @@ mod tests {
         // Hook chatter is not git's own diagnostics.
         assert_eq!(k("sh: eslint: command not found\n"), GitErrorKind::ExitCode(128));
         assert_eq!(k("warning: templates not found\nerror: boom"), GitErrorKind::ExitCode(128));
+        assert_eq!(k(" ! [rejected]        main -> main (fetch first)"), GitErrorKind::Rejected);
+        assert_eq!(
+            GitError::classify(1, "!\trefs/heads/a:refs/heads/a\t[rejected] (stale info)\n", ""),
+            GitErrorKind::Rejected
+        );
         // Conflicts are printed on stdout.
         assert_eq!(
             GitError::classify(1, "CONFLICT (content): Merge conflict in f1.txt\n", ""),

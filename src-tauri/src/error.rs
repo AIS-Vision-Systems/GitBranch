@@ -1,3 +1,4 @@
+use git_core::ops::remote::RemoteError;
 use git_core::parse::{
     diff::DiffError, log::LogError, refs::RefsError, show::ShowError, status::StatusError,
 };
@@ -56,3 +57,4 @@ from_parse_module_error!(RefsError);
 from_parse_module_error!(StatusError);
 from_parse_module_error!(ShowError);
 from_parse_module_error!(DiffError);
+from_parse_module_error!(RemoteError);

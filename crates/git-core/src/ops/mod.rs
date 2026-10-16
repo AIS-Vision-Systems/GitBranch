@@ -11,6 +11,7 @@ pub mod merge;
 pub mod patch;
 pub mod rebase;
 pub mod reflog;
+pub mod remote;
 pub mod stage;
 pub mod stash;
 pub mod state;

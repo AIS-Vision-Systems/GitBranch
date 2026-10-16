@@ -7,7 +7,7 @@
 /// characters, `:`, `?`, `*`, `[`, `\`, `~` and `^`.
 #[allow(clippy::case_sensitive_file_extension_comparisons)] // git's `.lock` rule is case-sensitive
 pub fn is_valid_branch_name(name: &str) -> bool {
-    if name.is_empty() || name == "@" || name.starts_with('-') {
+    if name.is_empty() || name == "@" || name.starts_with(['-', '/']) {
         return false;
     }
     if name.ends_with('/') || name.ends_with('.') {
@@ -22,6 +22,12 @@ pub fn is_valid_branch_name(name: &str) -> bool {
         return false;
     }
     name.split('/').all(|c| !c.starts_with('.') && !c.ends_with(".lock"))
+}
+
+/// Whether `name` is acceptable as a remote name; git checks `refs/remotes/<name>`, so `foo/bar`
+/// is fine and the rules are those of a branch name.
+pub fn is_valid_remote_name(name: &str) -> bool {
+    is_valid_branch_name(name)
 }
 
 /// Loose check for revision arguments (oids, `name~1`, `origin/main`): non-empty, no leading

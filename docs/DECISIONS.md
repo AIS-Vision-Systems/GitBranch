@@ -167,3 +167,17 @@ colour derived from the author email hash, drawn in the SVG (no network): Gravat
 fetching avatars leaks author emails to a third party by default. The grey "description" text GitKraken shows after the
 subject is not added yet: it needs the commit body in the log format and would grow the 100k-commit payload; revisit
 with the first page only. Dark becomes the default theme; light stays available.
+
+## D-024 · accepted · 2026-10-16 — Askpass bridge: one keyring entry per host, the app binary answers git itself
+Context: item 3.2 needs `git` over HTTPS to use the token the app stores (5.1) without the user's own credential
+helper, and without a second binary in the bundle.
+Decision: `github-api::token` owns the keyring access (service `GitBranch`, account `github.com`; the GitHub login
+is stored next to it as account `github.com#login`, so the askpass answer does not need the API). The Tauri binary
+started as `gitbranch --askpass <prompt>` runs no UI: it answers `x-access-token` to `Username for 'https://github.com'`
+and the keyring token to the matching `Password for` prompt, and exits 1 for any other host or when no token is stored,
+so git falls back to its own helpers. `GIT_ASKPASS` points at the current executable on every spawn (the runner already
+sets `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=never`, so SSH stays with the system agent). git consults
+`credential.helper` before the askpass program; a user with Git Credential Manager already holding a github.com
+credential keeps using it, which is acceptable until settings (6.3) add a "prefer the app token" switch.
+Consequences: `keyring` 3 with `windows-native` and `sync-secret-service` (needs `libdbus-1-dev` on the Ubuntu CI
+runner); the prompt parser is a pure function with unit tests; the token never appears in logs or `GitError`.

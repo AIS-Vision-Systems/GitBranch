@@ -9,4 +9,7 @@ export const DIALOG = {
   merge: "merge.merge",
   rebase: "merge.rebase",
   branchDrop: "merge.branchDrop",
+  pull: "remote.pull",
+  push: "remote.push",
+  remotes: "remote.list",
 } as const;

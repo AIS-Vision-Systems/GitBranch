@@ -9,6 +9,7 @@ pub mod graph;
 pub mod history;
 pub mod merge;
 pub mod reflog;
+pub mod remote;
 pub mod repo;
 pub mod stage;
 pub mod stash;

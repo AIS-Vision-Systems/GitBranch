@@ -173,3 +173,28 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.remoteRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.remoteRow:last-child {
+  border-bottom: none;
+}
+
+.remoteName {
+  font-weight: 600;
+}
+
+.remoteUrls {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

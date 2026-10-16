@@ -3,6 +3,7 @@ import type { CommitTemplate } from "../../ipc/commit";
 import type { RepoId } from "../../ipc/types";
 import { forRepo, useCommitFormStore } from "../../state/commitForm";
 import { EMPTY_GRAPH, useGraphStore } from "../../state/graph";
+import { remotesOf, useRemotesStore } from "../../state/remotes";
 import styles from "./Commit.module.css";
 
 const TEMPLATE_LABEL: Record<CommitTemplate["source"], string> = {
@@ -31,6 +32,8 @@ export function CommitForm({ repoId, stagedCount, dirty }: CommitFormProps) {
   const setSignoff = useCommitFormStore((s) => s.setSignoff);
   const loadTemplate = useCommitFormStore((s) => s.loadTemplate);
   const commit = useCommitFormStore((s) => s.commit);
+  const commitAndPush = useCommitFormStore((s) => s.commitAndPush);
+  const hasRemotes = useRemotesStore((s) => remotesOf(s, repoId).length > 0);
   const setMessage = (m: string): void => setMessageFor(repoId, m);
   const area = useRef<HTMLTextAreaElement>(null);
 
@@ -97,7 +100,19 @@ export function CommitForm({ repoId, stagedCount, dirty }: CommitFormProps) {
         <button type="submit" className={styles["primary"]} disabled={!canCommit}>
           Commit
         </button>
-        <button type="button" className={styles["secondary"]} disabled title="Available in Phase 3">
+        <button
+          type="button"
+          className={styles["secondary"]}
+          disabled={!canCommit || !hasRemotes || amend}
+          title={
+            amend
+              ? "Amend then push from the Push dialog with force-with-lease"
+              : hasRemotes
+                ? "Commit, then push the current branch"
+                : "No remotes configured"
+          }
+          onClick={() => void commitAndPush(repoId)}
+        >
           Commit and push
         </button>
       </div>
