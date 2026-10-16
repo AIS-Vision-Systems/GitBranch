@@ -20,9 +20,13 @@ Consequences: CI matrix windows-latest + ubuntu-22.04; no code-signing for macOS
 ## D-004 · open — GitHub OAuth App registration (owner action)
 Context: GitHub integration uses the Device Flow of an OAuth App; the app only embeds the public client_id.
 Needed from the owner, before Phase 5 starts:
-1. https://github.com/settings/developers → *OAuth Apps* → *New OAuth App*.
-   Name `GitBranch`, Homepage URL = the repo URL, Authorization callback URL = `http://127.0.0.1/unused` (required field, not used by Device Flow).
-2. In the app settings tick **Enable Device Flow**.
+1. Organization *AIS-Vision-Systems* → *Settings* → *Developer settings* → *OAuth Apps* → *New OAuth App*.
+   Name `GitBranch`, Homepage URL `https://github.com/AIS-Vision-Systems/GitBranch`, no Redirect URI (optional field,
+   unused by the Device Flow; the old form called it "callback URL" and required a dummy value).
+2. Tick **Enable Device Flow**. Leave **Expire user access tokens** *unticked* for now: GitHub's docs are ambiguous on
+   whether refreshing a device-flow token needs the client secret (which we never embed). Phase 5 verifies the refresh
+   call without a secret on a test app; if it works, the option is switched on in the app settings and the client
+   stores the refresh token in the keyring too (8 h access token, 6 months refresh).
 3. Paste the **Client ID** into `crates/github-api/src/auth.rs` (`CLIENT_ID`). Do not generate or share a client secret.
 Decision pending: owner confirms the app is created and provides the client_id.
 
