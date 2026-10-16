@@ -14,6 +14,20 @@
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
 
+### Phase 2 demo (2026-10-16, branch `phase/2`)
+- Open a dirty repo: the WIP pane lists Staged/Unstaged/Untracked with per-file Stage/Unstage/Discard; click a file,
+  press "Stage hunk" or select lines in the gutter and stage just those; type a message, Ctrl+Enter: "Committed abc1234".
+- Right-click a commit or a branch chip (or drag a branch onto another): create branch/tag here, checkout, merge
+  (ff/no-ff/squash), rebase onto, interactive rebase (reorder/squash/fixup/drop), cherry-pick, revert, reset
+  (soft/mixed/hard), delete; every destructive step shows the exact git command before running.
+- Merge a conflicting branch: a banner shows "Merge in progress · 1 conflicted file" with Abort/Continue; the WIP pane
+  offers Ours/Theirs/Open/Mark resolved; Continue finishes the merge. Toolbar: Branch…, Stash (push with untracked),
+  Stashes list (apply/pop/drop/show) and Undo (Ctrl+Z, reflog-based, disabled while an operation is in progress).
+- 186 Rust tests on real git fixtures (+95), 253 vitest tests (+160); `pnpm check` green; release build 3 min 17 s;
+  `gitbranch.exe` 4.8 MB, NSIS installer 1.6 MB (target < 25 MB).
+- Verified by hand on a fixture repo through the OS accessibility tree (stage hunk, commit, branch, undo, conflicting
+  merge with take-theirs + continue, stash push/pop, interactive rebase dialog); four issues found and fixed in 8334be7.
+
 ### Phase 1 demo (2026-10-16, branch `phase/1`)
 - `gitbranch C:/Data/RD/_perf/git` (git/git, 85.6k commits, 1,021 refs) paints the first 2,000 rows 197 ms after the
   first IPC call (release, cold); the remaining 83.6k rows arrive in one background fetch (~1 s) served in 10k slices.
