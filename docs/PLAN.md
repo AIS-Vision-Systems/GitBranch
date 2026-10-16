@@ -57,7 +57,7 @@ Goal: open a local repo, see the full graph with refs, select a commit, see its 
 - [x] 1.7 Commit details panel: metadata + changed files (`git show --name-status -z`).
 - [x] 1.8 Diff viewer: unified/side-by-side, light syntax coloring (no Monaco), from `git diff -p` parsed in Rust into hunks.
 - [x] 1.9 Auto-refresh: `notify` watcher on `.git/{HEAD,refs,index,packed-refs,logs}` + working tree (debounced), incremental reload.
-- [ ] 1.10 Perf pass against a big repo (a clone of `git/git`, about 75k commits).
+- [x] 1.10 Perf pass against a big repo (a clone of `git/git`, about 75k commits).
 
 Acceptance: targets table met on the big repo; graph topology matches `git log --graph --all` on all fixtures.
 

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- 2026-10-16: Phase 1 — open a repository (native picker, recent list, worktree detection, `gitbranch <path>`),
+  commit graph for all refs with lanes/colors, ref chips, WIP row, keyboard navigation; commit details with changed
+  files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;
+  perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
+  Decisions D-014–D-017.
+
 ### Phase 0 demo (2026-10-15, tag `phase-0`)
 - `pnpm tauri dev` / the release exe open a 1280x800 window titled "GitBranch" showing the app, git-core and github-api versions through the first IPC call (`app_info`).
 - Windows NSIS installer: 1.2 MB (target < 25 MB); `gitbranch.exe`: 3.2 MB. Release build 3 min cold.
