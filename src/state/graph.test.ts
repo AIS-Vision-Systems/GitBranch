@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GraphPage, Ref, RepoId, Refs } from "../ipc/types";
 import { cleanStatus, commit, noRefs, row } from "../test/graphFixtures";
 
+vi.mock("../ipc/stash", () => ({ stashList: vi.fn() }));
+vi.mock("../ipc/merge", () => ({ opState: vi.fn() }));
+vi.mock("../ipc/reflog", () => ({ undoPreview: vi.fn() }));
 vi.mock("../ipc/graph", () => ({
   loadGraph: vi.fn(),
   listRefs: vi.fn(),
@@ -9,9 +12,14 @@ vi.mock("../ipc/graph", () => ({
 }));
 
 import * as ipc from "../ipc/graph";
+import * as mergeIpc from "../ipc/merge";
+import * as reflogIpc from "../ipc/reflog";
+import * as stashIpc from "../ipc/stash";
+import { useUiStore } from "./ui";
 import { refsByOid, useGraphStore, WIP_OID } from "./graph";
 
 const m = vi.mocked(ipc);
+const stashes = vi.mocked(stashIpc);
 const id = "r1" as RepoId;
 
 function page(oids: string[], more: boolean, nextSkip: number): GraphPage {
@@ -28,6 +36,10 @@ beforeEach(() => {
   useGraphStore.setState({ byRepo: {}, selectedOid: null, hoverOid: null });
   m.listRefs.mockResolvedValue(noRefs);
   m.repoStatus.mockResolvedValue(cleanStatus);
+  stashes.stashList.mockResolvedValue([]);
+  vi.mocked(mergeIpc.opState).mockResolvedValue(null);
+  vi.mocked(reflogIpc.undoPreview).mockResolvedValue(null);
+  useUiStore.setState({ toasts: [] });
 });
 
 describe("graph store", () => {
@@ -163,5 +175,64 @@ describe("refsByOid", () => {
     resolveStale({ branch: null, entries: [] });
     await pending;
     expect(useGraphStore.getState().byRepo[id]!.status).toEqual(fresh);
+  });
+
+  it("loads stashes with the graph, reloads them on refs, and survives a failure", async () => {
+    const entry = { index: 0, oid: "s0", branch: "main", message: "wip", time: 1 };
+    m.loadGraph.mockResolvedValue(page(["a"], false, 1));
+    stashes.stashList.mockResolvedValueOnce([entry]);
+    await useGraphStore.getState().load(id);
+    expect(useGraphStore.getState().byRepo[id]!.stashes).toEqual([entry]);
+
+    stashes.stashList.mockResolvedValueOnce([]);
+    await useGraphStore.getState().refresh(id, ["refs"]);
+    expect(useGraphStore.getState().byRepo[id]!.stashes).toEqual([]);
+
+    stashes.stashList.mockRejectedValueOnce(new Error("boom"));
+    await useGraphStore.getState().refresh(id, ["refs"]);
+    const g = useGraphStore.getState().byRepo[id]!;
+    expect(g.stashes).toEqual([]);
+    expect(g.error).toBeNull();
+    expect(useUiStore.getState().toasts).toHaveLength(1);
+  });
+
+  it("loads inProgress and undo, refreshes them on index, and degrades to null with one error", async () => {
+    const inProgress = {
+      kind: "rebase" as const,
+      headName: "feat",
+      onto: "abc",
+      done: 1,
+      total: 3,
+    };
+    const undo = {
+      label: "commit: x",
+      action: { kind: "resetSoft" as const, target: "abc" },
+    };
+    m.loadGraph.mockResolvedValue(page(["a"], false, 1));
+    vi.mocked(mergeIpc.opState).mockResolvedValueOnce(inProgress);
+    vi.mocked(reflogIpc.undoPreview).mockResolvedValueOnce(undo);
+    await useGraphStore.getState().load(id);
+    let g = useGraphStore.getState().byRepo[id]!;
+    expect(g.inProgress).toEqual(inProgress);
+    expect(g.undo).toEqual(undo);
+
+    // index change: cheap path, no graph reload
+    await useGraphStore.getState().refresh(id, ["index"]);
+    expect(m.loadGraph).toHaveBeenCalledTimes(1);
+    expect(mergeIpc.opState).toHaveBeenCalledTimes(2);
+    g = useGraphStore.getState().byRepo[id]!;
+    expect(g.inProgress).toBeNull();
+    expect(g.undo).toBeNull();
+
+    // workingTree only: not re-read
+    await useGraphStore.getState().refresh(id, ["workingTree"]);
+    expect(mergeIpc.opState).toHaveBeenCalledTimes(2);
+
+    vi.mocked(mergeIpc.opState).mockRejectedValueOnce(new Error("boom"));
+    await useGraphStore.getState().refresh(id, ["head"]);
+    g = useGraphStore.getState().byRepo[id]!;
+    expect(g.inProgress).toBeNull();
+    expect(g.error).toBeNull();
+    expect(useUiStore.getState().toasts).toHaveLength(1);
   });
 });
