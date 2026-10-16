@@ -25,6 +25,8 @@
 
   --graph-row-h: 24px;
   --graph-lane-w: 16px;
+  /* The lane strip is clipped at this width (20 lanes); repos with hundreds of refs stay readable. */
+  --graph-max-w: 320px;
   --details-w: 380px;
   --diff-line-h: 20px;
   --diff-add-bg: #dafbe1;

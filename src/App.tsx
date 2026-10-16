@@ -30,7 +30,9 @@ export default function App() {
     let cancelled = false;
     appInfo().then(
       (i) => {
-        if (!cancelled) setInfo(i);
+        if (cancelled) return;
+        setInfo(i);
+        if (i.startupRepo !== null) void useReposStore.getState().openPath(i.startupRepo);
       },
       (e: unknown) => reportError(e, "Failed to load app info"),
     );

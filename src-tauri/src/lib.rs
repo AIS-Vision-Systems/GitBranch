@@ -16,6 +16,10 @@ use tauri::Manager;
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // `GITBRANCH_LOG` (e.g. `debug`, `git=debug,gitbranch=info`) controls verbosity; default info.
+    let filter = tracing_subscriber::EnvFilter::try_from_env("GITBRANCH_LOG")
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    tracing_subscriber::fmt().with_env_filter(filter).with_target(true).init();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())

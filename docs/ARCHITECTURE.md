@@ -135,7 +135,9 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 ## Performance rules
 
 - Never load the whole log for UIs that need the tip only (sidebar uses `for-each-ref`).
-- Log is paged: 2,000 rows first paint, then 10k chunks in the background; graph layout is incremental-safe because
+- Log is paged: 2,000 rows first paint, then the whole remainder in ONE `git log` call (a `--skip` walk re-reads
+  history every page: 10k chunks cost ~680 ms each on git/git vs ~880 ms for all 83k at once) served to the UI in 10k
+  slices from the Rust cache; graph layout is incremental-safe because
   lanes state is carried across chunks.
 - Diffs are computed per selected file, never for the whole commit up front.
 - Watcher debounces 150 ms, coalesces by category, and refetches only the affected slice (refs vs status vs log).

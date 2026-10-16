@@ -43,6 +43,8 @@
 .strip {
   display: block;
   flex: none;
+  max-width: var(--graph-max-w);
+  overflow: hidden;
 }
 
 .subjectCell {

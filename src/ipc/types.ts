@@ -8,6 +8,8 @@ export interface AppInfo {
   version: string;
   gitCoreVersion: string;
   githubApiVersion: string;
+  /** Repository path passed on the command line, opened on start. */
+  startupRepo: string | null;
 }
 
 export type RepoId = string & { readonly __brand: "RepoId" };

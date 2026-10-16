@@ -209,6 +209,7 @@ pub async fn load_graph(
     repo_id: String,
     query: GraphQuery,
 ) -> Result<GraphPage, AppError> {
+    let started = std::time::Instant::now();
     let repo = open(&state, &repo_id)?;
     let entry = cache.entry(&repo_id)?;
     let mut e = entry.lock().await;
@@ -219,7 +220,17 @@ pub async fn load_graph(
             Some(log_page(&state.runner, &repo.info.work_tree, &q).await?)
         }
     };
-    Ok(finish(&mut e, &query, page))
+    let out = finish(&mut e, &query, page);
+    tracing::info!(
+        target: "graph",
+        repo = %repo_id,
+        skip = query.skip,
+        rows = out.rows.len(),
+        has_more = out.has_more,
+        ms = started.elapsed().as_millis(),
+        "load_graph"
+    );
+    Ok(out)
 }
 
 /// Lists branches, remotes and tags.
