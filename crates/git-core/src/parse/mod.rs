@@ -3,8 +3,10 @@
 //! Each submodule exposes the data types, a pure `parse_*` function over bytes (unit-testable without
 //! git) and an `async fn` that runs the corresponding git command through [`crate::GitRunner`].
 
+pub mod diff;
 pub mod log;
 pub mod refs;
+pub mod show;
 pub mod status;
 
 /// Error produced when git output does not match the expected machine-readable shape.

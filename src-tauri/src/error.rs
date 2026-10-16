@@ -1,4 +1,6 @@
-use git_core::parse::{log::LogError, refs::RefsError, status::StatusError};
+use git_core::parse::{
+    diff::DiffError, log::LogError, refs::RefsError, show::ShowError, status::StatusError,
+};
 use serde::Serialize;
 
 /// Error shape every command returns to the UI (see `docs/ARCHITECTURE.md`, IPC contract).
@@ -52,3 +54,5 @@ macro_rules! from_parse_module_error {
 from_parse_module_error!(LogError);
 from_parse_module_error!(RefsError);
 from_parse_module_error!(StatusError);
+from_parse_module_error!(ShowError);
+from_parse_module_error!(DiffError);
