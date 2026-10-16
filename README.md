@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="GitBranch logo" width="128">
+  <img src="docs/assets/logo.svg" alt="GitBranch logo" width="128">
 </p>
 
 <h1 align="center">GitBranch</h1>
