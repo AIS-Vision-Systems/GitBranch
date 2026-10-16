@@ -1,16 +1,32 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
-import type { RepoId } from "../../ipc/types";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import type { Ref, RepoId } from "../../ipc/types";
 import { EMPTY_GRAPH, refsByOid, useGraphStore, WIP_OID } from "../../state/graph";
+import { shortOid } from "../../state/ops";
+import { installDragCleanup } from "./dnd";
+import { openBranchDrop } from "../dialogs/open";
+import { ContextMenu } from "../shell/ContextMenu";
+import { useContextMenu } from "../shell/useContextMenu";
 import { ROW_H } from "./constants";
 import { rowDomId } from "./domId";
 import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
+import { commitMenu, refMenu, remoteTrackingName, wipMenu } from "./menus";
 import { WipRow } from "./WipRow";
 import styles from "./Graph.module.css";
 
 const LOAD_MORE_THRESHOLD = 200;
 const NO_REFS: never[] = [];
+
+type MenuData =
+  { kind: "commit"; oid: string } | { kind: "ref"; oid: string; ref: Ref } | { kind: "wip" };
 
 interface Props {
   repoId: RepoId;
@@ -25,12 +41,17 @@ export function GraphView({ repoId }: Props) {
   const select = useGraphStore((s) => s.select);
   const setHover = useGraphStore((s) => s.setHover);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const ctxMenu = useContextMenu<MenuData>();
+  const openMenu = ctxMenu.open;
 
   useEffect(() => {
     if (useGraphStore.getState().byRepo[repoId] === undefined) void load(repoId);
   }, [repoId, load]);
 
-  const { rows, commits, refs, status, byOid, hasMore } = g ?? EMPTY_GRAPH;
+  useEffect(() => installDragCleanup(), []);
+
+  const { rows, commits, refs, status, byOid, hasMore, inProgress: op } = g ?? EMPTY_GRAPH;
+  const inProgress = op !== null;
   const refMap = useMemo(() => refsByOid(refs), [refs]);
   const lanes = useMemo(() => laneCount(rows), [rows]);
   const headOid = refs?.head.oid ?? null;
@@ -109,6 +130,20 @@ export function GraphView({ repoId }: Props) {
       case "End":
         goTo(count - 1);
         break;
+      case "ContextMenu":
+      case "F10": {
+        if (e.key === "F10" && !e.shiftKey) return;
+        const el = scrollRef.current;
+        if (cur < 0 || el === null || oidAt(cur) === WIP_OID) return;
+        const oid = oidAt(cur);
+        if (oid === null) return;
+        const rect = el.getBoundingClientRect();
+        const y = rect.top + cur * ROW_H - el.scrollTop + ROW_H;
+        // Keyboard has no pointer event; the menu only needs a position.
+        const at = { clientX: rect.left + 48, clientY: y, preventDefault: () => undefined };
+        openMenu(at as unknown as MouseEvent, { kind: "commit", oid });
+        break;
+      }
       default:
         return;
     }
@@ -118,59 +153,137 @@ export function GraphView({ repoId }: Props) {
   const onSelect = useCallback((oid: string) => select(oid), [select]);
   const onHover = useCallback((oid: string | null) => setHover(oid), [setHover]);
 
+  const onRowMenu = useCallback(
+    (e: MouseEvent, oid: string) => {
+      select(oid);
+      openMenu(e, { kind: "commit", oid });
+    },
+    [select, openMenu],
+  );
+  const onRefMenu = useCallback(
+    (e: MouseEvent, ref: Ref) => {
+      select(ref.target);
+      openMenu(e, { kind: "ref", oid: ref.target, ref });
+    },
+    [select, openMenu],
+  );
+
+  const onWipMenu = useCallback(
+    (e: MouseEvent) => {
+      select(WIP_OID);
+      openMenu(e, { kind: "wip" });
+    },
+    [select, openMenu],
+  );
+
+  const onRowDrop = useCallback(
+    (source: string, oid: string) => {
+      const own = refMap.get(oid)?.some((r) => r.kind === "localBranch" && r.name === source);
+      if (own === true) return;
+      openBranchDrop(repoId, source, oid, shortOid(oid), "commit");
+    },
+    [repoId, refMap],
+  );
+  const onRefDrop = useCallback(
+    (source: string, ref: Ref) => {
+      const name = ref.kind === "localBranch" ? ref.name : remoteTrackingName(ref);
+      if (name === source) return;
+      const kind =
+        ref.kind === "localBranch"
+          ? "local"
+          : typeof ref.kind === "object" && "remoteBranch" in ref.kind
+            ? "remote"
+            : "commit";
+      openBranchDrop(repoId, source, name, name, kind);
+    },
+    [repoId],
+  );
+
+  const menuItems = (() => {
+    const data = ctxMenu.menu?.data;
+    if (data === undefined) return null;
+    if (data.kind === "wip") return wipMenu(repoId, status?.entries ?? [], inProgress);
+    const i = byOid.get(data.oid);
+    const commit = i === undefined ? undefined : commits[i];
+    if (commit === undefined) return null;
+    const ctx = {
+      repoId,
+      commit,
+      refs: refMap.get(data.oid) ?? [],
+      head: refs?.head ?? null,
+      inProgress,
+    };
+    return data.kind === "commit" ? commitMenu(ctx) : refMenu(ctx, data.ref);
+  })();
+
   const active = selectedOid !== null && indexOfOid(selectedOid) >= 0 ? selectedOid : undefined;
 
   return (
-    <div
-      ref={scrollRef}
-      className={styles["root"]}
-      role="listbox"
-      aria-label="Commit graph"
-      tabIndex={0}
-      aria-activedescendant={active !== undefined ? rowDomId(active) : undefined}
-      onKeyDown={onKeyDown}
-    >
-      <div className={styles["canvas"]} style={{ height: virtualizer.getTotalSize() }}>
-        {items.map((v) => {
-          if (hasWip && v.index === 0) {
+    <>
+      <div
+        ref={scrollRef}
+        className={styles["root"]}
+        role="listbox"
+        aria-label="Commit graph"
+        tabIndex={0}
+        aria-activedescendant={active !== undefined ? rowDomId(active) : undefined}
+        onKeyDown={onKeyDown}
+      >
+        <div className={styles["canvas"]} style={{ height: virtualizer.getTotalSize() }}>
+          {items.map((v) => {
+            if (hasWip && v.index === 0) {
+              return (
+                <WipRow
+                  key={WIP_OID}
+                  fileCount={fileCount}
+                  lane={wipRow?.lane ?? 0}
+                  color={wipRow?.color ?? 0}
+                  lanes={lanes}
+                  connected={headRow === 0}
+                  top={v.start}
+                  selected={selectedOid === WIP_OID}
+                  hovered={hoverOid === WIP_OID}
+                  onSelect={onSelect}
+                  onHover={onHover}
+                  onContextMenu={onWipMenu}
+                />
+              );
+            }
+            const i = v.index - offset;
+            const row = rows[i];
+            const commit = commits[i];
+            if (row === undefined || commit === undefined) return null;
             return (
-              <WipRow
-                key={WIP_OID}
-                fileCount={fileCount}
-                lane={wipRow?.lane ?? 0}
-                color={wipRow?.color ?? 0}
+              <GraphRow
+                key={row.oid}
+                row={row}
+                commit={commit}
+                refs={refMap.get(row.oid) ?? NO_REFS}
                 lanes={lanes}
-                connected={headRow === 0}
                 top={v.start}
-                selected={selectedOid === WIP_OID}
-                hovered={hoverOid === WIP_OID}
+                selected={selectedOid === row.oid}
+                hovered={hoverOid === row.oid}
+                isHead={row.oid === headOid}
+                wipAbove={hasWip && headRow === 0 && i === 0}
                 onSelect={onSelect}
                 onHover={onHover}
+                onContextMenu={onRowMenu}
+                onRefContextMenu={onRefMenu}
+                onRowDrop={onRowDrop}
+                onRefDrop={onRefDrop}
               />
             );
-          }
-          const i = v.index - offset;
-          const row = rows[i];
-          const commit = commits[i];
-          if (row === undefined || commit === undefined) return null;
-          return (
-            <GraphRow
-              key={row.oid}
-              row={row}
-              commit={commit}
-              refs={refMap.get(row.oid) ?? NO_REFS}
-              lanes={lanes}
-              top={v.start}
-              selected={selectedOid === row.oid}
-              hovered={hoverOid === row.oid}
-              isHead={row.oid === headOid}
-              wipAbove={hasWip && headRow === 0 && i === 0}
-              onSelect={onSelect}
-              onHover={onHover}
-            />
-          );
-        })}
+          })}
+        </div>
       </div>
-    </div>
+      {ctxMenu.menu !== null && menuItems !== null && (
+        <ContextMenu
+          x={ctxMenu.menu.x}
+          y={ctxMenu.menu.y}
+          items={menuItems}
+          onClose={ctxMenu.close}
+        />
+      )}
+    </>
   );
 }

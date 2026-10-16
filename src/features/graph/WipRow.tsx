@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type MouseEvent } from "react";
 import { WIP_OID } from "../../state/graph";
 import { LANE_W, NODE_R, ROW_H } from "./constants";
 import { rowDomId } from "./domId";
@@ -17,6 +17,8 @@ interface Props {
   hovered: boolean;
   onSelect: (oid: string) => void;
   onHover: (oid: string | null) => void;
+  /** Stable callback; GraphView owns the menu. */
+  onContextMenu?: (e: MouseEvent) => void;
 }
 
 export const WipRow = memo(function WipRow({
@@ -30,6 +32,7 @@ export const WipRow = memo(function WipRow({
   hovered,
   onSelect,
   onHover,
+  onContextMenu,
 }: Props) {
   const x = laneX(lane);
   const laneCls = styles[`lane${colorIndex(color)}`];
@@ -44,6 +47,7 @@ export const WipRow = memo(function WipRow({
       onClick={() => onSelect(WIP_OID)}
       onMouseEnter={() => onHover(WIP_OID)}
       onMouseLeave={() => onHover(null)}
+      onContextMenu={onContextMenu}
     >
       <svg
         className={styles["strip"]}

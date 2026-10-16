@@ -40,6 +40,11 @@
   box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
+.dropTarget {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
+}
+
 .strip {
   display: block;
   flex: none;

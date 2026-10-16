@@ -97,6 +97,8 @@
 }
 
 .hunkRow {
+  display: flex;
+  align-items: center;
   background: var(--diff-hunk-bg);
   color: var(--color-fg-muted);
 }
@@ -169,4 +171,44 @@
 
 .number {
   color: var(--syntax-number);
+}
+
+.hunkActions {
+  position: sticky;
+  right: 0;
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  background: var(--diff-hunk-bg);
+}
+
+.hunkBtn {
+  line-height: 1.2;
+  padding: 0 var(--space-2);
+  font: inherit;
+  font-size: 11px;
+  color: var(--color-fg);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.hunkBtn:hover {
+  border-color: var(--color-accent);
+}
+
+.hunkBtnDanger:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.gutterClickable {
+  cursor: pointer;
+}
+
+.gutter.lineSelected {
+  background: var(--color-accent);
+  color: var(--color-bg);
 }

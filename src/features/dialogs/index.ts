@@ -1,0 +1,61 @@
+import { createElement } from "react";
+import { registerDialog } from "../shell/dialogRegistry";
+import { BranchDropDialog, type BranchDropDialogProps } from "./BranchDropDialog";
+import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranchDialog";
+import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
+import { DIALOG } from "./ids";
+import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
+import { RebaseDialog, type RebaseDialogProps } from "./RebaseDialog";
+import { RenameBranchDialog, type RenameBranchDialogProps } from "./RenameBranchDialog";
+import { ResetDialog, type ResetDialogProps } from "./ResetDialog";
+import { SetUpstreamDialog, type SetUpstreamDialogProps } from "./SetUpstreamDialog";
+import { StashPushDialog, type StashPushDialogProps } from "./StashPushDialog";
+
+type Props<P> = Omit<P, "onClose">;
+
+let registered = false;
+
+/** Register the Phase 2 dialogs once. Props arrive untyped from the dialog store; callers use `open.ts`. */
+export function registerPhase2Dialogs(): void {
+  if (registered) return;
+  registered = true;
+  registerDialog(DIALOG.createBranch, (p, onClose) =>
+    createElement(CreateBranchDialog, {
+      ...(p as unknown as Props<CreateBranchDialogProps>),
+      onClose,
+    }),
+  );
+  registerDialog(DIALOG.renameBranch, (p, onClose) =>
+    createElement(RenameBranchDialog, {
+      ...(p as unknown as Props<RenameBranchDialogProps>),
+      onClose,
+    }),
+  );
+  registerDialog(DIALOG.setUpstream, (p, onClose) =>
+    createElement(SetUpstreamDialog, {
+      ...(p as unknown as Props<SetUpstreamDialogProps>),
+      onClose,
+    }),
+  );
+  registerDialog(DIALOG.stashPush, (p, onClose) =>
+    createElement(StashPushDialog, { ...(p as unknown as Props<StashPushDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.createTag, (p, onClose) =>
+    createElement(CreateTagDialog, { ...(p as unknown as Props<CreateTagDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.reset, (p, onClose) =>
+    createElement(ResetDialog, { ...(p as unknown as Props<ResetDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.merge, (p, onClose) =>
+    createElement(MergeDialog, { ...(p as unknown as Props<MergeDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.rebase, (p, onClose) =>
+    createElement(RebaseDialog, { ...(p as unknown as Props<RebaseDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.branchDrop, (p, onClose) =>
+    createElement(BranchDropDialog, {
+      ...(p as unknown as Props<BranchDropDialogProps>),
+      onClose,
+    }),
+  );
+}

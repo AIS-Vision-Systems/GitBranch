@@ -1,0 +1,175 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  font-size: 0.85rem;
+  color: var(--color-fg-muted);
+}
+
+.input,
+.textarea,
+.select {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+}
+
+.input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.check,
+.radio {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.radioText {
+  display: flex;
+  flex-direction: column;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--color-fg-muted);
+}
+
+.error {
+  font-size: 0.85rem;
+  color: var(--color-danger);
+}
+
+.cancel,
+.submit {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font: inherit;
+}
+
+.cancel {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.submit {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: 600;
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.todo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+}
+
+.todoRow {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.todoRow:last-child {
+  border-bottom: none;
+}
+
+.todoRow:focus-visible {
+  outline: none;
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.todoSubject,
+.todoDropped {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todoDropped {
+  color: var(--color-fg-muted);
+  text-decoration: line-through;
+}
+
+.iconButton {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 var(--space-1);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bigButtons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bigButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  padding: var(--space-3);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.bigButton:hover:not(:disabled),
+.bigButton:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.bigButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RepoId, Status } from "../../ipc/types";
+import type { Ref, RepoId, Status } from "../../ipc/types";
 import { cleanStatus, commit, noRefs, row } from "../../test/graphFixtures";
 
 vi.mock("../../ipc/graph", () => ({
@@ -10,6 +10,7 @@ vi.mock("../../ipc/graph", () => ({
   repoStatus: vi.fn(),
 }));
 
+import { useDialogsStore } from "../../state/dialogs";
 import { EMPTY_GRAPH, useGraphStore } from "../../state/graph";
 import { GraphView } from "./GraphView";
 
@@ -98,5 +99,81 @@ describe("GraphView", () => {
     expect(useGraphStore.getState().selectedOid).toBe("WIP");
     fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(useGraphStore.getState().selectedOid).toBe("c0");
+  });
+
+  describe("branch drag and drop", () => {
+    const local = (name: string, target: string): Ref => ({
+      name,
+      fullName: `refs/heads/${name}`,
+      kind: "localBranch",
+      target,
+      upstream: null,
+      isHead: false,
+    });
+    const transfer = (name: string): object => ({
+      types: ["application/x-gitbranch-ref"],
+      getData: () => name,
+      setData: vi.fn(),
+      effectAllowed: "",
+      dropEffect: "",
+    });
+
+    beforeEach(() => {
+      seed(3);
+      useDialogsStore.setState({ current: null, busy: false });
+      const g = useGraphStore.getState().byRepo[id]!;
+      useGraphStore.setState({
+        byRepo: {
+          [id]: {
+            ...g,
+            refs: { ...noRefs, refs: [local("feat", "c0"), local("dev", "c1")] },
+          },
+        },
+      });
+    });
+
+    it("local branch chips are draggable", () => {
+      render(<GraphView repoId={id} />);
+      expect(screen.getByText("feat")).toHaveAttribute("draggable", "true");
+    });
+
+    it("dropping a branch on a chip opens the merge/rebase picker", () => {
+      render(<GraphView repoId={id} />);
+      const dataTransfer = transfer("feat");
+      fireEvent.dragStart(screen.getByText("feat"), { dataTransfer });
+      fireEvent.dragOver(screen.getByText("dev"), { dataTransfer });
+      fireEvent.drop(screen.getByText("dev"), { dataTransfer });
+      expect(useDialogsStore.getState().current).toMatchObject({
+        kind: "custom",
+        id: "merge.branchDrop",
+        props: {
+          repoId: id,
+          source: "feat",
+          target: "dev",
+          targetLabel: "dev",
+          targetKind: "local",
+        },
+      });
+    });
+
+    it("dropping a branch on a commit row targets the oid", () => {
+      render(<GraphView repoId={id} />);
+      const dataTransfer = transfer("feat");
+      fireEvent.dragStart(screen.getByText("feat"), { dataTransfer });
+      fireEvent.drop(screen.getByText("commit c2"), { dataTransfer });
+      expect(useDialogsStore.getState().current).toMatchObject({
+        id: "merge.branchDrop",
+        props: { source: "feat", target: "c2", targetLabel: "c2", targetKind: "commit" },
+      });
+    });
+
+    it("dropping a branch on itself does nothing", () => {
+      render(<GraphView repoId={id} />);
+      const dataTransfer = transfer("feat");
+      fireEvent.dragStart(screen.getByText("feat"), { dataTransfer });
+      fireEvent.drop(screen.getByText("feat"), { dataTransfer });
+      fireEvent.drop(screen.getByText("commit c0"), { dataTransfer });
+      expect(useDialogsStore.getState().current).toBeNull();
+    });
   });
 });

@@ -157,3 +157,146 @@
 .suffix {
   color: var(--color-fg-muted);
 }
+
+.fileItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fileItem .fileRow {
+  flex: 1;
+  min-width: 0;
+}
+
+.actions {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  gap: var(--space-1);
+  background: var(--color-bg);
+}
+
+.fileItem:hover .actions,
+.fileItem:focus-within .actions {
+  display: flex;
+}
+
+.action,
+.headerAction,
+.secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85em;
+}
+
+.action:hover:not(:disabled),
+.headerAction:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.actionDanger:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.action:disabled,
+.headerAction:disabled,
+.secondary:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.section {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-elevated);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+.count {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.commitForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.messageInput {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  min-height: 3lh;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: var(--space-2);
+}
+
+.messageInput:focus {
+  outline: 1px solid var(--color-accent);
+}
+
+.templateNote {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.85em;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.commitButtons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: 0;
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font: inherit;
+}
+
+.secondary {
+  padding: var(--space-1) var(--space-3);
+  font-size: 1em;
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--space-1);
+}
