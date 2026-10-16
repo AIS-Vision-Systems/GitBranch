@@ -106,7 +106,7 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 - [ ] 6.2 Blame view (`git blame --porcelain`), file history.
 - [ ] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
 - [ ] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
-- [ ] 6.5 Optional auto-update via `tauri-plugin-updater` signed with our own key (decision D-006).
+- [ ] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).
 - [ ] 6.6 Telemetry: **none**. Local log file only.
 
 ## Out of scope (explicitly)

@@ -30,9 +30,20 @@ Decision pending: owner confirms the app is created and provides the client_id.
 Context: private repos require `repo`; org repo listing requires `read:org`; pushing workflow files requires `workflow`.
 Decision: request `repo read:org` at login; a settings toggle re-authorizes with `workflow` when the user needs it.
 
-## D-006 · open — Auto-update channel
-Options: (a) none, user downloads installers from GitHub Releases; (b) `tauri-plugin-updater` with a signing key kept by the owner.
-Default if no answer by Phase 6: (a).
+## D-006 · accepted · 2026-10-16 — Auto-update with `tauri-plugin-updater`, GitHub Releases as the channel
+Context: options were (a) manual downloads from GitHub Releases or (b) `tauri-plugin-updater` with a signing key kept
+by the owner. The owner chose (b): the app updates itself when it finds a new version.
+Decision: `tauri-plugin-updater` + `tauri-plugin-process` (restart). Endpoint: a `latest.json` attached to each GitHub
+Release (`https://github.com/<owner>/<repo>/releases/latest/download/latest.json`), produced by `tauri-action` in a
+release workflow. Updates are signed with a minisign keypair generated once by the owner (`pnpm tauri signer generate`):
+the **public** key goes in `tauri.conf.json` (`plugins.updater.pubkey`); the **private** key and its password live only
+in the owner's password manager and in the GitHub Actions secrets `TAURI_SIGNING_PRIVATE_KEY` /
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Never in the repo.
+UX: check on startup (after the first graph paint) and once a day; a non-blocking toast "GitBranch X.Y is available —
+Update and restart / Later"; download with progress; a setting to turn checks off. No silent install.
+Consequences: implemented in PLAN item 6.5; releases are owner-triggered (tag `vX.Y.Z` -> release workflow). Losing the
+private key means a new keypair and users must reinstall once. Linux: the updater handles AppImage; `.deb` users
+update through their package manager (we only notify).
 
 ## D-007 · accepted · 2026-10-15 — No telemetry, no crash reporting services
 Decision: local rotating log file only (`tracing` + `tracing-appender`). Nothing leaves the machine except git/GitHub traffic the user triggers.
@@ -60,7 +71,7 @@ Decision: `Cargo.toml` (workspace, shared `[workspace.package]` and `[workspace.
 repo root; members `src-tauri`, `crates/git-core`, `crates/github-api`. Edition 2024, MSRV 1.85. React 19.
 Consequences: `.claude/rules/rust.md` and ARCHITECTURE.md updated accordingly; `pnpm tauri` detects the workspace itself.
 
-## D-012 � accepted � 2026-10-15 � Git runner: no default timeout; timeouts only for network/read calls
+## D-012 · accepted · 2026-10-15 — Git runner: no default timeout; timeouts only for network/read calls
 Context: killing `git` in the middle of a local write (commit, merge, rebase) leaves `.git/index.lock` behind and
 kills only the direct child (hooks, `git-remote-https`, `ssh` survive on both OSes).
 Decision: `RunOpts::timeout` defaults to `None`. Fetch/push/clone and read-only queries set explicit timeouts;
@@ -70,7 +81,7 @@ default to `:` so git never opens an editor; callers override per call. Credenti
 Consequences: a hung hook blocks the operation until the user cancels. Process-tree kill (Job Object / process
 group) and `index.lock` cleanup are deferred to Phase 2 (2.9 undo/recovery); logged as a known limitation.
 
-## D-013 � accepted � 2026-10-15 � Lint baseline: clippy pedantic (allow-listed) via workspace lints; eslint type-checked
+## D-013 · accepted · 2026-10-15 — Lint baseline: clippy pedantic (allow-listed) via workspace lints; eslint type-checked
 Decision: `[workspace.lints]` in the root `Cargo.toml` with `clippy::pedantic` at warn plus `unwrap_used`,
 `dbg_macro`, `print_stdout/stderr`; allow-list: `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`,
 `missing_panics_doc`, `struct_excessive_bools`, `too_many_lines`, `doc_markdown`, `similar_names`, `naive_bytecount`.
