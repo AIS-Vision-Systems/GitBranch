@@ -16,6 +16,7 @@ export interface GraphRowProps {
   selected: boolean;
   hovered: boolean;
   isHead: boolean;
+  wipAbove?: boolean;
   onSelect: (oid: string) => void;
   onHover: (oid: string | null) => void;
 }
@@ -29,6 +30,7 @@ export const GraphRow = memo(function GraphRow({
   selected,
   hovered,
   isHead,
+  wipAbove = false,
   onSelect,
   onHover,
 }: GraphRowProps) {
@@ -44,7 +46,7 @@ export const GraphRow = memo(function GraphRow({
       onMouseEnter={() => onHover(row.oid)}
       onMouseLeave={() => onHover(null)}
     >
-      <LaneStrip row={row} lanes={lanes} isHead={isHead} />
+      <LaneStrip row={row} lanes={lanes} isHead={isHead} wipAbove={wipAbove} />
       <span className={styles["subjectCell"]}>
         {refs.map((r) => (
           <RefChip key={r.fullName} gitRef={r} />

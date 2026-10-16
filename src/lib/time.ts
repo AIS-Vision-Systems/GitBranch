@@ -16,3 +16,11 @@ export function formatRelative(unixSec: number, now: number): string {
   if (d < YEAR) return `${Math.floor(d / MONTH)}mo ago`;
   return `${Math.floor(d / YEAR)}y ago`;
 }
+
+const pad = (n: number): string => String(n).padStart(2, "0");
+
+/** Absolute local date-time ("2024-01-05 13:07") from unix seconds. */
+export function formatAbsolute(unixSec: number): string {
+  const d = new Date(unixSec * 1000);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

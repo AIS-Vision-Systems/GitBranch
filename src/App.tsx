@@ -3,8 +3,11 @@ import { appInfo } from "./ipc/app";
 import type { AppInfo } from "./ipc/types";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
+import { DetailsPane } from "./features/commit/DetailsPane";
 import { onRepoChanged } from "./ipc/events";
 import { useGraphStore } from "./state/graph";
+import { useDetailsWidth } from "./features/shell/detailsWidth";
+import { Splitter } from "./features/shell/Splitter";
 import { Toasts } from "./features/shell/Toasts";
 import { Welcome } from "./features/welcome/Welcome";
 import { useReposStore } from "./state/repos";
@@ -20,6 +23,7 @@ export default function App() {
   const loadRecent = useReposStore((s) => s.loadRecent);
   const openViaDialog = useReposStore((s) => s.openViaDialog);
   const close = useReposStore((s) => s.close);
+  const [detailsWidth, setDetailsWidth] = useDetailsWidth();
   const [info, setInfo] = useState<AppInfo | null>(null);
 
   useEffect(() => {
@@ -95,7 +99,10 @@ export default function App() {
             <div className={styles["graphPane"]}>
               <GraphView key={current.repoId} repoId={current.repoId} />
             </div>
-            <aside className={styles["details"]}>Select a commit</aside>
+            <Splitter width={detailsWidth} onChange={setDetailsWidth} />
+            <aside className={styles["details"]} style={{ width: detailsWidth }}>
+              <DetailsPane key={current.repoId} repoId={current.repoId} />
+            </aside>
           </div>
         ) : (
           <>

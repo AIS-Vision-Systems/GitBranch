@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRelative } from "./time";
+import { formatAbsolute, formatRelative } from "./time";
 
 describe("formatRelative", () => {
   const now = 1_000_000_000;
@@ -19,5 +19,12 @@ describe("formatRelative", () => {
     [800 * 86400, "2y ago"],
   ])("%d seconds ago -> %s", (delta, out) => {
     expect(formatRelative(now - delta, now)).toBe(out);
+  });
+});
+
+describe("formatAbsolute", () => {
+  it("formats local date and time with zero padding", () => {
+    const t = new Date(2024, 0, 5, 3, 7).getTime() / 1000;
+    expect(formatAbsolute(t)).toBe("2024-01-05 03:07");
   });
 });

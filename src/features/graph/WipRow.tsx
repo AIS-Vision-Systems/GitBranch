@@ -10,6 +10,8 @@ interface Props {
   lane: number;
   color: number;
   lanes: number;
+  /** Draw the dashed connector only when HEAD is the first real row. */
+  connected: boolean;
   top: number;
   selected: boolean;
   hovered: boolean;
@@ -22,6 +24,7 @@ export const WipRow = memo(function WipRow({
   lane,
   color,
   lanes,
+  connected,
   top,
   selected,
   hovered,
@@ -49,14 +52,16 @@ export const WipRow = memo(function WipRow({
         aria-hidden="true"
         focusable="false"
       >
-        <path
-          d={`M ${x} ${ROW_H / 2} L ${x} ${ROW_H}`}
-          className={laneCls}
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeDasharray="3 3"
-          fill="none"
-        />
+        {connected && (
+          <path
+            d={`M ${x} ${ROW_H / 2} L ${x} ${ROW_H}`}
+            className={laneCls}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeDasharray="3 3"
+            fill="none"
+          />
+        )}
         <circle
           cx={x}
           cy={ROW_H / 2}

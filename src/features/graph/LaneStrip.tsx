@@ -9,10 +9,12 @@ interface Props {
   /** Total lane columns, so every row strip has the same width. */
   lanes: number;
   isHead: boolean;
+  /** The dashed WIP connector ends at this row: draw its top half, dashed. */
+  wipAbove?: boolean;
 }
 
-export const LaneStrip = memo(function LaneStrip({ row, lanes, isHead }: Props) {
-  const paths = lanePaths(row, row.hasIncoming);
+export const LaneStrip = memo(function LaneStrip({ row, lanes, isHead, wipAbove = false }: Props) {
+  const paths = lanePaths(row, row.hasIncoming || (isHead && wipAbove));
   const cx = laneX(row.lane);
   const nodeCls = styles[`lane${colorIndex(row.color)}`];
   return (
@@ -31,6 +33,7 @@ export const LaneStrip = memo(function LaneStrip({ row, lanes, isHead }: Props) 
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
+          strokeDasharray={wipAbove && p.kind === "incoming" ? "3 3" : undefined}
         />
       ))}
       {isHead && (

@@ -26,6 +26,16 @@
   --graph-row-h: 24px;
   --graph-lane-w: 16px;
   --details-w: 380px;
+  --diff-line-h: 20px;
+  --diff-add-bg: #dafbe1;
+  --diff-del-bg: #ffebe9;
+  --diff-add-fg: #116329;
+  --diff-del-fg: #82071e;
+  --diff-hunk-bg: #ddf4ff;
+  --syntax-keyword: #cf222e;
+  --syntax-string: #0a3069;
+  --syntax-comment: #6e7781;
+  --syntax-number: #0550ae;
   --graph-lane-0: #0969da;
   --graph-lane-1: #cf222e;
   --graph-lane-2: #1a7f37;
@@ -50,6 +60,16 @@
   --color-danger: #f85149;
   --color-success: #3fb950;
   --color-warning: #d29922;
+
+  --diff-add-bg: #12261e;
+  --diff-del-bg: #2d1619;
+  --diff-add-fg: #7ee787;
+  --diff-del-fg: #ffa198;
+  --diff-hunk-bg: #121d2f;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #a5d6ff;
+  --syntax-comment: #8b949e;
+  --syntax-number: #79c0ff;
 
   --graph-lane-0: #58a6ff;
   --graph-lane-1: #ff7b72;

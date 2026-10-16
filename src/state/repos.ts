@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { isIpcError } from "../ipc/core";
 import * as ipc from "../ipc/repo";
-import type { OpenedRepo, RecentRepo } from "../ipc/types";
+import type { OpenedRepo, RecentRepo, RepoId } from "../ipc/types";
+import { useGraphStore } from "./graph";
 import { reportError, useUiStore } from "./ui";
 
 interface ReposState {
@@ -38,6 +39,7 @@ export const useReposStore = create<ReposState>((set, get) => {
 
   /** Undo the backend registration of a repo the user decided not to keep open. */
   const discard = async (repo: OpenedRepo): Promise<void> => {
+    useGraphStore.getState().forget(repo.repoId);
     try {
       await ipc.closeRepo(repo.repoId);
       await ipc.removeRecent(repo.path);
@@ -118,6 +120,7 @@ export const useReposStore = create<ReposState>((set, get) => {
       } catch (e) {
         reportError(e, "Could not close repository");
       }
+      useGraphStore.getState().forget(repoId as RepoId);
       set((s) => {
         const open = s.open.filter((r) => r.repoId !== repoId);
         const currentId =

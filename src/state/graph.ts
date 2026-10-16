@@ -31,6 +31,8 @@ interface GraphStore {
   refresh: (repoId: RepoId, what: Change[]) => Promise<void>;
   select: (oid: string | null) => void;
   setHover: (oid: string | null) => void;
+  /** Drop all cached state for a closed repo. */
+  forget: (repoId: RepoId) => void;
 }
 
 export const EMPTY_GRAPH: GraphState = {
@@ -87,18 +89,28 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   /** Fetch page 0 + refs + status. `reset` blanks the view first (initial load). */
   const reload = async (repoId: RepoId, reset: boolean): Promise<void> => {
     const gen = bump(repoId);
+    const t0 = performance.now();
     if (reset) {
       set((s) => ({ byRepo: { ...s.byRepo, [repoId]: { ...EMPTY_GRAPH, loading: true } } }));
     } else {
       patch(repoId, { loading: true, error: null });
     }
     try {
-      const [page, refs, status] = await Promise.all([
-        ipc.loadGraph(repoId, query(0, FIRST_PAGE)),
-        ipc.listRefs(repoId),
-        ipc.repoStatus(repoId),
+      const timed = async <T>(p: Promise<T>): Promise<[T, number]> => [
+        await p,
+        performance.now() - t0,
+      ];
+      const [[page, tPage], [refs, tRefs], [status, tStatus]] = await Promise.all([
+        timed(ipc.loadGraph(repoId, query(0, FIRST_PAGE))),
+        timed(ipc.listRefs(repoId)),
+        timed(ipc.repoStatus(repoId)),
       ]);
       if (generation.get(repoId) !== gen) return;
+      if (import.meta.env.DEV) {
+        console.info(
+          `[graph] first page: ${page.rows.length} rows in ${tPage.toFixed(1)} ms (refs ${tRefs.toFixed(1)} ms, status ${tStatus.toFixed(1)} ms)`,
+        );
+      }
       const byOid = indexRows(page.rows);
       set((s) => ({
         byRepo: {
@@ -142,9 +154,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (g === undefined || g.loading || !g.hasMore) return;
       const gen = generation.get(repoId) ?? 0;
       patch(repoId, { loading: true });
+      const t0 = performance.now();
       try {
         const page = await ipc.loadGraph(repoId, query(g.nextSkip, NEXT_PAGE));
         if (generation.get(repoId) !== gen) return;
+        if (import.meta.env.DEV) {
+          console.info(
+            `[graph] chunk: ${page.rows.length} rows in ${(performance.now() - t0).toFixed(1)} ms`,
+          );
+        }
         const cur = get().byRepo[repoId] ?? g;
         const rows = cur.rows.concat(page.rows);
         patch(repoId, {
@@ -170,12 +188,29 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       }
       if (what.includes("index") || what.includes("workingTree")) {
         try {
+          const gen = generation.get(repoId) ?? 0;
           const status = await ipc.repoStatus(repoId);
+          if ((generation.get(repoId) ?? 0) !== gen) return;
           patch(repoId, { status });
         } catch (e) {
           reportError(e, "Could not refresh status");
         }
       }
+    },
+
+    forget: (repoId) => {
+      bump(repoId);
+      set((s) => {
+        const byRepo = { ...s.byRepo };
+        delete byRepo[repoId];
+        const owned = (oid: string | null): boolean =>
+          oid !== null && (oid === WIP_OID || s.byRepo[repoId]?.byOid.has(oid) === true);
+        return {
+          byRepo,
+          selectedOid: owned(s.selectedOid) ? null : s.selectedOid,
+          hoverOid: owned(s.hoverOid) ? null : s.hoverOid,
+        };
+      });
     },
 
     select: (oid) => set({ selectedOid: oid }),

@@ -140,6 +140,7 @@ export function GraphView({ repoId }: Props) {
                 lane={wipRow?.lane ?? 0}
                 color={wipRow?.color ?? 0}
                 lanes={lanes}
+                connected={headRow === 0}
                 top={v.start}
                 selected={selectedOid === WIP_OID}
                 hovered={hoverOid === WIP_OID}
@@ -163,6 +164,7 @@ export function GraphView({ repoId }: Props) {
               selected={selectedOid === row.oid}
               hovered={hoverOid === row.oid}
               isHead={row.oid === headOid}
+              wipAbove={hasWip && headRow === 0 && i === 0}
               onSelect={onSelect}
               onHover={onHover}
             />

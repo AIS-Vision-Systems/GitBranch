@@ -123,4 +123,45 @@ describe("refsByOid", () => {
     expect(map.get("2")?.length).toBe(1);
     expect(refsByOid(null).size).toBe(0);
   });
+
+  it("forget drops the repo and clears its selection and hover", async () => {
+    m.loadGraph.mockResolvedValue(page(["a", "b"], false, 2));
+    await useGraphStore.getState().load(id);
+    useGraphStore.getState().select("a");
+    useGraphStore.getState().setHover("b");
+    useGraphStore.getState().forget(id);
+    const s = useGraphStore.getState();
+    expect(s.byRepo[id]).toBeUndefined();
+    expect(s.selectedOid).toBeNull();
+    expect(s.hoverOid).toBeNull();
+  });
+
+  it("forget keeps the selection of another repo", async () => {
+    m.loadGraph.mockResolvedValue(page(["a"], false, 1));
+    await useGraphStore.getState().load(id);
+    useGraphStore.setState({ selectedOid: "zzz" });
+    useGraphStore.getState().forget(id);
+    expect(useGraphStore.getState().selectedOid).toBe("zzz");
+  });
+
+  it("status-only refresh is ignored if a full reload happened meanwhile", async () => {
+    m.loadGraph.mockResolvedValue(page(["a"], false, 1));
+    await useGraphStore.getState().load(id);
+    let resolveStale!: (v: typeof cleanStatus) => void;
+    m.repoStatus.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveStale = r;
+      }),
+    );
+    const pending = useGraphStore.getState().refresh(id, ["workingTree"]);
+    const fresh = {
+      branch: { oid: "f", head: "fresh", upstream: null, ahead: 0, behind: 0 },
+      entries: [],
+    };
+    m.repoStatus.mockResolvedValue(fresh);
+    await useGraphStore.getState().load(id);
+    resolveStale({ branch: null, entries: [] });
+    await pending;
+    expect(useGraphStore.getState().byRepo[id]!.status).toEqual(fresh);
+  });
 });

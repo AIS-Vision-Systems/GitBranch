@@ -1,0 +1,159 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  color: var(--color-fg);
+}
+
+.top {
+  flex: none;
+  max-height: 50%;
+  overflow: auto;
+}
+
+.placeholder {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-fg-muted);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subject {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.person,
+.ids {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.role {
+  width: 70px;
+  flex: none;
+  color: var(--color-fg-muted);
+  font-size: 0.85em;
+}
+
+.date {
+  color: var(--color-fg-muted);
+}
+
+.oid {
+  font-family: var(--font-mono);
+}
+
+.copy,
+.parent {
+  background: var(--color-bg);
+  color: var(--color-accent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.copy {
+  color: var(--color-fg);
+  font-family: var(--font-ui);
+}
+
+.copy:hover,
+.parent:hover {
+  border-color: var(--color-accent);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--color-fg-muted);
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) 0;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.fileRow:hover {
+  background: var(--color-bg);
+}
+
+.fileRowSelected,
+.fileRowSelected:hover {
+  background: var(--color-bg);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.badge {
+  flex: none;
+  width: 1.4em;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.badgeAdded {
+  color: var(--color-success);
+}
+
+.badgeDeleted {
+  color: var(--color-danger);
+}
+
+.badgeMoved {
+  color: var(--color-accent);
+}
+
+.badgeModified {
+  color: var(--color-fg);
+}
+
+.filePath {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dir,
+.arrow,
+.suffix {
+  color: var(--color-fg-muted);
+}
