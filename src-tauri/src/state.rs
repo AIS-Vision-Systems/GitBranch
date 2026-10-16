@@ -78,7 +78,6 @@ impl AppState {
     }
 
     /// Looks up an open repository.
-    #[allow(dead_code)] // used by the per-repo commands from item 1.2 on
     pub fn get(&self, id: &str) -> Option<OpenRepo> {
         self.repos.lock().ok()?.get(id).cloned()
     }

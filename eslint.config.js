@@ -54,6 +54,11 @@ export default tseslint.config(
               name: "@tauri-apps/api/core",
               message: "Components never call invoke directly; add a wrapper in src/ipc/.",
             },
+            {
+              name: "@tauri-apps/api/event",
+              message:
+                "Components never listen to events directly; add a wrapper in src/ipc/events.ts.",
+            },
           ],
         },
       ],
@@ -61,7 +66,7 @@ export default tseslint.config(
   },
   {
     // Only the IPC core talks to Tauri.
-    files: ["src/ipc/core.ts"],
+    files: ["src/ipc/core.ts", "src/ipc/events.ts"],
     rules: { "no-restricted-imports": "off" },
   },
   {

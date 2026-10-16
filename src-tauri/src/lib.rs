@@ -18,6 +18,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(commands::graph::GraphCache::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             app.manage(AppState::new(GitRunner::from_env(), dir.join("recent.json")));
@@ -30,6 +31,9 @@ pub fn run() {
             commands::repo::list_recent,
             commands::repo::remove_recent,
             commands::repo::close_repo,
+            commands::graph::load_graph,
+            commands::graph::list_refs,
+            commands::graph::repo_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

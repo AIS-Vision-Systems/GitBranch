@@ -53,10 +53,10 @@ Goal: open a local repo, see the full graph with refs, select a commit, see its 
 - [x] 1.3 `git-core::log`: streaming `git log --all --date-order --format=<NUL-separated>` parser to `Commit {oid, parents, author, time, subject}`. Paginated (first 2k rows, then chunks).
 - [x] 1.4 `git-core::graph`: lane allocation (see ARCHITECTURE.md, Graph). Output per row: lane, color index, incoming/outgoing edge segments. Property tests with fixture repos; perf test with 100k synthetic commits.
 - [x] 1.5 Status: `git status --porcelain=v2 -z` parser (staged/unstaged/untracked/conflicted, renames). Shown as a virtual "WIP" row on top of the graph.
-- [ ] 1.6 Graph UI: virtualized rows (`@tanstack/react-virtual`), SVG lane strip per row, ref chips, hover/selection, keyboard navigation. Stable colors per lane.
-- [ ] 1.7 Commit details panel: metadata + changed files (`git show --name-status -z`).
-- [ ] 1.8 Diff viewer: unified/side-by-side, light syntax coloring (no Monaco), from `git diff -p` parsed in Rust into hunks.
-- [ ] 1.9 Auto-refresh: `notify` watcher on `.git/{HEAD,refs,index,packed-refs,logs}` + working tree (debounced), incremental reload.
+- [x] 1.6 Graph UI: virtualized rows (`@tanstack/react-virtual`), SVG lane strip per row, ref chips, hover/selection, keyboard navigation. Stable colors per lane.
+- [~] 1.7 Commit details panel: metadata + changed files (`git show --name-status -z`).
+- [~] 1.8 Diff viewer: unified/side-by-side, light syntax coloring (no Monaco), from `git diff -p` parsed in Rust into hunks.
+- [~] 1.9 Auto-refresh: `notify` watcher on `.git/{HEAD,refs,index,packed-refs,logs}` + working tree (debounced), incremental reload.
 - [ ] 1.10 Perf pass against a big repo (a clone of `git/git`, about 75k commits).
 
 Acceptance: targets table met on the big repo; graph topology matches `git log --graph --all` on all fixtures.

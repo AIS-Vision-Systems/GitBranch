@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { appInfo } from "./ipc/app";
 import type { AppInfo } from "./ipc/types";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
+import { GraphView } from "./features/graph/GraphView";
+import { onRepoChanged } from "./ipc/events";
+import { useGraphStore } from "./state/graph";
 import { Toasts } from "./features/shell/Toasts";
 import { Welcome } from "./features/welcome/Welcome";
 import { useReposStore } from "./state/repos";
@@ -29,6 +32,24 @@ export default function App() {
     );
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    onRepoChanged((e) => {
+      void useGraphStore.getState().refresh(e.repoId, e.what);
+    }).then(
+      (fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      },
+      (err: unknown) => reportError(err, "Could not subscribe to repository changes"),
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
     };
   }, []);
 
@@ -68,9 +89,14 @@ export default function App() {
           Theme: {theme}
         </button>
       </header>
-      <main className={styles["body"]}>
+      <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (
-          <p>Graph goes here</p>
+          <div className={styles["panes"]}>
+            <div className={styles["graphPane"]}>
+              <GraphView key={current.repoId} repoId={current.repoId} />
+            </div>
+            <aside className={styles["details"]}>Select a commit</aside>
+          </div>
         ) : (
           <>
             <Welcome />
