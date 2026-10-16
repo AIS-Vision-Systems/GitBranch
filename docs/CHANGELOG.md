@@ -27,8 +27,10 @@
 - Merge a conflicting branch: a banner shows "Merge in progress · 1 conflicted file" with Abort/Continue; the WIP pane
   offers Ours/Theirs/Open/Mark resolved; Continue finishes the merge. Toolbar: Branch…, Stash (push with untracked),
   Stashes list (apply/pop/drop/show) and Undo (Ctrl+Z, reflog-based, disabled while an operation is in progress).
-- 186 Rust tests on real git fixtures (+95), 253 vitest tests (+160); `pnpm check` green; release build 3 min 17 s;
-  `gitbranch.exe` 4.8 MB, NSIS installer 1.6 MB (target < 25 MB).
+- GitKraken-style graph (2.10): BRANCH / TAG column with icon chips and `+N`, initials avatars on the nodes, rounded
+  lanes, full-row selection, dark theme by default.
+- 186 Rust tests on real git fixtures (+95), 268 vitest tests (+175); `pnpm check` green; release build 2 min 03 s
+  (warm); `gitbranch.exe` 4.8 MB, NSIS installer 1.6 MB (target < 25 MB).
 - Verified by hand on a fixture repo through the OS accessibility tree (stage hunk, commit, branch, undo, conflicting
   merge with take-theirs + continue, stash push/pop, interactive rebase dialog); four issues found and fixed in 8334be7.
 
