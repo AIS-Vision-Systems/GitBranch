@@ -1,0 +1,17 @@
+.splitter {
+  flex: none;
+  width: var(--space-1);
+  margin: 0 calc(var(--space-1) / -2);
+  position: relative;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.splitter:hover,
+.splitter:focus-visible,
+.active {
+  background: var(--color-accent);
+  outline: none;
+}

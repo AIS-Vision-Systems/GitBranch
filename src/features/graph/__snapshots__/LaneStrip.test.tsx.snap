@@ -1,0 +1,71 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`lanePaths > branch tip: no top half, bottom half only 1`] = `
+[
+  {
+    "color": 2,
+    "d": "M 24 12 L 24 24",
+    "kind": "straight",
+  },
+]
+`;
+
+exports[`lanePaths > branchOut curve starts at the node 1`] = `
+[
+  {
+    "color": 0,
+    "d": "M 8 0 L 8 12",
+    "kind": "incoming",
+  },
+  {
+    "color": 0,
+    "d": "M 8 12 L 8 24",
+    "kind": "straight",
+  },
+  {
+    "color": 5,
+    "d": "M 8 12 C 8 24 24 12 24 24",
+    "kind": "branchOut",
+  },
+]
+`;
+
+exports[`lanePaths > mergeIn curve ends at the node 1`] = `
+[
+  {
+    "color": 0,
+    "d": "M 8 0 L 8 12",
+    "kind": "incoming",
+  },
+  {
+    "color": 4,
+    "d": "M 40 0 C 40 12 8 0 8 12",
+    "kind": "mergeIn",
+  },
+  {
+    "color": 0,
+    "d": "M 8 12 L 8 24",
+    "kind": "straight",
+  },
+]
+`;
+
+exports[`lanePaths > straight passthrough on another lane plus the node lane 1`] = `
+[
+  {
+    "color": 0,
+    "d": "M 8 0 L 8 12",
+    "kind": "incoming",
+  },
+  {
+    "color": 0,
+    "d": "M 8 12 L 8 24",
+    "kind": "straight",
+  },
+  {
+    "color": 3,
+    "d": "M 24 0 L 24 24",
+    "kind": "straight",
+  },
+]
+`;

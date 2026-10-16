@@ -35,3 +35,31 @@
   padding: var(--space-4);
   color: var(--color-fg-muted);
 }
+
+.bodyGraph {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.panes {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.graphPane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.details {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  min-height: 0;
+}

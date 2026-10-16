@@ -249,12 +249,13 @@ impl std::fmt::Display for GitVersion {
 pub struct GitRunner {
     git_path: PathBuf,
     askpass: Option<PathBuf>,
+    env: Vec<(String, String)>,
 }
 
 impl GitRunner {
     /// A runner for the given executable (an absolute path, or just `git` resolved via `PATH`).
     pub fn new(git_path: impl Into<PathBuf>) -> Self {
-        Self { git_path: git_path.into(), askpass: None }
+        Self { git_path: git_path.into(), askpass: None, env: Vec::new() }
     }
 
     /// A runner for the `git` on `PATH`, or `GITBRANCH_GIT` when that variable is set.
@@ -267,6 +268,14 @@ impl GitRunner {
     #[must_use]
     pub fn with_askpass(mut self, askpass: Option<PathBuf>) -> Self {
         self.askpass = askpass;
+        self
+    }
+
+    /// Extra environment applied to every spawn (after the fixed env, before `RunOpts::env`).
+    /// Used by tests to isolate git from the user's global/system config.
+    #[must_use]
+    pub fn with_env(mut self, env: Vec<(String, String)>) -> Self {
+        self.env = env;
         self
     }
 
@@ -393,6 +402,9 @@ impl GitRunner {
             .env("GIT_SEQUENCE_EDITOR", ":")
             // ssh must not pop a passphrase/host-key prompt from a windowless process.
             .env("SSH_ASKPASS_REQUIRE", "never");
+        for (k, v) in &self.env {
+            cmd.env(k, v);
+        }
         if let Some(p) = &self.askpass {
             cmd.env("GIT_ASKPASS", p);
         }

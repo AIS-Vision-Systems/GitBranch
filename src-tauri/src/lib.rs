@@ -4,15 +4,45 @@
 
 mod commands;
 mod error;
+mod state;
+mod watcher;
 
 pub use error::AppError;
+
+use git_core::GitRunner;
+use state::AppState;
+use tauri::Manager;
 
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // `GITBRANCH_LOG` (e.g. `debug`, `git=debug,gitbranch=info`) controls verbosity; default info.
+    let filter = tracing_subscriber::EnvFilter::try_from_env("GITBRANCH_LOG")
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    tracing_subscriber::fmt().with_env_filter(filter).with_target(true).init();
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![commands::app::app_info])
+        .manage(commands::graph::GraphCache::default())
+        .manage(watcher::Watchers::default())
+        .setup(|app| {
+            let dir = app.path().app_config_dir()?;
+            app.manage(AppState::new(GitRunner::from_env(), dir.join("recent.json")));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::app::app_info,
+            commands::repo::pick_repo_dir,
+            commands::repo::open_repo,
+            commands::repo::list_recent,
+            commands::repo::remove_recent,
+            commands::repo::close_repo,
+            commands::graph::load_graph,
+            commands::graph::list_refs,
+            commands::graph::repo_status,
+            commands::commit::commit_details,
+            commands::commit::file_diff,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

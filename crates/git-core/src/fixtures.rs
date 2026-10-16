@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use tempfile::TempDir;
 
-use crate::runner::{SCRUB_ENV, git_path_from_env};
+use crate::runner::{GitRunner, SCRUB_ENV, git_path_from_env};
 
 /// 2026-01-01T00:00:00Z as a unix timestamp.
 const BASE_EPOCH: u64 = 1_767_225_600;
@@ -133,6 +133,12 @@ impl FixtureRepo {
         commit_file(&self.path, name, content, msg)
     }
 
+    /// A [`GitRunner`] isolated from the user's global/system git config (same isolation as
+    /// [`git_command`]), for exercising git-core operations against this fixture.
+    pub fn runner(&self) -> GitRunner {
+        isolated_runner(&self.path)
+    }
+
     /// Resolve `rev` to an oid.
     pub fn rev_parse(&self, rev: &str) -> String {
         self.git(&["rev-parse", rev])
@@ -142,6 +148,18 @@ impl FixtureRepo {
     pub fn into_path(self) -> PathBuf {
         self.dir.keep()
     }
+}
+
+/// A [`GitRunner`] whose spawns ignore the user's global and system git config.
+///
+/// `dir` only anchors the non-existent config path; it need not be a repository.
+pub fn isolated_runner(dir: &Path) -> GitRunner {
+    let missing = dir.join("gitbranch-no-such-config").to_string_lossy().into_owned();
+    GitRunner::from_env().with_env(vec![
+        ("GIT_CONFIG_GLOBAL".into(), missing.clone()),
+        ("GIT_CONFIG_SYSTEM".into(), missing),
+        ("GIT_CONFIG_NOSYSTEM".into(), "1".into()),
+    ])
 }
 
 /// The git command with isolated env applied (pub so runner tests can reuse the env).

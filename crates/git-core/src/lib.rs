@@ -7,6 +7,10 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod graph;
+pub mod ops;
+pub mod parse;
+pub mod repo;
 pub mod runner;
 
 pub use runner::{GitError, GitErrorKind, GitOutput, GitRunner, GitVersion, RunOpts};

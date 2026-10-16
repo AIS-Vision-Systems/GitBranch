@@ -1,0 +1,152 @@
+.root {
+  height: 100%;
+  overflow: auto;
+  outline: none;
+  position: relative;
+  background: var(--color-bg);
+}
+
+.root:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  min-width: 640px;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--graph-row-h);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 160px 90px;
+  align-items: center;
+  column-gap: var(--space-2);
+  cursor: default;
+  white-space: nowrap;
+  color: var(--color-fg);
+}
+
+.hovered {
+  background: var(--color-bg-elevated);
+}
+
+.selected {
+  background: var(--color-bg-elevated);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.strip {
+  display: block;
+  flex: none;
+  max-width: var(--graph-max-w);
+  overflow: hidden;
+}
+
+.subjectCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.wipText {
+  color: var(--color-fg-muted);
+  font-style: italic;
+}
+
+.author,
+.date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-fg-muted);
+  font-size: 12px;
+}
+
+.chip {
+  flex: none;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-1);
+  border: 1px solid currentColor;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.local {
+  color: var(--color-accent);
+}
+
+.head {
+  font-weight: 700;
+  background: var(--color-bg);
+}
+
+.remote {
+  color: var(--color-fg-muted);
+}
+
+.tag {
+  color: var(--color-warning);
+}
+
+.gone {
+  color: var(--color-warning);
+  text-decoration: line-through;
+}
+
+.sync {
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--color-fg-muted);
+}
+
+.lane0 {
+  color: var(--graph-lane-0);
+}
+.lane1 {
+  color: var(--graph-lane-1);
+}
+.lane2 {
+  color: var(--graph-lane-2);
+}
+.lane3 {
+  color: var(--graph-lane-3);
+}
+.lane4 {
+  color: var(--graph-lane-4);
+}
+.lane5 {
+  color: var(--graph-lane-5);
+}
+.lane6 {
+  color: var(--graph-lane-6);
+}
+.lane7 {
+  color: var(--graph-lane-7);
+}
+.lane8 {
+  color: var(--graph-lane-8);
+}
+.lane9 {
+  color: var(--graph-lane-9);
+}
+.lane10 {
+  color: var(--graph-lane-10);
+}
+.lane11 {
+  color: var(--graph-lane-11);
+}

@@ -102,3 +102,20 @@ boundary), tag `phase-N` on `main`, and delete `phase/N`. `main` only moves by p
 commits between phases. Branch name uses a slash so it never collides with the `phase-N` tag. Every commit is pushed
 to `origin` immediately (standing owner authorization; the old "never push without the owner" rule is superseded for
 ordinary commits — PRs and releases still need the owner). Requested by the owner.
+
+## D-015 · accepted · 2026-10-16 — Repo identity and persistence for item 1.1
+Decision: `RepoId` is a short FNV-1a hash of the normalized work-tree path (stable across restarts, no uuid dep).
+The recent-repos list is a plain JSON file at `<app_config_dir>/recent.json` (max 20, atomic write) — no
+`tauri-plugin-store`. The folder picker runs in Rust via `tauri-plugin-dialog` so the UI keeps calling only typed
+commands. Opening a linked worktree asks "main repository (default) / this worktree" instead of silently redirecting.
+
+## D-016 · accepted · 2026-10-16 — Machine-readable separators and per-module error enums in `git-core::parse`
+Decision: `git log -z --format=...%x1f...` (NUL between records, 0x1f between fields); `for-each-ref` and
+`status --porcelain=v2 -z` likewise NUL-terminated. Each parse module exposes a pure `parse_*(&[u8])` returning
+`ParseError` plus an async runner call returning a module error enum (`LogError`, `RefsError`, `StatusError`) that
+wraps `GitError | ParseError` transparently; `AppError` maps both so the UI sees `git.*` / `parse.*` codes.
+
+## D-017 · accepted · 2026-10-16 — Write the commit-graph file in the background when missing
+Why: on git/git (85k commits) the first-page `git log` drops from 640 ms to 124 ms with a commit-graph file.
+It is the same file `git gc` writes, so it is harmless to the user's repository.
+`open_repo` spawns `git commit-graph write --reachable` when absent (errors only logged); an opt-out can come later via settings.
