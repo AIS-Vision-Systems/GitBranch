@@ -21,6 +21,27 @@ export function resolveTheme(theme: Theme): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+export const THEME_KEY = "gitbranch.theme";
+
+/** Persisted choice, defaulting to dark. Storage may be unavailable or corrupt. */
+export function loadTheme(): Theme {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    if (v === "system" || v === "light" || v === "dark") return v;
+  } catch {
+    /* ignore */
+  }
+  return "dark";
+}
+
+function saveTheme(theme: Theme): void {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    /* ignore */
+  }
+}
+
 interface UiState {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
@@ -33,11 +54,15 @@ interface UiState {
 }
 
 let nextId = 1;
+const initialTheme = loadTheme();
 
 export const useUiStore = create<UiState>((set, get) => ({
-  theme: "system",
-  resolvedTheme: resolveTheme("system"),
-  setTheme: (theme) => set({ theme, resolvedTheme: resolveTheme(theme) }),
+  theme: initialTheme,
+  resolvedTheme: resolveTheme(initialTheme),
+  setTheme: (theme) => {
+    saveTheme(theme);
+    set({ theme, resolvedTheme: resolveTheme(theme) });
+  },
   refreshTheme: () => set({ resolvedTheme: resolveTheme(get().theme) }),
   toasts: [],
   pushToast: (t) => {

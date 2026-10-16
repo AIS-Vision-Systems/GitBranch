@@ -158,3 +158,12 @@ with `repo_status` on `head`/`index` changes and shows a conflict banner with ab
 editor" spawns `core.editor` / `$VISUAL` / `$EDITOR` (shell-word split, no shell) with the file inside the work tree, and
 falls back to revealing the file in the file manager (never the OS default handler, which could run a tracked script)
 until settings (6.3) add an editor path.
+
+## D-023 · accepted · 2026-10-16 — Graph visual language follows GitKraken's three-column layout; avatars are offline
+Context: the owner wants the GitKraken look (refs column, graph with avatars, message column, dark theme).
+Decision: item 2.10 restyles the graph only in the frontend: a `BRANCH / TAG` column (fixed width token
+`--graph-refs-w`), the lane strip, and the message column, each row 36 px (`--graph-row-h`). Avatars are initials on a
+colour derived from the author email hash, drawn in the SVG (no network): Gravatar stays a future opt-in setting because
+fetching avatars leaks author emails to a third party by default. The grey "description" text GitKraken shows after the
+subject is not added yet: it needs the commit body in the log format and would grow the 100k-commit payload; revisit
+with the first page only. Dark becomes the default theme; light stays available.

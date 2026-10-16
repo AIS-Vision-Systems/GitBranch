@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
@@ -14,7 +15,7 @@ import { installDragCleanup } from "./dnd";
 import { openBranchDrop } from "../dialogs/open";
 import { ContextMenu } from "../shell/ContextMenu";
 import { useContextMenu } from "../shell/useContextMenu";
-import { ROW_H } from "./constants";
+import { HEADER_H, LANE_W, ROW_H } from "./constants";
 import { rowDomId } from "./domId";
 import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
@@ -43,6 +44,18 @@ export function GraphView({ repoId }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const ctxMenu = useContextMenu<MenuData>();
   const openMenu = ctxMenu.open;
+  const [expandedOid, setExpandedOid] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (expandedOid === null) return;
+    const onDown = (e: globalThis.MouseEvent): void => {
+      const t = e.target;
+      if (t instanceof Element && t.closest("[data-refs-overlay]") !== null) return;
+      setExpandedOid(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [expandedOid]);
 
   useEffect(() => {
     if (useGraphStore.getState().byRepo[repoId] === undefined) void load(repoId);
@@ -70,6 +83,7 @@ export function GraphView({ repoId }: Props) {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_H,
     overscan: 10,
+    scrollPaddingStart: HEADER_H,
   });
   const items = virtualizer.getVirtualItems();
   const lastIndex = items.length > 0 ? items[items.length - 1]!.index : -1;
@@ -138,12 +152,16 @@ export function GraphView({ repoId }: Props) {
         const oid = oidAt(cur);
         if (oid === null) return;
         const rect = el.getBoundingClientRect();
-        const y = rect.top + cur * ROW_H - el.scrollTop + ROW_H;
+        const y = rect.top + HEADER_H + cur * ROW_H - el.scrollTop + ROW_H;
         // Keyboard has no pointer event; the menu only needs a position.
         const at = { clientX: rect.left + 48, clientY: y, preventDefault: () => undefined };
         openMenu(at as unknown as MouseEvent, { kind: "commit", oid });
         break;
       }
+      case "Escape":
+        if (expandedOid === null) return;
+        setExpandedOid(null);
+        break;
       default:
         return;
     }
@@ -151,6 +169,7 @@ export function GraphView({ repoId }: Props) {
   };
 
   const onSelect = useCallback((oid: string) => select(oid), [select]);
+  const onExpand = useCallback((oid: string) => setExpandedOid(oid), []);
   const onHover = useCallback((oid: string | null) => setHover(oid), [setHover]);
 
   const onRowMenu = useCallback(
@@ -229,6 +248,13 @@ export function GraphView({ repoId }: Props) {
         aria-activedescendant={active !== undefined ? rowDomId(active) : undefined}
         onKeyDown={onKeyDown}
       >
+        <div className={styles["header"]} aria-hidden="true">
+          <span className={styles["refsHead"]}>Branch / Tag</span>
+          <span className={styles["graphHead"]} style={{ width: lanes * LANE_W }}>
+            Graph
+          </span>
+          <span className={styles["messageHead"]}>Commit message</span>
+        </div>
         <div className={styles["canvas"]} style={{ height: virtualizer.getTotalSize() }}>
           {items.map((v) => {
             if (hasWip && v.index === 0) {
@@ -265,6 +291,8 @@ export function GraphView({ repoId }: Props) {
                 hovered={hoverOid === row.oid}
                 isHead={row.oid === headOid}
                 wipAbove={hasWip && headRow === 0 && i === 0}
+                expanded={expandedOid === row.oid}
+                onExpand={onExpand}
                 onSelect={onSelect}
                 onHover={onHover}
                 onContextMenu={onRowMenu}

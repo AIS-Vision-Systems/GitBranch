@@ -71,6 +71,7 @@ Acceptance: targets table met on the big repo; graph topology matches `git log -
 - [x] 2.7 Conflict UI: list conflicted files, take ours/theirs, open in external editor, mark resolved.
 - [x] 2.8 Graph context menus + drag-and-drop (branch onto branch opens a merge/rebase picker).
 - [x] 2.9 Undo for destructive ops where git allows (reflog-based "undo last operation").
+- [x] 2.10 Graph look and feel (GitKraken-style): three columns (BRANCH / TAG · GRAPH · COMMIT MESSAGE) with a column header, ref chips in their own column with local/remote/tag icons and a `+N` collapse, filled nodes with initials avatars, rounded lane curves, full-row hover/selection, dark theme as primary. Owner request 2026-10-16.
 
 Acceptance: every op has a `git-core` test on fixtures; the UI never calls `git` directly, only typed commands.
 

@@ -1,6 +1,10 @@
-import { memo, type MouseEvent } from "react";
+import { memo, useMemo, type MouseEvent } from "react";
 import { formatRelative } from "../../lib/time";
 import type { Commit, Ref, Row } from "../../ipc/types";
+import { avatarColor, initials } from "./avatar";
+import { chipItems } from "./chips";
+import { MAX_CHIPS } from "./constants";
+import { colorIndex } from "./lanePaths";
 import { acceptDrag, leaveDrag, takeDrop } from "./dnd";
 import { rowDomId } from "./domId";
 import { LaneStrip } from "./LaneStrip";
@@ -18,6 +22,10 @@ export interface GraphRowProps {
   hovered: boolean;
   isHead: boolean;
   wipAbove?: boolean;
+  /** All of this row's chips are shown (the `+N` pill was clicked). */
+  expanded?: boolean;
+  /** Stable callback: expand this row's chips. */
+  onExpand?: (oid: string) => void;
   onSelect: (oid: string) => void;
   onHover: (oid: string | null) => void;
   /** Stable callbacks; GraphView owns the menu. */
@@ -38,6 +46,8 @@ export const GraphRow = memo(function GraphRow({
   hovered,
   isHead,
   wipAbove = false,
+  expanded = false,
+  onExpand,
   onSelect,
   onHover,
   onContextMenu,
@@ -48,7 +58,16 @@ export const GraphRow = memo(function GraphRow({
   const hl = styles["dropTarget"];
   const own = (source: string): boolean =>
     refs.some((r) => r.kind === "localBranch" && r.name === source);
-  const cls = [styles["row"], selected ? styles["selected"] : "", hovered ? styles["hovered"] : ""];
+  const cls = [
+    styles["row"],
+    selected ? styles["selected"] : "",
+    hovered ? styles["hovered"] : "",
+    expanded ? styles["expandedRow"] : "",
+  ];
+  const isMerge = commit.parents.length > 1;
+  const items = useMemo(() => chipItems(refs), [refs]);
+  const shown = expanded ? items : items.slice(0, MAX_CHIPS);
+  const hidden = items.length - shown.length;
   return (
     <div
       id={rowDomId(row.oid)}
@@ -71,17 +90,54 @@ export const GraphRow = memo(function GraphRow({
           : undefined
       }
     >
-      <LaneStrip row={row} lanes={lanes} isHead={isHead} wipAbove={wipAbove} />
-      <span className={styles["subjectCell"]}>
-        {refs.map((r) => (
-          <RefChip
-            key={r.fullName}
-            gitRef={r}
-            {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
-            {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
-          />
-        ))}
-        <span className={styles["subject"]}>{commit.subject}</span>
+      <span className={styles["refsCell"]}>
+        {shown.length > 0 && (
+          <span
+            className={expanded ? styles["refsOverlay"] : styles["refsInline"]}
+            data-refs-overlay={expanded ? "" : undefined}
+          >
+            {shown.map((it) => (
+              <RefChip
+                key={it.gitRef.fullName}
+                gitRef={it.gitRef}
+                withUpstream={it.withUpstream}
+                {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
+                {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
+              />
+            ))}
+            {hidden > 0 && (
+              <button
+                type="button"
+                className={styles["morePill"]}
+                title={`${hidden} more refs`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExpand?.(row.oid);
+                }}
+              >
+                +{hidden}
+              </button>
+            )}
+          </span>
+        )}
+      </span>
+      <LaneStrip
+        row={row}
+        lanes={lanes}
+        isHead={isHead}
+        wipAbove={wipAbove}
+        isMerge={isMerge}
+        initials={initials(commit.authorName)}
+        avatarIdx={avatarColor(commit.authorEmail)}
+        hasRefs={items.length > 0}
+      />
+      <span className={styles["messageCell"]}>
+        <span className={`${styles["bar"]} ${styles[`lane${colorIndex(row.color)}`]}`} />
+        <span
+          className={isMerge ? `${styles["subject"]} ${styles["mergeSubject"]}` : styles["subject"]}
+        >
+          {commit.subject}
+        </span>
       </span>
       <span className={styles["author"]}>{commit.authorName}</span>
       <span className={styles["date"]}>

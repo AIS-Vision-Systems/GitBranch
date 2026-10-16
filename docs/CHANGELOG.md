@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-16: Graph look and feel (item 2.10, D-023): GitKraken-style three-column graph (BRANCH / TAG · GRAPH ·
+  COMMIT MESSAGE) with a column header, ref chips with local/remote/tag icons, local+upstream folded into one chip with
+  `↑n ↓n`, `+N` pill for crowded commits, initials avatars ringed in the lane colour, rounded lane curves, full-row
+  hover/selection, dark theme by default (persisted).
 - 2026-10-16: Phase 2 — local operations. Stage/unstage/discard per file, hunk and line (patches built in Rust,
   `git apply --cached`); commit with template/amend/sign-off; branches (create, checkout, rename, safe/force delete,
   upstream); stash push/list/apply/pop/drop with a stash panel; merge (ff/no-ff/squash), rebase onto and

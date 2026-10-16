@@ -101,6 +101,45 @@ describe("GraphView", () => {
     expect(useGraphStore.getState().selectedOid).toBe("c0");
   });
 
+  it("renders the column header", () => {
+    seed(2);
+    render(<GraphView repoId={id} />);
+    expect(screen.getByText("Branch / Tag")).toBeInTheDocument();
+    expect(screen.getByText("Graph")).toBeInTheDocument();
+    expect(screen.getByText("Commit message")).toBeInTheDocument();
+  });
+
+  describe("many refs", () => {
+    const refAt = (name: string): Ref => ({
+      name,
+      fullName: `refs/heads/${name}`,
+      kind: "localBranch",
+      target: "c0",
+      upstream: null,
+      isHead: false,
+    });
+    beforeEach(() => {
+      seed(3);
+      const g = useGraphStore.getState().byRepo[id]!;
+      useGraphStore.setState({
+        byRepo: {
+          [id]: { ...g, refs: { ...noRefs, refs: ["a", "b", "c", "d"].map(refAt) } },
+        },
+      });
+    });
+
+    it("shows two chips and a +N pill that expands and collapses on Escape", () => {
+      render(<GraphView repoId={id} />);
+      expect(screen.queryByText("c")).toBeNull();
+      const pill = screen.getByRole("button", { name: "+2" });
+      fireEvent.click(pill);
+      expect(screen.getByText("c")).toBeInTheDocument();
+      expect(screen.getByText("d")).toBeInTheDocument();
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
+      expect(screen.queryByText("d")).toBeNull();
+    });
+  });
+
   describe("branch drag and drop", () => {
     const local = (name: string, target: string): Ref => ({
       name,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useUiStore } from "./ui";
+import { loadTheme, useUiStore } from "./ui";
 
 function mockDark(dark: boolean): void {
   window.matchMedia = ((q: string) => ({
@@ -47,5 +47,25 @@ describe("ui store", () => {
     expect(useUiStore.getState().resolvedTheme).toBe("light");
     useUiStore.getState().setTheme("dark");
     expect(useUiStore.getState().resolvedTheme).toBe("dark");
+  });
+
+  it("defaults to dark and persists the choice", async () => {
+    localStorage.removeItem("gitbranch.theme");
+    vi.resetModules();
+    const fresh = await import("./ui");
+    expect(fresh.useUiStore.getState().theme).toBe("dark");
+    expect(fresh.useUiStore.getState().resolvedTheme).toBe("dark");
+    fresh.useUiStore.getState().setTheme("light");
+    expect(localStorage.getItem("gitbranch.theme")).toBe("light");
+    vi.resetModules();
+    const again = await import("./ui");
+    expect(again.useUiStore.getState().theme).toBe("light");
+    localStorage.removeItem("gitbranch.theme");
+  });
+
+  it("ignores a corrupt stored value", () => {
+    localStorage.setItem("gitbranch.theme", "neon");
+    expect(loadTheme()).toBe("dark");
+    localStorage.removeItem("gitbranch.theme");
   });
 });
