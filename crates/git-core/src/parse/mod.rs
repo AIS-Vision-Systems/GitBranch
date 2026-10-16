@@ -5,6 +5,7 @@
 
 pub mod log;
 pub mod refs;
+pub mod status;
 
 /// Error produced when git output does not match the expected machine-readable shape.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
