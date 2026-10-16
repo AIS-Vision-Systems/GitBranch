@@ -30,6 +30,25 @@
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
 
+### Phase 3 demo (2026-10-16, branch `phase/3`)
+- Open a repo with a remote: the toolbar shows Fetch / Pull… / Push… (with the ahead count) / Clone… / Remotes…;
+  fetch updates the graph in place, Pull offers ff-only / rebase / merge / repository default, Push shows the exact
+  target (`main → origin/main`), set-upstream, tags and force-with-lease (never plain force; `--force-if-includes`
+  refuses to overwrite a remote tip you have not integrated). Rejected pushes and missing credentials get their own
+  toasts; "Commit and push" works.
+- Every network operation streams git's progress to a slim bar with phase, percentage and the last line, and Cancel
+  (Esc) kills the whole git process tree; Clone… (Ctrl+Shift+C, also from the Welcome screen) takes a URL, parent
+  folder, name, branch, shallow depth and submodules, and opens the clone when done.
+- HTTPS to github.com uses the app's own token through the binary itself as `GIT_ASKPASS` (keyring, strict prompt
+  parsing, network calls only); SSH stays with the system agent. The token is stored by the Phase 5 login, or now with
+  `echo <token> | cargo run -p github-api --example store_token -- <login>`.
+- Submodules show up in the WIP pane with their state (clean / modified / not initialised / conflict) and commit.
+- 262 Rust tests on real git fixtures (+76, including file:// remotes, a hanging TCP server for cancel/timeout and
+  crafted askpass prompts), 322 vitest tests (+54); `pnpm check` green; release build 3 min 34 s; installer 1.7 MB,
+  `gitbranch.exe` 5.0 MB (target < 25 MB). Verified by hand in the app on a file:// fixture: fetch, pull, push,
+  rejected push, force-with-lease, remotes add/remove, clone, submodule badge. HTTPS against a private GitHub repo
+  still needs a token in the keyring (owner action, see the report).
+
 ### Phase 2 demo (2026-10-16, branch `phase/2`)
 - Open a dirty repo: the WIP pane lists Staged/Unstaged/Untracked with per-file Stage/Unstage/Discard; click a file,
   press "Stage hunk" or select lines in the gutter and stage just those; type a message, Ctrl+Enter: "Committed abc1234".
