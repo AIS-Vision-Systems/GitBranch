@@ -8,6 +8,15 @@
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
 
+### Phase 1 demo (2026-10-16, branch `phase/1`)
+- `gitbranch C:/Data/RD/_perf/git` (git/git, 85.6k commits, 1,021 refs) paints the first 2,000 rows 197 ms after the
+  first IPC call (release, cold); the remaining 83.6k rows arrive in one background fetch (~1 s) served in 10k slices.
+- Click a merge commit: subject/body, author, parents, first-parent changed files; click a file: unified or split diff
+  with hunk headers and syntax tokens. Touch a file in the work tree: the WIP row updates within ~200 ms.
+- Windows NSIS installer 1.5 MB, `gitbranch.exe` 4.4 MB (target < 25 MB); release build 3 min.
+- 91 Rust tests on real git fixtures, 93 vitest tests; `pnpm check` green. Idle RAM still not attributed per
+  WebView2 helper (app process 32 MB); carried to Phase 6 polish.
+
 ### Phase 0 demo (2026-10-15, tag `phase-0`)
 - `pnpm tauri dev` / the release exe open a 1280x800 window titled "GitBranch" showing the app, git-core and github-api versions through the first IPC call (`app_info`).
 - Windows NSIS installer: 1.2 MB (target < 25 MB); `gitbranch.exe`: 3.2 MB. Release build 3 min cold.
