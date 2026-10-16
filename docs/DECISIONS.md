@@ -94,3 +94,11 @@ Frontend: `typescript-eslint` `recommendedTypeChecked` + `stylisticTypeChecked`,
 `no-restricted-imports` rule that confines `@tauri-apps/api/core` to `src/ipc/core.ts`. Prettier 100 cols, code only
 (markdown and `.claude/` are hand-formatted and ignored). `pnpm check` runs typecheck, eslint, prettier, rustfmt and
 clippy without nested `pnpm` calls (the npm-installed pnpm shim breaks when scripts call `pnpm` on Windows).
+
+## D-014 · accepted · 2026-10-16 — One branch per phase, merged `--no-ff` into `main` and deleted
+Decision: every phase of `docs/PLAN.md` is developed on `phase/N` cut from `main`; per-item commits land there.
+When the owner declares the phase finished, merge into `main` with `--no-ff` (the merge commit marks the phase
+boundary), tag `phase-N` on `main`, and delete `phase/N`. `main` only moves by phase merges and small doc/branding
+commits between phases. Branch name uses a slash so it never collides with the `phase-N` tag. Every commit is pushed
+to `origin` immediately (standing owner authorization; the old "never push without the owner" rule is superseded for
+ordinary commits — PRs and releases still need the owner). Requested by the owner.

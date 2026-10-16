@@ -27,8 +27,9 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[?]` blocked on
 
 ## Phases
 
-Each phase ends with: all its acceptance checks green, `cargo clippy -- -D warnings`, `cargo test` and `pnpm test` green,
-a tagged commit `phase-N`, PLAN.md checkboxes updated, and a short note in `docs/CHANGELOG.md`.
+Each phase is developed on a branch `phase/N` cut from `main` (D-014). It ends with: all its acceptance checks green,
+`cargo clippy -- -D warnings`, `cargo test` and `pnpm test` green, PLAN.md checkboxes updated, a short note in
+`docs/CHANGELOG.md`, a `--no-ff` merge into `main` tagged `phase-N`, and the branch deleted.
 
 ### Phase 0 — Skeleton and toolchain
 Goal: an empty window that opens, builds on both OSes in CI, with the Rust/TS layering in place.
