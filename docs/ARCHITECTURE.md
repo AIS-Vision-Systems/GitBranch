@@ -34,7 +34,7 @@ GitBranch/
   src-tauri/
     Cargo.toml                 # the Tauri binary crate (member of the root workspace)
     src/
-      main.rs                  # tauri::Builder, --askpass entry point
+      main.rs                  # tauri::Builder; askpass mode (GITBRANCH_ASKPASS=1 + prompt arg)
       commands/                # #[tauri::command] fns, THIN: parse args -> git-core -> serialize
       watcher.rs               # notify-based repo watcher -> emits "repo-changed" events
       state.rs                 # open repos registry
@@ -64,8 +64,8 @@ pub async fn run(&self, repo: &Path, args: &[&str], opts: RunOpts) -> Result<Out
 ```
 
 - Env on every spawn: `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `GIT_OPTIONAL_LOCKS=0`, `GIT_PAGER=cat`,
-  `GIT_EDITOR=:`, `GIT_SEQUENCE_EDITOR=:`, `SSH_ASKPASS_REQUIRE=never`, `GIT_ASKPASS=<self exe> --askpass` (only when
-  an HTTPS GitHub token exists), `-c core.quotepath=false`. Inherited `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`/
+  `GIT_EDITOR=:`, `GIT_SEQUENCE_EDITOR=:`, `SSH_ASKPASS_REQUIRE=never`, `GIT_ASKPASS=<self exe>` +
+  `GITBRANCH_ASKPASS=1` (set only on network calls, `RunOpts::network`, when askpass is configured), `-c core.quotepath=false`. Inherited `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`/
   `GIT_CONFIG_*`/... are removed (`runner::SCRUB_ENV`) so launching GitBranch from a hook or worktree shell is safe.
 - Timeouts are opt-in per call (`RunOpts::timeout`), used for network and read-only calls only (D-012); dropping the
   returned future kills the child (cancellation). stdin is fed concurrently with draining stdout/stderr.
@@ -116,10 +116,10 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   constant (public by design). No client secret anywhere.
 - Flow: `POST https://github.com/login/device/code` (scope `repo read:org`) → show `user_code`, open
   `verification_uri` → poll `POST /login/oauth/access_token` with `grant_type=urn:ietf:params:oauth:grant-type:device_code`
-  honouring `interval` / `slow_down` → store token via `keyring` (service `GitBranch`, account = GitHub login).
-- The same token feeds `git` over HTTPS through the askpass bridge: when git asks "Username for https://github.com"
-  answer `x-access-token`, for "Password" answer the token. Any other host: fail fast (exit 1) so git falls back to
-  the user's own credential helper.
+  honouring `interval` / `slow_down` → store token via `keyring` (service `GitBranch`, account `github.com`; the login in account `github.com#login`, D-024).
+- The same token feeds `git` over HTTPS through the askpass bridge (the app exe as `GIT_ASKPASS`, selected by `GITBRANCH_ASKPASS=1` + a prompt-shaped argument, D-024): when git asks "Username for https://github.com"
+  answer `x-access-token`, for "Password" answer the token. Any other host: fail fast (exit 1); git asks credential helpers
+  *before* askpass, and with `GIT_TERMINAL_PROMPT=0` an exit 1 ends in `AuthRequired`, which the UI reports.
 - SSH remotes are untouched (system `ssh`, agent, keys).
 - API client: `reqwest` + `serde`, `Authorization: Bearer`, `If-None-Match` caching for list endpoints, backoff on
   403 rate limit, explicit offline mode.

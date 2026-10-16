@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 2026-10-16: Askpass bridge (item 3.2, D-024): git over HTTPS gets the app's GitHub token from the OS keyring
+  through the GitBranch binary itself (`GIT_ASKPASS`, network calls only); strict prompt parsing (https, exact
+  `github.com`); SSH remotes keep using the system agent. The token itself is stored by the Phase 5 login.
 - 2026-10-16: Remotes (item 3.1): Remotes dialog (list/add/remove/rename), Fetch (all, prune) / Pull (ff-only,
   rebase, merge or the repository default) / Push (set upstream, tags, force-with-lease only) from the toolbar,
   branch chips and shortcuts (Ctrl+Shift+F/L/P); "Commit and push" enabled. Rejected pushes and missing

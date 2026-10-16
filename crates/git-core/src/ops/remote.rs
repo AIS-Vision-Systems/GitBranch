@@ -113,7 +113,7 @@ pub fn fetch_argv(args: &FetchArgs) -> Vec<String> {
 /// # Errors
 /// [`GitError`] on network, authentication or unknown-remote failures.
 pub async fn fetch(runner: &GitRunner, repo: &Path, args: &FetchArgs) -> Result<(), GitError> {
-    let opts = RunOpts::with_timeout(NETWORK_TIMEOUT);
+    let opts = RunOpts::network(NETWORK_TIMEOUT);
     runner.run(repo, &fetch_argv(args), opts).await?;
     Ok(())
 }
@@ -206,7 +206,7 @@ pub async fn pull(
         return Err(invalid_branch_arg());
     }
     let before = head_oid(runner, repo).await;
-    let opts = RunOpts::with_timeout(NETWORK_TIMEOUT);
+    let opts = RunOpts::network(NETWORK_TIMEOUT);
     runner.run(repo, &pull_argv(args), opts).await?;
     let after = head_oid(runner, repo).await;
     Ok(PullResult { changed: before != after })
@@ -329,7 +329,7 @@ pub async fn push(
     {
         return Err(invalid_branch_arg());
     }
-    let opts = RunOpts::with_timeout(NETWORK_TIMEOUT);
+    let opts = RunOpts::network(NETWORK_TIMEOUT);
     let out = runner.run(repo, &push_argv(args), opts).await?;
     Ok(PushResult { refs: parse_push_porcelain(&out.stdout) })
 }

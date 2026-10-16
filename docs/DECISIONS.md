@@ -173,11 +173,13 @@ Context: item 3.2 needs `git` over HTTPS to use the token the app stores (5.1) w
 helper, and without a second binary in the bundle.
 Decision: `github-api::token` owns the keyring access (service `GitBranch`, account `github.com`; the GitHub login
 is stored next to it as account `github.com#login`, so the askpass answer does not need the API). The Tauri binary
-started as `gitbranch --askpass <prompt>` runs no UI: it answers `x-access-token` to `Username for 'https://github.com'`
-and the keyring token to the matching `Password for` prompt, and exits 1 for any other host or when no token is stored,
-so git falls back to its own helpers. `GIT_ASKPASS` points at the current executable on every spawn (the runner already
+started by git as its `GIT_ASKPASS` program runs no UI: it answers `x-access-token` to `Username for 'https://github.com'`
+and the keyring token to the matching `Password for` prompt, and exits 1 for any other host or when no token is stored;
+with `GIT_TERMINAL_PROMPT=0` that ends in `AuthRequired`, which the UI reports. `GIT_ASKPASS` points at the current executable on network calls (the runner already
 sets `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=never`, so SSH stays with the system agent). git consults
 `credential.helper` before the askpass program; a user with Git Credential Manager already holding a github.com
 credential keeps using it, which is acceptable until settings (6.3) add a "prefer the app token" switch.
 Consequences: `keyring` 3 with `windows-native` and `sync-secret-service` (needs `libdbus-1-dev` on the Ubuntu CI
-runner); the prompt parser is a pure function with unit tests; the token never appears in logs or `GitError`.
+runner); the prompt parser is a pure function with unit tests; the token never appears in logs or `GitError`; askpass env only on network calls so hooks run by commit/merge/rebase cannot query it.
+
+Amendment 2026-10-16 (D-024): git passes the prompt as the only argument, so the askpass mode is selected by the `GITBRANCH_ASKPASS=1` env var the runner sets plus a prompt-shaped argument, not by a `--askpass` flag.

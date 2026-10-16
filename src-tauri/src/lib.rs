@@ -13,6 +13,33 @@ use git_core::GitRunner;
 use state::AppState;
 use tauri::Manager;
 
+/// True when this process was started by git as its `GIT_ASKPASS` program rather than by the user.
+///
+/// git runs `$GIT_ASKPASS "<prompt>"` with the prompt as the only argument, so there is no flag
+/// to look for. The runner sets `GITBRANCH_ASKPASS=1` on every git spawn (D-024 amendment); with
+/// a single `Username for '...'` / `Password for '...'` argument that identifies the call (the
+/// strict host check happens later, in `askpass::answer`; other hosts just get exit 1).
+/// Anything else is the normal `gitbranch [<path>]` start.
+pub fn is_askpass_invocation(env_flag: Option<&str>, args: &[String]) -> bool {
+    env_flag == Some("1")
+        && args.len() == 1
+        && (args[0].starts_with("Username for '") || args[0].starts_with("Password for '"))
+}
+
+/// Askpass mode: prints the answer for git's prompt and returns exit code 0, or returns 1 with no
+/// output when there is no answer. Nothing is logged or initialised.
+pub fn askpass_main(args: &[String]) -> i32 {
+    use std::io::Write;
+    let prompt = args.join(" ");
+    match github_api::askpass::answer(&prompt, &github_api::token::KeyringStore) {
+        Some(answer) => {
+            let mut out = std::io::stdout().lock();
+            i32::from(writeln!(out, "{answer}").and_then(|()| out.flush()).is_err())
+        }
+        None => 1,
+    }
+}
+
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,7 +54,11 @@ pub fn run() {
         .manage(watcher::Watchers::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
-            app.manage(AppState::new(GitRunner::from_env(), dir.join("recent.json")));
+            let exe = std::env::current_exe()
+                .inspect_err(|e| tracing::warn!("cannot resolve own exe, askpass disabled: {e}"))
+                .ok();
+            let runner = GitRunner::from_env().with_askpass(exe);
+            app.manage(AppState::new(runner, dir.join("recent.json")));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -91,4 +122,26 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_askpass_invocation;
+
+    fn args(a: &[&str]) -> Vec<String> {
+        a.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn detects_askpass_mode() {
+        let p = args(&["Username for 'https://github.com': "]);
+        assert!(is_askpass_invocation(Some("1"), &p));
+        assert!(!is_askpass_invocation(None, &p));
+        assert!(!is_askpass_invocation(Some("1"), &args(&[r"C:\repo"])));
+        let prompt_only = args(&["Password for 'https://github.com': "]);
+        assert!(!is_askpass_invocation(None, &prompt_only));
+        assert!(!is_askpass_invocation(Some("0"), &prompt_only));
+        assert!(!is_askpass_invocation(Some("1"), &args(&[])));
+        assert!(!is_askpass_invocation(Some("1"), &args(&["Password for 'https://a.b': ", "x"])));
+    }
 }

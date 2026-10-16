@@ -31,6 +31,7 @@ pub(crate) const SCRUB_ENV: &[&str] = &[
     "GIT_PREFIX",
     "GIT_CEILING_DIRECTORIES",
     "GIT_ASKPASS",
+    "GITBRANCH_ASKPASS",
 ];
 
 /// Why a git invocation failed.
@@ -211,9 +212,17 @@ pub struct RunOpts {
     /// Extra environment variables for this call only (e.g. `GIT_SEQUENCE_EDITOR`). Applied
     /// after the fixed environment, so they can override it.
     pub env: Vec<(String, String)>,
+    /// Expose the askpass bridge (`GIT_ASKPASS`) to this call. Only network calls set it, so hooks
+    /// run by commit/merge/rebase cannot query it (D-024).
+    pub askpass: bool,
 }
 
 impl RunOpts {
+    /// Options for a network call: the given timeout and the askpass bridge enabled.
+    pub fn network(timeout: Duration) -> Self {
+        Self { timeout: Some(timeout), askpass: true, ..Self::default() }
+    }
+
     /// Options with the given timeout.
     pub fn with_timeout(timeout: Duration) -> Self {
         Self { timeout: Some(timeout), ..Self::default() }
@@ -332,7 +341,7 @@ impl GitRunner {
     ) -> Result<GitOutput, GitError> {
         let argv: Vec<String> =
             args.iter().map(|a| redact_credentials(&a.as_ref().to_string_lossy())).collect();
-        let mut cmd = self.command(cwd);
+        let mut cmd = self.command(cwd, opts.askpass);
         cmd.args(args);
         for (k, v) in &opts.env {
             cmd.env(k, v);
@@ -403,7 +412,10 @@ impl GitRunner {
     }
 
     /// Builds the base command: executable, cwd, fixed environment, `-c core.quotepath=false`.
-    pub(crate) fn command(&self, cwd: &Path) -> Command {
+    ///
+    /// `GIT_ASKPASS`/`GITBRANCH_ASKPASS` are set only when an askpass program is configured and
+    /// `askpass` is true.
+    pub(crate) fn command(&self, cwd: &Path, askpass: bool) -> Command {
         let mut cmd = Command::new(&self.git_path);
         cmd.current_dir(cwd).arg("-c").arg("core.quotepath=false");
         for key in SCRUB_ENV {
@@ -422,8 +434,10 @@ impl GitRunner {
         for (k, v) in &self.env {
             cmd.env(k, v);
         }
-        if let Some(p) = &self.askpass {
-            cmd.env("GIT_ASKPASS", p);
+        if let (Some(p), true) = (&self.askpass, askpass) {
+            // The app binary answers git's prompts itself and recognises that mode by this flag
+            // plus a prompt-shaped argument (D-024 amendment).
+            cmd.env("GIT_ASKPASS", p).env("GITBRANCH_ASKPASS", "1");
         }
         #[cfg(windows)]
         {
@@ -511,7 +525,7 @@ mod tests {
 
     #[test]
     fn scrubs_inherited_repo_env() {
-        let cmd = GitRunner::new("git").command(Path::new("."));
+        let cmd = GitRunner::new("git").command(Path::new("."), false);
         let envs: Vec<_> = cmd.as_std().get_envs().collect();
         for key in SCRUB_ENV {
             assert!(
@@ -530,17 +544,23 @@ mod tests {
 
     #[test]
     fn askpass_is_set_only_when_configured() {
-        let with = GitRunner::new("git").with_askpass(Some(PathBuf::from("askpass.exe")));
-        let cmd = with.command(Path::new("."));
-        assert!(
-            cmd.as_std().get_envs().any(|(k, v)| k.to_str() == Some("GIT_ASKPASS") && v.is_some())
-        );
-        let without = GitRunner::new("git").command(Path::new("."));
-        assert!(
-            without
-                .as_std()
+        let env_of = |cmd: &Command, name: &str| {
+            cmd.as_std()
                 .get_envs()
-                .any(|(k, v)| k.to_str() == Some("GIT_ASKPASS") && v.is_none())
-        );
+                .find(|(k, _)| k.to_str() == Some(name))
+                .map(|(_, v)| v.map(|v| v.to_string_lossy().into_owned()))
+        };
+        let with = GitRunner::new("git").with_askpass(Some(PathBuf::from("askpass.exe")));
+        let cmd = with.command(Path::new("."), true);
+        assert_eq!(env_of(&cmd, "GIT_ASKPASS"), Some(Some("askpass.exe".to_string())));
+        assert_eq!(env_of(&cmd, "GITBRANCH_ASKPASS"), Some(Some("1".to_string())));
+        // Configured but not a network call: removed, so hooks cannot reach it.
+        let local = with.command(Path::new("."), false);
+        assert_eq!(env_of(&local, "GIT_ASKPASS"), Some(None));
+        assert_eq!(env_of(&local, "GITBRANCH_ASKPASS"), Some(None));
+        let without = GitRunner::new("git").command(Path::new("."), true);
+        // `Some(None)` means "removed from the inherited environment".
+        assert_eq!(env_of(&without, "GIT_ASKPASS"), Some(None));
+        assert_eq!(env_of(&without, "GITBRANCH_ASKPASS"), Some(None));
     }
 }
