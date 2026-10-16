@@ -56,16 +56,16 @@ export function renameRemote(repoId: RepoId, old: string, name: string): Promise
   return call<void>("rename_remote", { repoId, old, new: name });
 }
 
-export function fetch(repoId: RepoId, args: FetchArgs): Promise<void> {
-  return call<void>("fetch", { repoId, args });
+export function fetch(repoId: RepoId, args: FetchArgs, opId: string): Promise<void> {
+  return call<void>("fetch", { repoId, args, opId });
 }
 
-export function pull(repoId: RepoId, args: PullArgs): Promise<PullResult> {
-  return call<PullResult>("pull", { repoId, args });
+export function pull(repoId: RepoId, args: PullArgs, opId: string): Promise<PullResult> {
+  return call<PullResult>("pull", { repoId, args, opId });
 }
 
-export function push(repoId: RepoId, args: PushArgs): Promise<PushResult> {
-  return call<PushResult>("push", { repoId, args });
+export function push(repoId: RepoId, args: PushArgs, opId: string): Promise<PushResult> {
+  return call<PushResult>("push", { repoId, args, opId });
 }
 
 export function defaultPullMode(repoId: RepoId): Promise<Exclude<PullMode, "config">> {

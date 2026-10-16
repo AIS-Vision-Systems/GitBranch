@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod branch;
+pub mod clone;
 pub mod commit;
 pub mod commit_ops;
 pub mod conflict;
@@ -13,6 +14,7 @@ pub mod remote;
 pub mod repo;
 pub mod stage;
 pub mod stash;
+pub mod submodule;
 pub mod tag;
 
 use tauri::Emitter;

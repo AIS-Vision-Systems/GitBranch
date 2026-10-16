@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 2026-10-16: Progress and cancel (item 3.3): fetch/pull/push/clone stream git's `--progress` lines to a slim
+  progress bar (phase, percentage, last line, elapsed) with Cancel (Esc) that kills the whole git process tree;
+  network timeouts are now inactivity-based. Clone dialog (item 3.4): URL, parent folder picker, name, branch,
+  shallow depth, submodules; Ctrl+Shift+C from the Welcome screen or the toolbar. Submodule status (item 3.5):
+  a Submodules section in the WIP pane (path, state, commit, describe) and a tag on gitlink status entries.
 - 2026-10-16: Askpass bridge (item 3.2, D-024): git over HTTPS gets the app's GitHub token from the OS keyring
   through the GitBranch binary itself (`GIT_ASKPASS`, network calls only); strict prompt parsing (https, exact
   `github.com`); SSH remotes keep using the system agent. The token itself is stored by the Phase 5 login.

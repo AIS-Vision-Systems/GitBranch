@@ -83,8 +83,10 @@ Decision: `RunOpts::timeout` defaults to `None`. Fetch/push/clone and read-only 
 local writes are cancelled only by the user (dropping the future kills the child). `GIT_EDITOR`/`GIT_SEQUENCE_EDITOR`
 default to `:` so git never opens an editor; callers override per call. Credentials in URLs are redacted from
 `GitError.args`/`stderr` before logging or reaching the UI.
+Amendment (3.3): in `run_streaming` the timeout is an inactivity limit, reset on every stdout/stderr chunk; `run` keeps total time.
 Consequences: a hung hook blocks the operation until the user cancels. Process-tree kill (Job Object / process
 group) and `index.lock` cleanup are deferred to Phase 2 (2.9 undo/recovery); logged as a known limitation.
+Resolved 2026-10-16 by 3.3: network ops run in their own process group (Unix) and are killed with `taskkill /T /F` (Windows) / `kill -TERM -- -pid` on cancel or timeout (`kill_tree`); `index.lock` cleanup remains with 2.9.
 
 ## D-013 · accepted · 2026-10-15 — Lint baseline: clippy pedantic (allow-listed) via workspace lints; eslint type-checked
 Decision: `[workspace.lints]` in the root `Cargo.toml` with `clippy::pedantic` at warn plus `unwrap_used`,

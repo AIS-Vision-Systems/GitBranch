@@ -42,6 +42,8 @@ pub enum Kind {
     Stash,
     /// Three commits on `main` pushed to a bare `origin`.
     WithRemote,
+    /// One commit on `main` plus the submodule `vendor/lib` (a two-commit sibling repository).
+    WithSubmodule,
 }
 
 impl FromStr for Kind {
@@ -57,13 +59,14 @@ impl FromStr for Kind {
             "tags" => Ok(Kind::Tags),
             "stash" => Ok(Kind::Stash),
             "remote" => Ok(Kind::WithRemote),
+            "submodule" => Ok(Kind::WithSubmodule),
             _ => match s.strip_prefix("linear:") {
                 Some(n) => n
                     .parse::<usize>()
                     .map(Kind::Linear)
                     .map_err(|e| format!("invalid linear count '{n}': {e}")),
                 None => Err(format!(
-                    "unknown fixture kind '{s}' (empty, linear[:N], merge, octopus, orphan, tags, stash, remote)"
+                    "unknown fixture kind '{s}' (empty, linear[:N], merge, octopus, orphan, tags, stash, remote, submodule)"
                 )),
             },
         }
@@ -88,6 +91,12 @@ impl FixtureRepo {
             init(&path);
             build_with_remote(&path, &remote);
             return Self { dir, path, remote: Some(remote) };
+        }
+        if kind == Kind::WithSubmodule {
+            let path = dir.path().join("work");
+            std::fs::create_dir(&path).expect("fixture: create work dir");
+            build_in(kind, &path);
+            return Self { dir, path, remote: None };
         }
         let path = dir.path().to_path_buf();
         build_in(kind, &path);
@@ -143,6 +152,11 @@ impl FixtureRepo {
     /// Repository with lightweight and annotated tags.
     pub fn tags() -> Self {
         Self::new(Kind::Tags)
+    }
+
+    /// One commit plus the submodule `vendor/lib`; its source is the sibling directory `lib`.
+    pub fn with_submodule() -> Self {
+        Self::new(Kind::WithSubmodule)
     }
 
     /// Repository with one stash entry.
@@ -324,6 +338,23 @@ pub fn build_in(kind: Kind, dir: &Path) {
             let name =
                 dir.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
             build_with_remote(dir, &dir.with_file_name(format!("{name}.remote.git")));
+        }
+        Kind::WithSubmodule => {
+            let name =
+                dir.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+            let lib = dir.with_file_name(if name == "work" {
+                "lib".into()
+            } else {
+                format!("{name}.lib")
+            });
+            std::fs::create_dir_all(&lib).expect("fixture: create lib dir");
+            init(&lib);
+            linear(&lib, 2);
+            linear(dir, 1);
+            let lib_s = lib.to_string_lossy().into_owned();
+            let add = ["-c", "protocol.file.allow=always", "submodule", "add", "-q", &lib_s];
+            run(dir, &[add.as_slice(), &["vendor/lib"]].concat());
+            run(dir, &["commit", "-q", "-m", "add submodule"]);
         }
         Kind::Stash => {
             linear(dir, 2);

@@ -78,9 +78,9 @@ Acceptance: every op has a `git-core` test on fixtures; the UI never calls `git`
 ### Phase 3 — Remotes and credentials
 - [x] 3.1 Remote list/add/remove/rename; fetch (all/one, prune), pull (ff-only / rebase / merge per config), push (set-upstream, tags, `--force-with-lease` only).
 - [x] 3.2 Askpass bridge: the app binary, invoked by git as `GIT_ASKPASS` (selected by the `GITBRANCH_ASKPASS` env flag), returns the stored GitHub token for `https://github.com` prompts; `GIT_ASKPASS` + `GIT_TERMINAL_PROMPT=0` on every spawn. SSH remotes pass through to the system agent.
-- [~] 3.3 Progress reporting (`--progress` stderr parser) to a UI progress bar; cancel kills the child process group.
-- [ ] 3.4 Clone dialog (URL, or GitHub picker from Phase 5), shallow/branch options.
-- [ ] 3.5 Submodule awareness (status only; no management UI yet).
+- [x] 3.3 Progress reporting (`--progress` stderr parser) to a UI progress bar; cancel kills the child process group.
+- [x] 3.4 Clone dialog (URL, or GitHub picker from Phase 5), shallow/branch options.
+- [x] 3.5 Submodule awareness (status only; no management UI yet).
 
 Acceptance: fetch/pull/push against a private GitHub repo over HTTPS using only the app's own token; SSH push works unchanged.
 

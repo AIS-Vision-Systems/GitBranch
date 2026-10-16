@@ -12,7 +12,8 @@ interface ReposState {
   /** Set when the opened folder is a linked worktree, until the user chooses. */
   pendingWorktree: OpenedRepo | null;
   loadRecent: () => Promise<void>;
-  openPath: (path: string) => Promise<void>;
+  /** Resolves true when the repo was opened (or is awaiting the worktree choice). */
+  openPath: (path: string) => Promise<boolean>;
   openViaDialog: () => Promise<void>;
   resolveWorktree: (choice: "main" | "worktree") => Promise<void>;
   cancelWorktree: () => void;
@@ -67,14 +68,15 @@ export const useReposStore = create<ReposState>((set, get) => {
         const repo = await ipc.openRepo(path);
         if (repo.isWorktree && repo.mainWorkTree !== null) {
           set({ pendingWorktree: repo });
-          return;
+          return true;
         }
         select(repo);
       } catch (e) {
         report(e, path);
-        return;
+        return false;
       }
       await get().loadRecent();
+      return true;
     },
 
     openViaDialog: async () => {

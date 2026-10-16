@@ -4,7 +4,14 @@ import { useDialogsStore } from "../../state/dialogs";
 import { useGraphStore } from "../../state/graph";
 import { undoCommand, useOpsStore } from "../../state/ops";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
-import { openCreateBranch, openPull, openPush, openRemotes, openStashPush } from "../dialogs/open";
+import {
+  openClone,
+  openCreateBranch,
+  openPull,
+  openPush,
+  openRemotes,
+  openStashPush,
+} from "../dialogs/open";
 import { StashList } from "../stash/StashList";
 import styles from "./Toolbar.module.css";
 
@@ -164,6 +171,14 @@ ${undoCommand(undo)}
         onClick={() => openPush(repoId)}
       >
         {ahead > 0 ? `Push… ↑${ahead}` : "Push…"}
+      </button>
+      <button
+        type="button"
+        className={styles["button"]}
+        title="Clone a repository (Ctrl+Shift+C)"
+        onClick={openClone}
+      >
+        Clone…
       </button>
       <button type="button" className={styles["button"]} onClick={() => openRemotes(repoId)}>
         Remotes…

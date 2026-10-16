@@ -101,14 +101,18 @@ describe("commitAndPush", () => {
     });
     push.mockResolvedValue({ refs: [] });
     expect(await useCommitFormStore.getState().commitAndPush(id)).toBe(true);
-    expect(push).toHaveBeenCalledWith(id, {
-      remote: "origin",
-      branch: "feat",
-      remoteBranch: "feature-x",
-      setUpstream: false,
-      tags: false,
-      forceWithLease: false,
-    });
+    expect(push).toHaveBeenCalledWith(
+      id,
+      {
+        remote: "origin",
+        branch: "feat",
+        remoteBranch: "feature-x",
+        setUpstream: false,
+        tags: false,
+        forceWithLease: false,
+      },
+      expect.any(String),
+    );
   });
 
   it("reports a skipped push when there are no remotes", async () => {

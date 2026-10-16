@@ -5,18 +5,59 @@
 //! forced pushes go through `--force-with-lease`.
 
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use crate::parse::ParseError;
+use crate::parse::progress::{Progress, parse_progress_line};
 pub use crate::parse::remote::{PushedRef, Remote};
 use crate::parse::remote::{parse_push_porcelain, parse_remotes};
 use crate::refname::is_valid_branch_name;
-use crate::{GitError, GitErrorKind, GitRunner, RunOpts};
+use crate::{GitError, GitErrorKind, GitOutput, GitRunner, RunOpts};
+use tokio_util::sync::CancellationToken;
 
-/// Timeout for network operations (D-012); progress and cancellation arrive with item 3.3.
+/// Timeout for network operations (D-012).
 pub const NETWORK_TIMEOUT: Duration = Duration::from_secs(600);
+
+/// Cancellation and progress hooks for a long-running network operation.
+#[derive(Clone)]
+pub struct OpCtx {
+    /// Cancelling it kills git and its helpers; the operation fails with [`GitErrorKind::Cancelled`].
+    pub cancel: CancellationToken,
+    /// Called for every parsed git progress line.
+    pub progress: Arc<dyn Fn(Progress) + Send + Sync>,
+}
+
+impl OpCtx {
+    /// A context that is never cancelled and ignores progress.
+    pub fn noop() -> Self {
+        Self { cancel: CancellationToken::new(), progress: Arc::new(|_| {}) }
+    }
+}
+
+impl std::fmt::Debug for OpCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpCtx").field("cancel", &self.cancel).finish_non_exhaustive()
+    }
+}
+
+async fn run_network(
+    runner: &GitRunner,
+    repo: &Path,
+    argv: &[String],
+    ctx: &OpCtx,
+) -> Result<GitOutput, GitError> {
+    let mut sink = |line: &str| {
+        if let Some(p) = parse_progress_line(line) {
+            (ctx.progress)(p);
+        }
+    };
+    runner
+        .run_streaming(repo, argv, RunOpts::network(NETWORK_TIMEOUT), &mut sink, &ctx.cancel)
+        .await
+}
 
 /// Failure of [`list_remotes`].
 #[derive(Debug, thiserror::Error)]
@@ -94,7 +135,7 @@ pub struct FetchArgs {
 
 /// The `git fetch` argv for `args`.
 pub fn fetch_argv(args: &FetchArgs) -> Vec<String> {
-    let mut v: Vec<String> = vec!["fetch".into(), "--no-progress".into()];
+    let mut v: Vec<String> = vec!["fetch".into(), "--progress".into()];
     if args.prune {
         v.push("--prune".into());
     }
@@ -112,9 +153,13 @@ pub fn fetch_argv(args: &FetchArgs) -> Vec<String> {
 ///
 /// # Errors
 /// [`GitError`] on network, authentication or unknown-remote failures.
-pub async fn fetch(runner: &GitRunner, repo: &Path, args: &FetchArgs) -> Result<(), GitError> {
-    let opts = RunOpts::network(NETWORK_TIMEOUT);
-    runner.run(repo, &fetch_argv(args), opts).await?;
+pub async fn fetch(
+    runner: &GitRunner,
+    repo: &Path,
+    args: &FetchArgs,
+    ctx: &OpCtx,
+) -> Result<(), GitError> {
+    run_network(runner, repo, &fetch_argv(args), ctx).await?;
     Ok(())
 }
 
@@ -154,7 +199,7 @@ pub struct PullResult {
 
 /// The `git pull` argv for `args`.
 pub fn pull_argv(args: &PullArgs) -> Vec<String> {
-    let mut v: Vec<String> = vec!["pull".into(), "--no-progress".into()];
+    let mut v: Vec<String> = vec!["pull".into(), "--progress".into()];
     match args.mode {
         PullMode::Config => {}
         PullMode::FfOnly => v.push("--ff-only".into()),
@@ -201,13 +246,13 @@ pub async fn pull(
     runner: &GitRunner,
     repo: &Path,
     args: &PullArgs,
+    ctx: &OpCtx,
 ) -> Result<PullResult, GitError> {
     if args.branch.as_deref().is_some_and(|b| !valid_branch_arg(b)) {
         return Err(invalid_branch_arg());
     }
     let before = head_oid(runner, repo).await;
-    let opts = RunOpts::network(NETWORK_TIMEOUT);
-    runner.run(repo, &pull_argv(args), opts).await?;
+    run_network(runner, repo, &pull_argv(args), ctx).await?;
     let after = head_oid(runner, repo).await;
     Ok(PullResult { changed: before != after })
 }
@@ -293,7 +338,7 @@ pub struct PushResult {
 
 /// The `git push` argv for `args`. Never contains `--force`.
 pub fn push_argv(args: &PushArgs) -> Vec<String> {
-    let mut v: Vec<String> = vec!["push".into(), "--porcelain".into(), "--no-progress".into()];
+    let mut v: Vec<String> = vec!["push".into(), "--porcelain".into(), "--progress".into()];
     if args.set_upstream {
         v.push("--set-upstream".into());
     }
@@ -323,14 +368,14 @@ pub async fn push(
     runner: &GitRunner,
     repo: &Path,
     args: &PushArgs,
+    ctx: &OpCtx,
 ) -> Result<PushResult, GitError> {
     if args.branch.as_deref().is_some_and(|b| !valid_branch_arg(b))
         || args.remote_branch.as_deref().is_some_and(|b| !valid_branch_arg(b))
     {
         return Err(invalid_branch_arg());
     }
-    let opts = RunOpts::network(NETWORK_TIMEOUT);
-    let out = runner.run(repo, &push_argv(args), opts).await?;
+    let out = run_network(runner, repo, &push_argv(args), ctx).await?;
     Ok(PushResult { refs: parse_push_porcelain(&out.stdout) })
 }
 
@@ -381,14 +426,14 @@ mod tests {
     #[test]
     fn argv_shapes() {
         let f = FetchArgs { remote: None, prune: true, tags: false };
-        assert_eq!(fetch_argv(&f), ["fetch", "--no-progress", "--prune", "--all"]);
+        assert_eq!(fetch_argv(&f), ["fetch", "--progress", "--prune", "--all"]);
         let f = FetchArgs { remote: Some("up".into()), prune: false, tags: true };
-        assert_eq!(fetch_argv(&f), ["fetch", "--no-progress", "--tags", "--", "up"]);
+        assert_eq!(fetch_argv(&f), ["fetch", "--progress", "--tags", "--", "up"]);
         let p =
             PullArgs { remote: Some("o".into()), branch: Some("m".into()), mode: PullMode::Rebase };
-        assert_eq!(pull_argv(&p), ["pull", "--no-progress", "--rebase", "--", "o", "m"]);
+        assert_eq!(pull_argv(&p), ["pull", "--progress", "--rebase", "--", "o", "m"]);
         let p = PullArgs { remote: None, branch: Some("m".into()), mode: PullMode::Config };
-        assert_eq!(pull_argv(&p), ["pull", "--no-progress"]);
+        assert_eq!(pull_argv(&p), ["pull", "--progress"]);
         let p = PushArgs {
             remote: "o".into(),
             branch: Some("m".into()),
@@ -402,7 +447,7 @@ mod tests {
             [
                 "push",
                 "--porcelain",
-                "--no-progress",
+                "--progress",
                 "--set-upstream",
                 "--force-with-lease",
                 "--force-if-includes",

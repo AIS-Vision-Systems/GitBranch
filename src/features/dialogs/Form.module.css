@@ -198,3 +198,13 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.row .input {
+  flex: 1;
+  min-width: 0;
+}

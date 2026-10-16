@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { registerDialog } from "../shell/dialogRegistry";
 import { BranchDropDialog, type BranchDropDialogProps } from "./BranchDropDialog";
+import { CloneDialog, type CloneDialogProps } from "./CloneDialog";
 import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranchDialog";
 import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
 import { DIALOG } from "./ids";
@@ -66,6 +67,9 @@ export function registerPhase2Dialogs(): void {
   );
   registerDialog(DIALOG.push, (p, onClose) =>
     createElement(PushDialog, { ...(p as unknown as Props<PushDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.clone, (p, onClose) =>
+    createElement(CloneDialog, { ...(p as unknown as Props<CloneDialogProps>), onClose }),
   );
   registerDialog(DIALOG.remotes, (p, onClose) =>
     createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),

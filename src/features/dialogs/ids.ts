@@ -12,4 +12,5 @@ export const DIALOG = {
   pull: "remote.pull",
   push: "remote.push",
   remotes: "remote.list",
+  clone: "repo.clone",
 } as const;
