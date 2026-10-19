@@ -144,6 +144,46 @@ describe("repos store", () => {
     expect(s.open).toHaveLength(0);
   });
 
+  it("openWorktree selects the worktree without the prompt", async () => {
+    m.openRepo.mockResolvedValue(wt);
+    await useReposStore.getState().openWorktree("/p/wt");
+    const s = useReposStore.getState();
+    expect(s.pendingWorktree).toBeNull();
+    expect(s.currentId).toBe("w1");
+    expect(s.open).toHaveLength(1);
+  });
+
+  it("openWorktree only selects when the path is already open", async () => {
+    useReposStore.setState({ open: [repo(), wt], currentId: "r1" });
+    await useReposStore.getState().openWorktree("/p/wt/");
+    expect(m.openRepo).not.toHaveBeenCalled();
+    expect(useReposStore.getState().currentId).toBe("w1");
+  });
+
+  it("openWorktree reports errors", async () => {
+    m.openRepo.mockRejectedValue(new IpcError({ code: "git.other", message: "boom" }));
+    await useReposStore.getState().openWorktree("/p/gone");
+    expect(useUiStore.getState().toasts).toHaveLength(1);
+    expect(useReposStore.getState().open).toHaveLength(0);
+  });
+
+  it("select ignores unknown ids and nextTab cycles in display order", () => {
+    const other = repo({ repoId: "o1" as RepoId, name: "other", path: "/q/other" });
+    useReposStore.setState({ open: [repo(), other, wt], currentId: "r1" });
+    const st = useReposStore.getState();
+    st.select("nope");
+    expect(useReposStore.getState().currentId).toBe("r1");
+    // display order: r1, w1 (same group), o1
+    st.nextTab(1);
+    expect(useReposStore.getState().currentId).toBe("w1");
+    st.nextTab(1);
+    expect(useReposStore.getState().currentId).toBe("o1");
+    st.nextTab(1);
+    expect(useReposStore.getState().currentId).toBe("r1");
+    st.nextTab(-1);
+    expect(useReposStore.getState().currentId).toBe("o1");
+  });
+
   it("forgetRecent removes the entry", async () => {
     m.removeRecent.mockResolvedValue(undefined);
     useReposStore.setState({ recent: [{ path: "/p/proj", name: "proj", lastOpened: 1 }] });

@@ -9,12 +9,16 @@ import { acceptDrag, leaveDrag, takeDrop } from "./dnd";
 import { rowDomId } from "./domId";
 import { LaneStrip } from "./LaneStrip";
 import { RefChip } from "./RefChip";
+import { WorktreeChip } from "./WorktreeChip";
+import type { WorktreeMark } from "./worktreeMarks";
 import styles from "./Graph.module.css";
 
 export interface GraphRowProps {
   row: Row;
   commit: Commit;
   refs: Ref[];
+  /** Other linked worktrees that have this commit checked out (always shown, never collapsed). */
+  worktrees: readonly WorktreeMark[];
   lanes: number;
   /** Pixel offset from the top of the scroll area (virtualizer). */
   top: number;
@@ -40,6 +44,7 @@ export const GraphRow = memo(function GraphRow({
   row,
   commit,
   refs,
+  worktrees,
   lanes,
   top,
   selected,
@@ -68,6 +73,19 @@ export const GraphRow = memo(function GraphRow({
   const items = useMemo(() => chipItems(refs), [refs]);
   const shown = expanded ? items : items.slice(0, MAX_CHIPS);
   const hidden = items.length - shown.length;
+  const first = shown[0];
+  const hasHeadChip = first?.gitRef.kind === "localBranch" && first.gitRef.isHead;
+  const rest = hasHeadChip ? shown.slice(1) : shown;
+  const chip = (it: (typeof shown)[number]) => (
+    <RefChip
+      key={it.gitRef.fullName}
+      gitRef={it.gitRef}
+      withUpstream={it.withUpstream}
+      {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
+      {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
+    />
+  );
+  const headChip = hasHeadChip && first !== undefined ? chip(first) : null;
   return (
     <div
       id={rowDomId(row.oid)}
@@ -91,20 +109,16 @@ export const GraphRow = memo(function GraphRow({
       }
     >
       <span className={styles["refsCell"]}>
-        {shown.length > 0 && (
+        {(shown.length > 0 || worktrees.length > 0) && (
           <span
             className={expanded ? styles["refsOverlay"] : styles["refsInline"]}
             data-refs-overlay={expanded ? "" : undefined}
           >
-            {shown.map((it) => (
-              <RefChip
-                key={it.gitRef.fullName}
-                gitRef={it.gitRef}
-                withUpstream={it.withUpstream}
-                {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
-                {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
-              />
+            {headChip}
+            {worktrees.map((w) => (
+              <WorktreeChip key={w.path} mark={w} />
             ))}
+            {rest.map(chip)}
             {hidden > 0 && (
               <button
                 type="button"

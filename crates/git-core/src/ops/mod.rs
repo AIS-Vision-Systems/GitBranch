@@ -18,3 +18,4 @@ pub mod stash;
 pub mod state;
 pub mod submodule;
 pub mod tag;
+pub mod worktree;

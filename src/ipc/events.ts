@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { RepoId } from "./types";
 
-export type Change = "head" | "refs" | "index" | "workingTree";
+export type Change = "head" | "refs" | "index" | "workingTree" | "worktrees";
 export interface RepoChanged {
   repoId: RepoId;
   what: Change[];

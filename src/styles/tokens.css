@@ -5,6 +5,7 @@
   --color-row-hover: #eef3fb;
   --color-row-selected: #dbe7fb;
   --color-chip-bg: #e3e9f3;
+  --color-chip-worktree: #e6e0f0;
   --color-on-accent: #ffffff;
   --color-shadow: rgb(15 23 42 / 25%);
   --color-fg: #1f2630;
@@ -36,6 +37,7 @@
   /* The lane strip is clipped at this width (20 lanes); repos with hundreds of refs stay readable. */
   --graph-max-w: 320px;
   --details-w: 380px;
+  --sidebar-w: 260px;
   --diff-line-h: 20px;
   --diff-add-bg: #dafbe1;
   --diff-del-bg: #ffebe9;
@@ -80,6 +82,7 @@
   --color-row-hover: #26334a;
   --color-row-selected: #2d3d58;
   --color-chip-bg: #2d3d58;
+  --color-chip-worktree: #3d3556;
   --color-shadow: rgb(0 0 0 / 50%);
   --color-fg: #e8edf5;
   --color-fg-muted: #8b9bb4;

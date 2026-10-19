@@ -188,6 +188,18 @@
   flex: none;
 }
 
+.worktree {
+  background: var(--color-chip-worktree);
+  color: var(--color-fg);
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.worktree:hover {
+  filter: brightness(0.95);
+}
+
 .local {
   color: var(--color-fg);
 }

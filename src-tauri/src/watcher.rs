@@ -36,6 +36,8 @@ pub enum Change {
     Index,
     /// A working tree file changed.
     WorkingTree,
+    /// A linked worktree was added, removed, locked or moved its HEAD.
+    Worktrees,
 }
 
 /// Payload of the `repo-changed` event.
@@ -80,6 +82,8 @@ fn classify_in_git_dir(rel: &[String], own: bool) -> Option<Change> {
         "HEAD" if own && rel.len() == 1 => Some(Change::Head),
         "index" if own && rel.len() == 1 => Some(Change::Index),
         "refs" | "packed-refs" => Some(Change::Refs),
+        "worktrees" => (rel.len() <= 2 || matches!(rel[2].as_str(), "HEAD" | "locked" | "gitdir"))
+            .then_some(Change::Worktrees),
         "logs" => {
             if own && rel.len() == 2 && rel[1] == "HEAD" {
                 Some(Change::Head)
@@ -356,6 +360,9 @@ mod tests {
             ("/r/.git/logs/refs/heads/main", Some(Change::Refs)),
             ("/r/.git/ORIG_HEAD", Some(Change::Head)),
             ("/r/.git/rebase-merge/done", Some(Change::Head)),
+            ("/r/.git/worktrees/other/HEAD", Some(Change::Worktrees)),
+            ("/r/.git/worktrees/other/index", None),
+            ("/r/.git/worktrees/other/locked", Some(Change::Worktrees)),
             ("/r/.git/objects/ab/cdef", None),
             ("/r/.git/config", None),
             ("/r/src/main.rs", Some(Change::WorkingTree)),
@@ -374,6 +381,9 @@ mod tests {
             ("/r/.git/worktrees/wt/HEAD", Some(Change::Head)),
             ("/r/.git/worktrees/wt/index", Some(Change::Index)),
             ("/r/.git/worktrees/other/index", None),
+            ("/r/.git/worktrees/other/locked", Some(Change::Worktrees)),
+            ("/r/.git/worktrees/other/HEAD", Some(Change::Worktrees)),
+            ("/r/.git/worktrees", Some(Change::Worktrees)),
             ("/r/.git/HEAD", None),
             ("/r/.git/logs/HEAD", Some(Change::Refs)),
             ("/r/.git/refs/heads/x", Some(Change::Refs)),

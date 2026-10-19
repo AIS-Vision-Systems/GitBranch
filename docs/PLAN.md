@@ -85,10 +85,10 @@ Acceptance: every op has a `git-core` test on fixtures; the UI never calls `git`
 Acceptance: fetch/pull/push against a private GitHub repo over HTTPS using only the app's own token; SSH push works unchanged.
 
 ### Phase 4 — Worktrees
-- [ ] 4.1 `git worktree list --porcelain` parser; sidebar section with branch, path, locked/prunable state.
+- [x] 4.1 `git worktree list --porcelain` parser; sidebar section with branch, path, locked/prunable state.
 - [ ] 4.2 Add worktree (new or existing branch, path picker with default `../<repo>.<branch>`), remove (safe/force), prune, lock/unlock.
-- [ ] 4.3 Each worktree opens as its own tab sharing the object graph; WIP row and HEAD per tab.
-- [ ] 4.4 Graph highlights which commits are checked out in which worktree.
+- [x] 4.3 Each worktree opens as its own tab sharing the object graph; WIP row and HEAD per tab.
+- [x] 4.4 Graph highlights which commits are checked out in which worktree.
 
 Acceptance: create, commit in worktree, see it in the main tab graph without manual refresh, remove.
 

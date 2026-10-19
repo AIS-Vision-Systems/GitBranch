@@ -49,6 +49,7 @@ describe("commitMenu", () => {
       "Checkout commit (detached)",
       "Create branch here…",
       "Create tag here…",
+      "Add worktree here…",
       "Merge into main…",
       "Rebase main onto this commit…",
       "Cherry-pick into current branch",
@@ -89,8 +90,25 @@ describe("refMenu", () => {
     const other = refMenu(ctx, ref({}));
     expect(find(other, "checkout").disabled).toBe(false);
     expect(labels(other)).toEqual(
-      expect.arrayContaining(["Rename…", "Set upstream…", "Create branch from here…"]),
+      expect.arrayContaining([
+        "Rename…",
+        "Set upstream…",
+        "Create branch from here…",
+        "Add worktree here…",
+      ]),
     );
+  });
+
+  it("add worktree opens the dialog with the start point", () => {
+    find(commitMenu(ctx), "add-worktree").onSelect();
+    expect(useDialogsStore.getState().current).toMatchObject({
+      props: { repoId, startPoint: oid, startLabel: "aaaaaaa" },
+    });
+    useDialogsStore.setState({ current: null });
+    find(refMenu(ctx, ref({})), "add-worktree").onSelect();
+    expect(useDialogsStore.getState().current).toMatchObject({
+      props: { startPoint: "feat", startLabel: "feat" },
+    });
   });
 
   it("remote branch: tracking checkout uses the remote-qualified name", () => {

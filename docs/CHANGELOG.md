@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 2026-10-19: Worktrees (Phase 4, items 4.1-4.4, D-025/D-026): a collapsible left sidebar with a Worktrees section
+  (branch or detached commit, path, main/current/locked/prunable badges), Add worktree dialog (new/existing branch
+  or detached, default path `../<repo>.<branch>`, folder picker, force; Ctrl+Shift+W or "Add worktree here..." from
+  the commit and branch menus), Remove (confirmed; forced retry for dirty trees; locked ones must be unlocked
+  first), Lock with reason / Unlock, Prune. Each worktree opens as its own tab in the header (Ctrl+PageUp/PageDown,
+  Ctrl+W) with its own WIP row and HEAD; the graph shows a worktree chip on the commit each other worktree has
+  checked out, and a commit made in a linked worktree appears in the main tab without a manual refresh.
 - 2026-10-16: Progress and cancel (item 3.3): fetch/pull/push/clone stream git's `--progress` lines to a slim
   progress bar (phase, percentage, last line, elapsed) with Cancel (Esc) that kills the whole git process tree;
   network timeouts are now inactivity-based. Clone dialog (item 3.4): URL, parent folder picker, name, branch,
