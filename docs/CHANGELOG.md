@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 2026-10-19: Create pull request (item 5.5): from the Pull requests header or the current branch menu; base picker
+  (default branch preselected), title and description prefilled from the commits, draft flag; the branch is pushed
+  first (with upstream) when needed, and the new PR is selected in the sidebar.
 - 2026-10-19: Pull requests (item 5.4, D-028): a "Pull requests" sidebar section for GitHub repositories (Open /
   Closed / Mine, draft and merged badges); selecting one shows the detail in the right pane (description, base and
   head, +/- counts, check runs with status dots and links, review summary), with Checkout (same-repo PRs become a

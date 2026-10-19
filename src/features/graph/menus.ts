@@ -1,6 +1,7 @@
 import {
   openAddWorktree,
   openCreateBranch,
+  openCreatePull,
   openCreateTag,
   openMerge,
   openPull,
@@ -201,6 +202,16 @@ export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
         disabled: noRemotes() || ops().busy,
         onSelect: () => openPush(repoId, ref.name),
       },
+      ...(ref.isHead
+        ? [
+            {
+              kind: "item",
+              id: "create-pull",
+              label: "Create pull request…",
+              onSelect: () => openCreatePull(repoId),
+            } satisfies MenuItem,
+          ]
+        : []),
       SEP,
       {
         kind: "item",

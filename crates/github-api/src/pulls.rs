@@ -151,6 +151,41 @@ pub async fn list_pulls<T: Transport>(
     gh.get_all(Some(token), &path, LIST_MAX_PAGES).await
 }
 
+/// A pull request to open.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewPull {
+    /// Title.
+    pub title: String,
+    /// Markdown body.
+    pub body: Option<String>,
+    /// Head: `branch` or `owner:branch`.
+    pub head: String,
+    /// Base branch.
+    pub base: String,
+    /// Open as draft.
+    pub draft: bool,
+}
+
+/// Opens a pull request.
+///
+/// # Errors
+/// [`Error::Status`] 422 with GitHub's message plus the first validation detail (e.g. a PR
+/// already exists, no commits between the branches); other [`Error`]s on transport failures.
+pub async fn create_pull<T: Transport>(
+    gh: &GitHub<T>,
+    token: &str,
+    slug: &RepoSlug,
+    new: &NewPull,
+) -> Result<PullSummary, Error> {
+    let path = format!("/repos/{}/{}/pulls", slug.owner, slug.name);
+    let body = serde_json::json!({
+        "title": new.title, "body": new.body, "head": new.head, "base": new.base,
+        "draft": new.draft,
+    });
+    gh.post_json(Some(token), &path, &body).await?.json()
+}
+
 /// A review as GitHub returns it.
 #[derive(Debug, Clone, Deserialize)]
 pub struct RawReview {

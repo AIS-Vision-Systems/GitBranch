@@ -97,3 +97,16 @@ async fn rate_limit_maps() {
     let err = list_repos(&GitHub::new(t), "t").await.expect_err("error");
     assert!(matches!(err, Error::RateLimited { reset: Some(1_700_000_000) }));
 }
+
+#[tokio::test]
+async fn get_repo_maps_one() {
+    let t = MockTransport::new().route(
+        Method::Get,
+        "/repos/octo/a",
+        vec![Response::json_body(200, &repo(1, "a"))],
+    );
+    let gh = GitHub::new(t);
+    let slug = github_api::repos::RepoSlug { owner: "octo".into(), name: "a".into() };
+    let r = github_api::repos::get_repo(&gh, "tok", &slug).await.expect("ok");
+    assert_eq!((r.full_name.as_str(), r.default_branch.as_str()), ("octo/a", "main"));
+}

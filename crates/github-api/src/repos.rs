@@ -98,6 +98,18 @@ pub async fn list_repos<T: Transport>(gh: &GitHub<T>, token: &str) -> Result<Vec
     gh.get_all(Some(token), REPOS_PATH, MAX_PAGES).await
 }
 
+/// One repository (default branch, fork flag, ...).
+///
+/// # Errors
+/// [`Error::NotFound`] when it does not exist or is not visible; other [`Error`]s as usual.
+pub async fn get_repo<T: Transport>(
+    gh: &GitHub<T>,
+    token: &str,
+    slug: &RepoSlug,
+) -> Result<Repo, Error> {
+    gh.get(Some(token), &format!("/repos/{}/{}", slug.owner, slug.name)).await?.json()
+}
+
 /// `owner/name` of a GitHub repository.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -7,8 +7,10 @@ use git_core::ops::pull_request::{CheckoutPr, checkout_pr};
 use git_core::ops::remote::list_remotes;
 use git_core::refname::is_valid_branch_name;
 use github_api::auth::{DeviceCode, complete_login, request_device_code, scopes};
-use github_api::pulls::{PullDetail, PullState, PullSummary, get_pull, list_pulls};
-use github_api::repos::{Repo, RepoSlug, list_repos, parse_github_remote};
+use github_api::pulls::{
+    NewPull, PullDetail, PullState, PullSummary, create_pull, get_pull, list_pulls,
+};
+use github_api::repos::{Repo, RepoSlug, get_repo, list_repos, parse_github_remote};
 use github_api::token::{GITHUB_HOST, KeyringStore, TokenStore};
 use github_api::user::{Account, resolve_account};
 use github_api::{Error, GitHub, ReqwestTransport};
@@ -250,4 +252,44 @@ pub async fn github_checkout_pull(
         emit_changed(&app, &repo_id, &[Change::Refs]);
     }
     Ok(res?)
+}
+
+/// The GitHub repository itself (default branch, fork flag).
+#[tauri::command]
+pub async fn github_repo_info(
+    state: State<'_, AppState>,
+    gh: State<'_, GithubState>,
+    repo_id: String,
+) -> Result<Repo, AppError> {
+    let slug = require_slug(&state, &repo_id).await?;
+    let token = stored_token(&gh).await?;
+    get_repo(&gh.client, &token, &slug).await.map_err(AppError::from)
+}
+
+/// Opens a pull request from `args.head` into `args.base`.
+#[tauri::command]
+pub async fn github_create_pull(
+    state: State<'_, AppState>,
+    gh: State<'_, GithubState>,
+    repo_id: String,
+    args: NewPull,
+) -> Result<PullSummary, AppError> {
+    let ok = |s: &str| {
+        !s.trim().is_empty()
+            && !s.starts_with('-')
+            && s.len() <= 255
+            && !s.chars().any(char::is_control)
+    };
+    if !ok(&args.head) {
+        return Err(invalid_arg("head branch"));
+    }
+    if !ok(&args.base) {
+        return Err(invalid_arg("base branch"));
+    }
+    if args.title.trim().is_empty() {
+        return Err(invalid_arg("title"));
+    }
+    let slug = require_slug(&state, &repo_id).await?;
+    let token = stored_token(&gh).await?;
+    create_pull(&gh.client, &token, &slug, &args).await.map_err(AppError::from)
 }

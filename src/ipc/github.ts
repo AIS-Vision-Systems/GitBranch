@@ -151,3 +151,18 @@ export const githubCheckoutPull = (
   args: CheckoutPrArgs,
   opId: string,
 ): Promise<string> => call("github_checkout_pull", { repoId, args, opId });
+
+export interface NewPull {
+  title: string;
+  body: string | null;
+  head: string;
+  base: string;
+  draft: boolean;
+}
+
+/** Repository metadata from GitHub (used for `defaultBranch`). */
+export const githubRepoInfo = (repoId: RepoId): Promise<GithubRepo> =>
+  call("github_repo_info", { repoId });
+
+export const githubCreatePull = (repoId: RepoId, args: NewPull): Promise<PullSummary> =>
+  call("github_create_pull", { repoId, args });

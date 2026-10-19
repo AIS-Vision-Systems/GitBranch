@@ -7,6 +7,7 @@ pub mod config;
 pub mod conflict;
 pub mod history;
 pub mod ignore;
+pub mod log_range;
 pub mod maintenance;
 pub mod merge;
 pub mod patch;

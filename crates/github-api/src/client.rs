@@ -177,12 +177,30 @@ fn map_status(res: Response) -> Result<Response, Error> {
         }
         _ => {}
     }
-    let message = res
-        .json::<serde_json::Value>()
-        .ok()
+    let body = res.json::<serde_json::Value>().ok();
+    let mut message = body
+        .as_ref()
         .and_then(|v| v.get("message").and_then(|m| m.as_str().map(str::to_string)))
         .unwrap_or_else(|| status_text(res.status));
+    if let Some(d) = body.as_ref().and_then(error_detail) {
+        message = format!("{message}: {d}");
+    }
     Err(Error::Status { status: res.status, message })
+}
+
+/// First entry of GitHub's `errors[]`: a plain string, an object's `message`, or
+/// `"<field> <code>"`.
+fn error_detail(v: &serde_json::Value) -> Option<String> {
+    let first = v.get("errors")?.as_array()?.first()?;
+    let text = if let Some(s) = first.as_str() {
+        s.to_string()
+    } else if let Some(m) = first.get("message").and_then(|m| m.as_str()) {
+        m.to_string()
+    } else {
+        let f = |k: &str| first.get(k).and_then(|x| x.as_str()).unwrap_or("");
+        format!("{} {}", f("field"), f("code")).trim().to_string()
+    };
+    (!text.is_empty()).then_some(text)
 }
 
 fn status_text(status: u16) -> String {
@@ -201,7 +219,18 @@ fn status_text(status: u16) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::next_link;
+    use super::{error_detail, next_link};
+    use serde_json::json;
+
+    #[test]
+    fn error_detail_forms() {
+        assert_eq!(error_detail(&json!({"errors": ["bad"]})).as_deref(), Some("bad"));
+        assert_eq!(error_detail(&json!({"errors": [{"message": "m"}]})).as_deref(), Some("m"));
+        let o = json!({"errors": [{"field": "head", "code": "invalid"}]});
+        assert_eq!(error_detail(&o).as_deref(), Some("head invalid"));
+        assert_eq!(error_detail(&json!({"errors": [{}]})), None);
+        assert_eq!(error_detail(&json!({"message": "x"})), None);
+    }
 
     #[test]
     fn next_with_prev_and_spaces() {

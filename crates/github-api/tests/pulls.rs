@@ -4,8 +4,8 @@
 use github_api::http::mock::MockTransport;
 use github_api::http::{Method, Response};
 use github_api::pulls::{
-    CheckRun, PullState, RawReview, checks_for, get_pull, list_pulls, summarize_checks,
-    summarize_reviews,
+    CheckRun, NewPull, PullState, RawReview, checks_for, create_pull, get_pull, list_pulls,
+    summarize_checks, summarize_reviews,
 };
 use github_api::repos::RepoSlug;
 use github_api::{Error, GitHub};
@@ -221,4 +221,58 @@ async fn check_runs_follow_next_pages() {
     let c = checks_for(&gh, "tok", &slug(), "abc").await.unwrap();
     assert_eq!((c.total, c.overall.as_str()), (2, "success"));
     assert_eq!(github_api::pulls::ChecksSummary::default().overall, "none");
+}
+
+#[tokio::test]
+async fn create_posts_json_and_maps_reply() {
+    let t = MockTransport::new().route(
+        Method::Post,
+        "/repos/octo/hello/pulls",
+        vec![Response::json_body(201, &pull(7))],
+    );
+    let gh = GitHub::new(t);
+    let new = NewPull {
+        title: "T".into(),
+        body: Some("B".into()),
+        head: "feat".into(),
+        base: "main".into(),
+        draft: true,
+    };
+    let p = create_pull(&gh, "tok", &slug(), &new).await.unwrap();
+    assert_eq!((p.number, p.head_ref.as_str(), p.base_ref.as_str()), (7, "feat", "main"));
+    let calls = gh.transport().calls();
+    let sent: Value = serde_json::from_slice(calls[0].body.as_ref().unwrap()).unwrap();
+    assert_eq!(
+        sent,
+        json!({"title": "T", "body": "B", "head": "feat", "base": "main", "draft": true})
+    );
+}
+
+#[tokio::test]
+async fn create_422_includes_detail() {
+    let body = json!({
+        "message": "Validation Failed",
+        "errors": [{"resource": "PullRequest", "code": "custom",
+                    "message": "A pull request already exists for octo:feat."}]
+    });
+    let t = MockTransport::new().route(
+        Method::Post,
+        "/repos/octo/hello/pulls",
+        vec![Response::json_body(422, &body)],
+    );
+    let gh = GitHub::new(t);
+    let new = NewPull {
+        title: "T".into(),
+        body: None,
+        head: "feat".into(),
+        base: "main".into(),
+        draft: false,
+    };
+    match create_pull(&gh, "tok", &slug(), &new).await {
+        Err(Error::Status { status: 422, message }) => {
+            assert!(message.starts_with("Validation Failed"), "{message}");
+            assert!(message.contains("already exists for octo:feat"), "{message}");
+        }
+        other => panic!("unexpected {other:?}"),
+    }
 }

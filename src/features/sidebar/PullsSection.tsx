@@ -5,7 +5,7 @@ import type { RepoId } from "../../ipc/types";
 import { useGithubStore } from "../../state/github";
 import { pullsOf, usePullsStore } from "../../state/pulls";
 import type { PullFilter } from "../../state/pulls";
-import { openGithubLogin } from "../dialogs/open";
+import { openCreatePull, openGithubLogin } from "../dialogs/open";
 import styles from "./Sidebar.module.css";
 
 const FILTERS: { id: PullFilter; label: string }[] = [
@@ -139,6 +139,17 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
     <section className={styles["section"]} aria-label="Pull requests">
       <header className={styles["sectionHeader"]}>
         <h3 className={styles["sectionTitle"]}>Pull requests</h3>
+        {signedIn && (
+          <button
+            type="button"
+            className={styles["headerAction"]}
+            aria-label="New pull request"
+            title="New pull request"
+            onClick={() => openCreatePull(repoId)}
+          >
+            +
+          </button>
+        )}
         <button
           type="button"
           className={styles["headerAction"]}
