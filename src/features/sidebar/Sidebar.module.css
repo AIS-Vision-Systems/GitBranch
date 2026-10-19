@@ -132,12 +132,14 @@
   position: absolute;
   top: var(--space-1);
   right: var(--space-2);
-  display: none;
+  display: flex;
   gap: var(--space-1);
   background: var(--color-row-hover);
+  /* Kept in the tree (keyboard and assistive tech can reach the buttons); shown on hover/focus. */
+  opacity: 0;
 }
 
 .row:hover .actions,
 .row:focus-within .actions {
-  display: flex;
+  opacity: 1;
 }

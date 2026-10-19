@@ -66,11 +66,12 @@ describe("WorktreesSection", () => {
     expect(screen.getByRole("button", { name: "Prune" })).toBeEnabled();
   });
 
-  it("hides Remove on the main worktree and shows Unlock for locked", () => {
+  it("hides Remove and Lock on the main worktree and shows Unlock for locked", () => {
     setup([wt({ branch: "m", isMain: true }), wt({ path: "/b", branch: "b", locked: true })]);
     const rows = screen.getAllByRole("listitem");
     expect(within(rows[0]!).queryByRole("button", { name: "Remove" })).toBeNull();
-    expect(within(rows[0]!).getByRole("button", { name: "Lock" })).toBeTruthy();
+    // git refuses to lock the main working tree, so the button is not offered.
+    expect(within(rows[0]!).queryByRole("button", { name: "Lock" })).toBeNull();
     expect(within(rows[1]!).getByRole("button", { name: "Remove" })).toBeTruthy();
     expect(within(rows[1]!).getByRole("button", { name: "Unlock" })).toBeTruthy();
   });

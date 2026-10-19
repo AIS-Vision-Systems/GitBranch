@@ -103,7 +103,7 @@ function WorktreeRow({
         {w.path}
       </div>
       <div className={styles["actions"]} onClick={(e) => e.stopPropagation()}>
-        {w.locked ? (
+        {w.isMain ? null : w.locked ? (
           <button
             type="button"
             className={styles["rowAction"]}

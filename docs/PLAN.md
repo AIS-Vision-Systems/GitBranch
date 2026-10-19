@@ -86,7 +86,7 @@ Acceptance: fetch/pull/push against a private GitHub repo over HTTPS using only 
 
 ### Phase 4 — Worktrees
 - [x] 4.1 `git worktree list --porcelain` parser; sidebar section with branch, path, locked/prunable state.
-- [ ] 4.2 Add worktree (new or existing branch, path picker with default `../<repo>.<branch>`), remove (safe/force), prune, lock/unlock.
+- [x] 4.2 Add worktree (new or existing branch, path picker with default `../<repo>.<branch>`), remove (safe/force), prune, lock/unlock.
 - [x] 4.3 Each worktree opens as its own tab sharing the object graph; WIP row and HEAD per tab.
 - [x] 4.4 Graph highlights which commits are checked out in which worktree.
 
