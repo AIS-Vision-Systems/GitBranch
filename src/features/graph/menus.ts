@@ -1,4 +1,5 @@
 import {
+  openAddWorktree,
   openCreateBranch,
   openCreateTag,
   openMerge,
@@ -104,6 +105,12 @@ export function commitMenu(ctx: MenuContext): MenuItem[] {
       label: "Create tag here…",
       onSelect: () => openCreateTag(repoId, oid, short),
     },
+    {
+      kind: "item",
+      id: "add-worktree",
+      label: "Add worktree here…",
+      onSelect: () => openAddWorktree(repoId, oid, short),
+    },
     SEP,
     ...integrateItems(ctx, oid, short, ctx.head?.oid === oid, "this commit"),
     {
@@ -154,6 +161,12 @@ export function refMenu(ctx: MenuContext, ref: Ref): MenuItem[] {
         onSelect: () => void ops().checkout(repoId, ref.name),
       },
       from(ref.name),
+      {
+        kind: "item",
+        id: "add-worktree",
+        label: "Add worktree here…",
+        onSelect: () => openAddWorktree(repoId, ref.name, ref.name),
+      },
       SEP,
       ...integrateItems(ctx, ref.name, ref.name, ref.isHead, "this"),
       SEP,

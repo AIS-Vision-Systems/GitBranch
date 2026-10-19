@@ -7,6 +7,7 @@ import type { Change } from "../ipc/events";
 import type { Commit, GraphQuery, Ref, RepoId, Refs, Row, Status } from "../ipc/types";
 import { useRemotesStore } from "./remotes";
 import { submodulesOf, useSubmodulesStore } from "./submodules";
+import { useWorktreesStore } from "./worktrees";
 import { reportError } from "./ui";
 
 export const FIRST_PAGE = 2000;
@@ -190,6 +191,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       set({ selectedOid: null, hoverOid: null });
       void useRemotesStore.getState().load(repoId);
       void useSubmodulesStore.getState().load(repoId);
+      void useWorktreesStore.getState().load(repoId);
       await reload(repoId, true);
     },
 
@@ -227,6 +229,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     refresh: async (repoId, what) => {
       if (get().byRepo[repoId] === undefined) return;
       if (what.includes("refs")) void useRemotesStore.getState().load(repoId);
+      if (what.includes("worktrees") || what.includes("head")) {
+        void useWorktreesStore.getState().load(repoId);
+      }
       if (
         what.includes("head") ||
         what.includes("index") ||
@@ -259,6 +264,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       bump(repoId);
       useRemotesStore.getState().clear(repoId);
       useSubmodulesStore.getState().clear(repoId);
+      useWorktreesStore.getState().clear(repoId);
       set((s) => {
         const byRepo = { ...s.byRepo };
         delete byRepo[repoId];

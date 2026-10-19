@@ -13,6 +13,7 @@ pub mod show;
 pub mod stash;
 pub mod status;
 pub mod submodule;
+pub mod worktree;
 
 /// Error produced when git output does not match the expected machine-readable shape.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

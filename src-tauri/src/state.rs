@@ -144,6 +144,11 @@ impl AppState {
         self.repos.lock().ok()?.get(id).cloned()
     }
 
+    /// Snapshot of all open repositories.
+    pub fn open_repos(&self) -> Vec<OpenRepo> {
+        self.repos.lock().map(|m| m.values().cloned().collect()).unwrap_or_default()
+    }
+
     /// Forgets an open repository.
     pub fn close(&self, id: &str) {
         if let Ok(mut m) = self.repos.lock() {

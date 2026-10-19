@@ -11,6 +11,8 @@ import {
 import type { Ref, RepoId } from "../../ipc/types";
 import { EMPTY_GRAPH, refsByOid, useGraphStore, WIP_OID } from "../../state/graph";
 import { shortOid } from "../../state/ops";
+import { useReposStore } from "../../state/repos";
+import { useWorktreesStore, worktreesOf } from "../../state/worktrees";
 import { installDragCleanup } from "./dnd";
 import { openBranchDrop } from "../dialogs/open";
 import { ContextMenu } from "../shell/ContextMenu";
@@ -21,10 +23,12 @@ import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
 import { commitMenu, refMenu, remoteTrackingName, wipMenu } from "./menus";
 import { WipRow } from "./WipRow";
+import { worktreeMarksByOid, type WorktreeMark } from "./worktreeMarks";
 import styles from "./Graph.module.css";
 
 const LOAD_MORE_THRESHOLD = 200;
 const NO_REFS: never[] = [];
+const NO_MARKS: readonly WorktreeMark[] = [];
 
 type MenuData =
   { kind: "commit"; oid: string } | { kind: "ref"; oid: string; ref: Ref } | { kind: "wip" };
@@ -65,6 +69,9 @@ export function GraphView({ repoId }: Props) {
 
   const { rows, commits, refs, status, byOid, hasMore, inProgress: op } = g ?? EMPTY_GRAPH;
   const inProgress = op !== null;
+  const worktrees = useWorktreesStore((s) => worktreesOf(s, repoId));
+  const ownPath = useReposStore((s) => s.open.find((r) => r.repoId === repoId)?.path ?? null);
+  const worktreeMarks = useMemo(() => worktreeMarksByOid(worktrees, ownPath), [worktrees, ownPath]);
   const refMap = useMemo(() => refsByOid(refs), [refs]);
   const lanes = useMemo(() => laneCount(rows), [rows]);
   const headOid = refs?.head.oid ?? null;
@@ -123,6 +130,7 @@ export function GraphView({ repoId }: Props) {
   );
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if ((e.key === "PageUp" || e.key === "PageDown") && (e.ctrlKey || e.metaKey)) return;
     const cur = indexOfOid(selectedOid);
     const page = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 0) / ROW_H) - 1);
     switch (e.key) {
@@ -285,6 +293,7 @@ export function GraphView({ repoId }: Props) {
                 row={row}
                 commit={commit}
                 refs={refMap.get(row.oid) ?? NO_REFS}
+                worktrees={worktreeMarks.get(row.oid) ?? NO_MARKS}
                 lanes={lanes}
                 top={v.start}
                 selected={selectedOid === row.oid}

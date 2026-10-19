@@ -1,0 +1,145 @@
+.sidebar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-w);
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sectionTitle {
+  flex: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.count {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.headerAction,
+.rowAction {
+  background: transparent;
+  color: var(--color-fg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  padding: 0 var(--space-2);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.headerAction:hover:not(:disabled),
+.rowAction:hover {
+  background: var(--color-row-hover);
+}
+
+.headerAction:disabled {
+  color: var(--color-fg-muted);
+  cursor: default;
+}
+
+.headerAction:focus-visible,
+.rowAction:focus-visible,
+.row:focus-visible {
+  outline: 1px solid var(--color-accent);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.row:hover,
+.row:focus-within {
+  background: var(--color-row-hover);
+}
+
+.rowStatic {
+  cursor: default;
+}
+
+.rowCurrent {
+  background: var(--color-row-selected);
+}
+
+.line1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.branch {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: none;
+  font-size: 0.7rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-1);
+  background: var(--color-chip-bg);
+  color: var(--color-fg-muted);
+}
+
+.badgeCurrent {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.badgeLocked {
+  color: var(--color-warning);
+}
+
+.badgePrunable {
+  color: var(--color-danger);
+}
+
+.path {
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+  background: var(--color-row-hover);
+  /* Kept in the tree (keyboard and assistive tech can reach the buttons); shown on hover/focus. */
+  opacity: 0;
+}
+
+.row:hover .actions,
+.row:focus-within .actions {
+  opacity: 1;
+}

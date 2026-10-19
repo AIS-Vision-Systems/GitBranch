@@ -13,4 +13,6 @@ export const DIALOG = {
   push: "remote.push",
   remotes: "remote.list",
   clone: "repo.clone",
+  addWorktree: "worktree.add",
+  lockWorktree: "worktree.lock",
 } as const;

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 2026-10-19: Worktrees (Phase 4, items 4.1-4.4, D-025/D-026): a collapsible left sidebar with a Worktrees section
+  (branch or detached commit, path, main/current/locked/prunable badges), Add worktree dialog (new/existing branch
+  or detached, default path `../<repo>.<branch>`, folder picker, force; Ctrl+Shift+W or "Add worktree here..." from
+  the commit and branch menus), Remove (confirmed; forced retry for dirty trees; locked ones must be unlocked
+  first), Lock with reason / Unlock, Prune. Each worktree opens as its own tab in the header (Ctrl+PageUp/PageDown,
+  Ctrl+W) with its own WIP row and HEAD; the graph shows a worktree chip on the commit each other worktree has
+  checked out, and a commit made in a linked worktree appears in the main tab without a manual refresh.
 - 2026-10-16: Progress and cancel (item 3.3): fetch/pull/push/clone stream git's `--progress` lines to a slim
   progress bar (phase, percentage, last line, elapsed) with Cancel (Esc) that kills the whole git process tree;
   network timeouts are now inactivity-based. Clone dialog (item 3.4): URL, parent folder picker, name, branch,
@@ -29,6 +36,20 @@
   files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
+
+### Phase 4 demo (2026-10-19, branch `phase/4`)
+- The left sidebar (toggle in the header) lists the worktrees: branch or `detached @ <oid>`, path, main / current /
+  locked / prunable badges. Add… (Ctrl+Shift+W, or "Add worktree here…" on a commit or branch) creates one on a new
+  branch, an existing branch or detached, at `../<repo>.<branch>` by default; Lock (with reason) / Unlock, Remove
+  (confirmed; a dirty tree asks for a forced retry, a locked one must be unlocked first) and Prune act in place.
+- Smoke test on the real app: Add → `git worktree list` shows it; a commit made with the CLI inside the worktree
+  appears in the main tab's graph about 2 s later with a `⧉ smoke.feat-wt` chip, no manual refresh; opening the
+  worktree gives it its own tab (own WIP row and HEAD, the main checkout gets its chip in turn); Remove from the
+  main tab deletes the folder and closes the other tab; a deleted folder shows `prunable` and Prune clears it.
+- 281 Rust tests on real git (11 new on worktree fixtures, including from inside a linked worktree and a bare
+  main), 369 vitest tests; `pnpm check` green. Release build 3 min: `gitbranch.exe` 5.3 MB, NSIS installer
+  1.8 MB (target < 25 MB).
+- Sidebar, tabs and chips follow D-026; `git worktree list --porcelain` without `-z` (git 2.31 floor) is D-025.
 
 ### Phase 3 demo (2026-10-16, branch `phase/3`)
 - Open a repo with a remote: the toolbar shows Fetch / Pull… / Push… (with the ahead count) / Clone… / Remotes…;

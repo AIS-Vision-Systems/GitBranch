@@ -185,3 +185,26 @@ Consequences: `keyring` 3 with `windows-native` and `sync-secret-service` (needs
 runner); the prompt parser is a pure function with unit tests; the token never appears in logs or `GitError`; askpass env only on network calls so hooks run by commit/merge/rebase cannot query it.
 
 Amendment 2026-10-16 (D-024): git passes the prompt as the only argument, so the askpass mode is selected by the `GITBRANCH_ASKPASS=1` env var the runner sets plus a prompt-shaped argument, not by a `--askpass` flag.
+
+## D-025 · accepted · 2026-10-19 — Worktree listing uses `git worktree list --porcelain` without `-z`
+Context: `-z` for `worktree list` needs git 2.36; `MIN_GIT_VERSION` is 2.31 and Ubuntu 22.04 ships 2.34.
+Decision: parse the line-oriented `--porcelain` output (records separated by a blank line). Lock/prune reasons
+with unusual characters arrive C-quoted (core.quotePath style) and are unquoted by the parser; paths are not quoted
+by git in this mode, so a path containing a newline is the one unsupported case. Unknown attribute keywords are
+ignored so newer git versions do not break the list.
+Consequences: a pure parser with unit tests on captured samples; revisit `-z` when the floor rises to 2.36.
+
+## D-026 · accepted · 2026-10-19 — Worktrees: left sidebar, header tabs, chip on the checked-out commit
+Context: Phase 4 asks for a sidebar section, one tab per worktree and graph highlighting; the app so far has no
+sidebar (branches are graph chips, remotes a dialog, submodules a WIP-pane section) and no tab bar, while the repo
+store already keeps several open repositories with one current id.
+Decision: (1) a collapsible left sidebar (`src/features/sidebar/`) whose first section is Worktrees; other
+sections (branches, remotes, tags, stashes) may move there in Phase 6. (2) The header shows one tab per open
+repository; opening a worktree from the sidebar opens it as its own tab without the D-015 main/worktree prompt
+(the user chose the worktree explicitly). Each tab is a separately opened repository (own watcher, own WIP row
+and HEAD); "sharing the object graph" means the same object store on disk, not a shared in-memory log. (3) The
+graph shows a worktree chip on the commit each linked worktree has checked out; a branch chip checked out in
+another worktree is not restyled. (4) The watcher emits a new `worktrees` change for `.git/worktrees/*` of other
+checkouts; a commit made in a linked worktree reaches the main tab through the shared `refs` directory already.
+Consequences: `Change::Worktrees` on both sides of the IPC; the worktree list is reloaded on `worktrees` and
+`head` changes; `remove` without force fails on dirty or locked worktrees and the UI offers the forced retry.

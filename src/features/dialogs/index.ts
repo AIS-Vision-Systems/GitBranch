@@ -1,6 +1,8 @@
 import { createElement } from "react";
 import { registerDialog } from "../shell/dialogRegistry";
 import { BranchDropDialog, type BranchDropDialogProps } from "./BranchDropDialog";
+import { AddWorktreeDialog, type AddWorktreeDialogProps } from "./AddWorktreeDialog";
+import { LockWorktreeDialog, type LockWorktreeDialogProps } from "./LockWorktreeDialog";
 import { CloneDialog, type CloneDialogProps } from "./CloneDialog";
 import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranchDialog";
 import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
@@ -73,5 +75,17 @@ export function registerPhase2Dialogs(): void {
   );
   registerDialog(DIALOG.remotes, (p, onClose) =>
     createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.addWorktree, (p, onClose) =>
+    createElement(AddWorktreeDialog, {
+      ...(p as unknown as Props<AddWorktreeDialogProps>),
+      onClose,
+    }),
+  );
+  registerDialog(DIALOG.lockWorktree, (p, onClose) =>
+    createElement(LockWorktreeDialog, {
+      ...(p as unknown as Props<LockWorktreeDialogProps>),
+      onClose,
+    }),
   );
 }

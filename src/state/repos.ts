@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { isIpcError } from "../ipc/core";
 import * as ipc from "../ipc/repo";
 import type { OpenedRepo, RecentRepo, RepoId } from "../ipc/types";
+import { orderTabs } from "../lib/tabOrder";
+import { samePath } from "../lib/paths";
 import { useGraphStore } from "./graph";
 import { reportError, useUiStore } from "./ui";
 
@@ -14,10 +16,18 @@ interface ReposState {
   loadRecent: () => Promise<void>;
   /** Resolves true when the repo was opened (or is awaiting the worktree choice). */
   openPath: (path: string) => Promise<boolean>;
+  /** Opens a worktree as its own tab (no main/worktree prompt); selects it if already open. */
+  openWorktree: (path: string) => Promise<void>;
+  /** Switches the current tab. */
+  select: (repoId: string) => void;
+  /** Cycles the current tab in display order. */
+  nextTab: (delta: 1 | -1) => void;
   openViaDialog: () => Promise<void>;
   resolveWorktree: (choice: "main" | "worktree") => Promise<void>;
   cancelWorktree: () => void;
   close: (repoId: string) => Promise<void>;
+  /** Drops tabs the backend already closed (e.g. their worktree was removed). */
+  dropClosed: (repoIds: readonly string[]) => void;
   forgetRecent: (path: string) => Promise<void>;
 }
 
@@ -30,7 +40,22 @@ function report(e: unknown, path: string): void {
 }
 
 export const useReposStore = create<ReposState>((set, get) => {
-  const select = (repo: OpenedRepo): void => {
+  /** Tab B must not inherit tab A's global selection/hover. */
+  const resetSelection = (): void => {
+    useGraphStore.setState({ selectedOid: null, hoverOid: null });
+  };
+
+  /** Neighbour of `repoId` in the displayed order (the one after it, else the one before). */
+  const neighbour = (all: OpenedRepo[], repoId: string): string | null => {
+    const tabs = orderTabs(all);
+    const i = tabs.findIndex((r) => r.repoId === repoId);
+    const rest = tabs.filter((r) => r.repoId !== repoId);
+    if (rest.length === 0) return null;
+    return (rest[Math.min(Math.max(i, 0), rest.length - 1)] ?? rest[0])?.repoId ?? null;
+  };
+
+  const show = (repo: OpenedRepo): void => {
+    if (get().currentId !== repo.repoId) resetSelection();
     set((s) => ({
       open: s.open.some((r) => r.repoId === repo.repoId) ? s.open : [...s.open, repo],
       currentId: repo.repoId,
@@ -70,13 +95,42 @@ export const useReposStore = create<ReposState>((set, get) => {
           set({ pendingWorktree: repo });
           return true;
         }
-        select(repo);
+        show(repo);
       } catch (e) {
         report(e, path);
         return false;
       }
       await get().loadRecent();
       return true;
+    },
+
+    openWorktree: async (path) => {
+      const existing = get().open.find((r) => samePath(r.path, path));
+      if (existing !== undefined) {
+        get().select(existing.repoId);
+        return;
+      }
+      try {
+        show(await ipc.openRepo(path));
+      } catch (e) {
+        report(e, path);
+        return;
+      }
+      await get().loadRecent();
+    },
+
+    select: (repoId) => {
+      if (!get().open.some((r) => r.repoId === repoId) || get().currentId === repoId) return;
+      resetSelection();
+      set({ currentId: repoId });
+    },
+
+    nextTab: (delta) => {
+      const tabs = orderTabs(get().open);
+      if (tabs.length === 0) return;
+      const i = tabs.findIndex((r) => r.repoId === get().currentId);
+      const next = i < 0 ? tabs[0] : tabs[(i + delta + tabs.length) % tabs.length];
+      if (next !== undefined) get().select(next.repoId);
     },
 
     openViaDialog: async () => {
@@ -95,13 +149,13 @@ export const useReposStore = create<ReposState>((set, get) => {
       const pending = get().pendingWorktree;
       if (pending === null) return;
       if (choice === "worktree") {
-        select(pending);
+        show(pending);
       } else {
         const mainPath = pending.mainWorkTree ?? pending.path;
         set({ pendingWorktree: null });
         await discard(pending);
         try {
-          select(await ipc.openRepo(mainPath));
+          show(await ipc.openRepo(mainPath));
         } catch (e) {
           report(e, mainPath);
           return;
@@ -125,8 +179,30 @@ export const useReposStore = create<ReposState>((set, get) => {
       useGraphStore.getState().forget(repoId as RepoId);
       set((s) => {
         const open = s.open.filter((r) => r.repoId !== repoId);
-        const currentId =
-          s.currentId === repoId ? (open[open.length - 1]?.repoId ?? null) : s.currentId;
+        const currentId = s.currentId === repoId ? neighbour(s.open, repoId) : s.currentId;
+        if (currentId !== s.currentId) resetSelection();
+        return { open, currentId };
+      });
+    },
+
+    dropClosed: (repoIds) => {
+      if (repoIds.length === 0) return;
+      const gone = new Set(repoIds);
+      for (const id of gone) useGraphStore.getState().forget(id as RepoId);
+      set((s) => {
+        const open = s.open.filter((r) => !gone.has(r.repoId));
+        let currentId = s.currentId;
+        if (currentId !== null && gone.has(currentId)) {
+          const keep = orderTabs(s.open);
+          const i = keep.findIndex((r) => r.repoId === currentId);
+          const after = keep.slice(i + 1).find((r) => !gone.has(r.repoId));
+          const before = keep
+            .slice(0, i)
+            .reverse()
+            .find((r) => !gone.has(r.repoId));
+          currentId = (after ?? before)?.repoId ?? null;
+          resetSelection();
+        }
         return { open, currentId };
       });
     },

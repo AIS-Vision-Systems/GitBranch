@@ -3,6 +3,7 @@ import { appInfo } from "./ipc/app";
 import type { AppInfo } from "./ipc/types";
 import { registerPhase2Dialogs } from "./features/dialogs";
 import { OpBanner } from "./features/shell/OpBanner";
+import { RepoTabs } from "./features/shell/RepoTabs";
 import { Toolbar } from "./features/shell/Toolbar";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
@@ -19,7 +20,9 @@ import { Toasts } from "./features/shell/Toasts";
 import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
-import { openClone } from "./features/dialogs/open";
+import { openAddWorktree, openClone } from "./features/dialogs/open";
+import { Sidebar } from "./features/sidebar/Sidebar";
+import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
 import { useReposStore } from "./state/repos";
 import { reportError, useUiStore, type Theme } from "./state/ui";
 import styles from "./App.module.css";
@@ -37,6 +40,8 @@ export default function App() {
   const close = useReposStore((s) => s.close);
   const [detailsWidth, setDetailsWidth] = useDetailsWidth();
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const [sidebarOpen, toggleSidebar] = useSidebarOpen();
+  const currentId = current?.repoId ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -98,45 +103,49 @@ export default function App() {
         void openViaDialog();
         return;
       }
+      const mod = e.ctrlKey || e.metaKey;
+      const k = e.key.toLowerCase();
+      const tabKey =
+        mod && !e.shiftKey && !e.altKey && (e.key === "PageDown" || e.key === "PageUp");
+      const closeTab = mod && !e.shiftKey && !e.altKey && k === "w" && currentId !== null;
+      const shifted =
+        mod && e.shiftKey && !e.altKey && (k === "c" || (k === "w" && currentId !== null));
+      if (!(tabKey || closeTab || shifted) || e.repeat) return;
+      if (useDialogsStore.getState().current !== null) return;
+      if (!tabKey && useOpsStore.getState().busy) return;
+      const t = e.target;
       if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        !e.altKey &&
-        e.key.toLowerCase() === "c" &&
-        !e.repeat &&
-        useDialogsStore.getState().current === null &&
-        !useOpsStore.getState().busy
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement ||
+        (t instanceof HTMLElement &&
+          (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
       ) {
-        const t = e.target;
-        if (
-          t instanceof HTMLInputElement ||
-          t instanceof HTMLTextAreaElement ||
-          t instanceof HTMLSelectElement ||
-          (t instanceof HTMLElement &&
-            (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
-        ) {
-          return;
-        }
-        e.preventDefault();
-        openClone();
+        return;
       }
+      e.preventDefault();
+      if (tabKey) useReposStore.getState().nextTab(e.key === "PageDown" ? 1 : -1);
+      else if (closeTab && currentId !== null) void close(currentId);
+      else if (k === "w" && currentId !== null) openAddWorktree(currentId);
+      else openClone();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openViaDialog]);
+  }, [openViaDialog, close, currentId]);
 
   return (
     <div className={styles["app"]}>
       <header className={styles["header"]}>
-        <span className={styles["name"]}>{current !== null ? current.name : "GitBranch"}</span>
+        {current !== null ? <RepoTabs /> : <span className={styles["name"]}>GitBranch</span>}
         {current !== null && <Toolbar repoId={current.repoId} />}
         {current !== null && (
           <button
             type="button"
             className={styles["themeButton"]}
-            onClick={() => void close(current.repoId)}
+            aria-pressed={sidebarOpen}
+            onClick={toggleSidebar}
           >
-            Close
+            Sidebar
           </button>
         )}
         <button
@@ -152,6 +161,7 @@ export default function App() {
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (
           <div className={styles["panes"]}>
+            {sidebarOpen && <Sidebar key={current.repoId} repoId={current.repoId} />}
             <div className={styles["graphPane"]}>
               <GraphView key={current.repoId} repoId={current.repoId} />
             </div>
