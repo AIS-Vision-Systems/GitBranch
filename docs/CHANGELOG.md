@@ -59,6 +59,24 @@
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
 
+### Phase 5 demo (2026-10-19, branch `phase/5`)
+- "Sign in to GitHub" in the header runs the OAuth Device Flow of the registered app (D-004): the dialog shows the
+  one-time code with Copy / Open github.com and a 15-minute countdown; the token lands in the OS keyring and feeds
+  git over HTTPS through the Phase 3 askpass bridge. The account menu shows login, scopes, API budget, Sign out,
+  Re-authorize and the revoke page; "Clone from GitHub…" lists your and your organizations' repositories.
+- For a GitHub repository the sidebar lists pull requests (Open / Closed / Mine); the detail pane shows
+  description, checks and reviews with Checkout (tracking branch, or `pr/N` for forks, D-028) and Open in browser;
+  "New pull request" pushes the branch first if needed and prefills title/body from the commits. Branch chips carry
+  a `#N` badge and a check dot; offline / rate-limit states are sticky notices with Retry (ETag-cached lists).
+- Smoke test on the real app: Sign in → Continue returned a live device code from GitHub for the registered
+  client id and the countdown ran; Cancel returned to the signed-out header with no backend error. The browser
+  authorization, a private clone and a real PR round-trip are left for the owner (own account).
+- 351 Rust tests (67 in `github-api` on a mock transport with paused time: device flow, ETag/304, rate-limit
+  window, checks cache; 9 new git-core fixture tests for PR checkout and commit ranges), 426 vitest tests;
+  `pnpm check` green. Release build 5.5 min: `gitbranch.exe` 7.6 MB (+2.3 MB for reqwest/rustls), NSIS installer
+  2.6 MB (target < 25 MB).
+- Transport seam, two-command login and offline account are D-027; slug parsing and PR checkout semantics are D-028.
+
 ### Phase 4 demo (2026-10-19, branch `phase/4`)
 - The left sidebar (toggle in the header) lists the worktrees: branch or `detached @ <oid>`, path, main / current /
   locked / prunable badges. Add… (Ctrl+Shift+W, or "Add worktree here…" on a commit or branch) creates one on a new
