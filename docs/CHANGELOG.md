@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 2026-10-19: GitHub repo picker (item 5.3): "Clone from GitHub..." on the welcome screen and "Pick from GitHub..." in
+  the Clone dialog list your own, collaborator and organization repositories (private included) with search,
+  owner filter, archived toggle and badges; choosing one prefills the Clone dialog.
 - 2026-10-19: GitHub sign-in (Phase 5, items 5.1-5.2, D-027): "Sign in to GitHub" in the header starts the OAuth Device
   Flow (one-time code, Copy, Open github.com, countdown, optional `workflow` scope); the token goes to the OS keyring
   and feeds git over HTTPS through the askpass bridge. The account menu shows name, login, granted scopes, an

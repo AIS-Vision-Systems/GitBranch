@@ -176,7 +176,7 @@ ${undoCommand(undo)}
         type="button"
         className={styles["button"]}
         title="Clone a repository (Ctrl+Shift+C)"
-        onClick={openClone}
+        onClick={() => openClone()}
       >
         Clone…
       </button>

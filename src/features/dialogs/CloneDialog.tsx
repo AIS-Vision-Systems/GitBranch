@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { pickRepoDir } from "../../ipc/repo";
+import { openGithubRepoPicker } from "./open";
 import { reportError } from "../../state/ui";
 import { useOpsStore } from "../../state/ops";
 import { FormDialog } from "./FormDialog";
@@ -25,12 +26,13 @@ function saveParent(p: string): void {
 }
 
 export interface CloneDialogProps {
+  initialUrl?: string;
   onClose: () => void;
 }
 
-export function CloneDialog({ onClose }: CloneDialogProps) {
+export function CloneDialog({ initialUrl, onClose }: CloneDialogProps) {
   const clone = useOpsStore((s) => s.clone);
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl ?? "");
   const [parent, setParent] = useState(loadParent);
   // null = follow the URL.
   const [nameSel, setNameSel] = useState<string | null>(null);
@@ -78,7 +80,19 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
       }
     >
       <label className={styles["field"]}>
-        <span className={styles["label"]}>URL</span>
+        <span className={styles["label"]}>
+          URL{" "}
+          <button
+            type="button"
+            className={styles["linkButton"]}
+            onClick={() => {
+              onClose();
+              openGithubRepoPicker();
+            }}
+          >
+            Pick from GitHub…
+          </button>
+        </span>
         <input
           ref={urlRef}
           className={styles["input"]}

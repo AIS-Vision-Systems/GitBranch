@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../ipc/github";
-import type { GithubAccount } from "../ipc/github";
+import type { GithubAccount, GithubRepo } from "../ipc/github";
 import { IpcError } from "../ipc/core";
 import { useGithubStore } from "./github";
 
@@ -10,6 +10,7 @@ vi.mock("../ipc/github", () => ({
   githubLoginWait: vi.fn(),
   githubLoginCancel: vi.fn(),
   githubLogout: vi.fn(),
+  githubRepos: vi.fn(),
 }));
 
 const acct: GithubAccount = {
@@ -31,6 +32,9 @@ beforeEach(() => {
     loading: false,
     error: null,
     login: { step: "idle" },
+    repos: null,
+    reposLoading: false,
+    reposError: null,
   });
 });
 
@@ -109,5 +113,40 @@ describe("github store", () => {
     vi.mocked(ipc.githubLogout).mockResolvedValue();
     await useGithubStore.getState().logout();
     expect(useGithubStore.getState().account).toBeNull();
+  });
+
+  describe("repos", () => {
+    const repo = { id: 1, name: "r", fullName: "octo/r", owner: "octo" } as GithubRepo;
+
+    it("loads and caches", async () => {
+      vi.mocked(ipc.githubRepos).mockResolvedValue([repo]);
+      await useGithubStore.getState().loadRepos();
+      await useGithubStore.getState().loadRepos();
+      expect(useGithubStore.getState().repos).toEqual([repo]);
+      expect(ipc.githubRepos).toHaveBeenCalledTimes(1);
+    });
+
+    it("force reloads", async () => {
+      vi.mocked(ipc.githubRepos).mockResolvedValue([repo]);
+      await useGithubStore.getState().loadRepos();
+      await useGithubStore.getState().loadRepos(true);
+      expect(ipc.githubRepos).toHaveBeenCalledTimes(2);
+    });
+
+    it("records an error", async () => {
+      vi.mocked(ipc.githubRepos).mockRejectedValue(new Error("boom"));
+      await useGithubStore.getState().loadRepos();
+      const st = useGithubStore.getState();
+      expect(st.reposError).toBe("boom");
+      expect(st.repos).toBeNull();
+      expect(st.reposLoading).toBe(false);
+    });
+
+    it("is cleared on logout", async () => {
+      vi.mocked(ipc.githubLogout).mockResolvedValue();
+      useGithubStore.setState({ repos: [repo] });
+      await useGithubStore.getState().logout();
+      expect(useGithubStore.getState().repos).toBeNull();
+    });
   });
 });

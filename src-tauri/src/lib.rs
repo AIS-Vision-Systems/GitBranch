@@ -131,6 +131,7 @@ pub fn run() {
             commands::reflog::undo_preview,
             commands::reflog::undo_last,
             commands::github::github_account,
+            commands::github::github_repos,
             commands::github::github_login_start,
             commands::github::github_login_wait,
             commands::github::github_login_cancel,

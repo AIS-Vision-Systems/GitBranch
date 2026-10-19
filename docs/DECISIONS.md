@@ -222,3 +222,18 @@ deletes the stored token (revoked or expired) and reports "signed out". (5) The 
 from a mirrored client id constant; the id is public (D-004).
 Consequences: the `device_code` is never serialized or logged; the token only crosses the keyring and the
 `Authorization` header; `workflow` scope is a checkbox at login (D-005), re-authorizing replaces the token.
+
+## D-028 · accepted · 2026-10-19 — Pull requests: repo slug from the remote URL, checkout like `gh pr checkout`
+Context: items 5.4–5.6 need to know which GitHub repository a local repo maps to, and how "checkout PR" behaves for
+same-repo and fork PRs.
+Decision: (1) The slug (owner/name) is parsed in `github-api` from the remote URL (https, ssh and scp-like forms of
+github.com); `origin` wins, else the first github.com remote; no match means the PR features stay hidden. (2)
+Checkout of a same-repository PR fetches the remote and checks out a local branch named after the head ref, tracking
+`<remote>/<head>` (an existing local branch of that name is reused, not reset). A fork PR fetches
+`+refs/pull/N/head:refs/remotes/<remote>/pr/N` and checks out a local branch `pr/N` at it without upstream. The
+sequence is one git-core op (`ops::pull_request::checkout_pr`) tested on a fixture pair of repositories. (3) PR
+lists are read-only summaries (open/closed/all from the API; "mine" filtered in the UI by the signed-in login);
+detail fetches the PR, its reviews, and the head commit's check runs + combined status, in that order. (4) PR body
+is shown as plain text in Phase 5; markdown rendering is a Phase 6 polish item.
+Consequences: `FetchArgs` gains `refspecs`; `github_repo_slug`, `github_pulls`, `github_pull`, `github_checkout_pull`
+Tauri commands; the checks summary type is shared with the graph decorations of 5.6.

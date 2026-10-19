@@ -55,7 +55,8 @@ export const openPush = (repoId: RepoId, branch: string | null = null): void =>
 
 export const openRemotes = (repoId: RepoId): void => open(DIALOG.remotes, { repoId });
 
-export const openClone = (): void => open(DIALOG.clone, {});
+export const openClone = (init?: { url?: string }): void =>
+  open(DIALOG.clone, { initialUrl: init?.url });
 
 export const openAddWorktree = (repoId: RepoId, startPoint?: string, startLabel?: string): void =>
   open(DIALOG.addWorktree, { repoId, startPoint, startLabel });
@@ -64,3 +65,5 @@ export const openLockWorktree = (repoId: RepoId, path: string): void =>
   open(DIALOG.lockWorktree, { repoId, path });
 
 export const openGithubLogin = (): void => open(DIALOG.githubLogin, {});
+
+export const openGithubRepoPicker = (): void => open(DIALOG.githubRepoPicker, {});

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as ipc from "../ipc/github";
-import type { GithubAccount, GithubDeviceCode } from "../ipc/github";
+import type { GithubAccount, GithubDeviceCode, GithubRepo } from "../ipc/github";
 import { isIpcError } from "../ipc/core";
 
 export type LoginState =
@@ -16,6 +16,10 @@ interface GithubState {
   loading: boolean;
   error: string | null;
   login: LoginState;
+  repos: GithubRepo[] | null;
+  reposLoading: boolean;
+  reposError: string | null;
+  loadRepos: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   startLogin: (workflow: boolean) => Promise<void>;
   cancelLogin: () => Promise<void>;
@@ -29,7 +33,7 @@ const codeOf = (e: unknown): string => (isIpcError(e) ? e.error.code : "ipc.unkn
 /** Login reject codes that mean "nothing to report": the user cancelled, or no login was pending. */
 const SILENT_CODES = new Set(["github.cancelled", "github.no_login"]);
 
-export const useGithubStore = create<GithubState>((set) => {
+export const useGithubStore = create<GithubState>((set, get) => {
   // Bumped by every startLogin and cancelLogin; a stale attempt must not touch the state.
   let generation = 0;
   return {
@@ -37,6 +41,21 @@ export const useGithubStore = create<GithubState>((set) => {
     loading: false,
     error: null,
     login: { step: "idle" },
+    repos: null,
+    reposLoading: false,
+    reposError: null,
+
+    loadRepos: async (force = false) => {
+      const st = get();
+      if (st.reposLoading || (!force && st.repos !== null)) return;
+      set({ reposLoading: true, reposError: null });
+      try {
+        const repos = await ipc.githubRepos();
+        set({ repos, reposLoading: false });
+      } catch (e) {
+        set({ reposLoading: false, reposError: messageOf(e) });
+      }
+    },
 
     refresh: async () => {
       set({ loading: true, error: null });
@@ -85,7 +104,7 @@ export const useGithubStore = create<GithubState>((set) => {
     logout: async () => {
       try {
         await ipc.githubLogout();
-        set({ account: null, error: null });
+        set({ account: null, error: null, repos: null, reposError: null });
       } catch (e) {
         set({ error: messageOf(e) });
       }

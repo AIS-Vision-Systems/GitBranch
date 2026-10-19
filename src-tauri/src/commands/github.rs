@@ -4,6 +4,7 @@
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use github_api::auth::{DeviceCode, complete_login, request_device_code, scopes};
+use github_api::repos::{Repo, list_repos};
 use github_api::token::{GITHUB_HOST, KeyringStore, TokenStore};
 use github_api::user::{Account, resolve_account};
 use github_api::{Error, GitHub, ReqwestTransport};
@@ -121,4 +122,16 @@ pub async fn github_logout(state: State<'_, GithubState>) -> Result<(), AppError
         .await
         .map_err(|e| AppError::new("github.keyring", format!("background task failed: {e}")))?
         .map_err(|e| AppError::from(Error::from(e)))
+}
+
+/// The signed-in user's repositories (own, collaborator, organization member).
+#[tauri::command]
+pub async fn github_repos(state: State<'_, GithubState>) -> Result<Vec<Repo>, AppError> {
+    let store = state.store;
+    let secret = spawn_blocking(move || store.get(GITHUB_HOST))
+        .await
+        .map_err(|e| AppError::new("github.keyring", format!("background task failed: {e}")))?
+        .map_err(|e| AppError::from(Error::from(e)))?;
+    let Some(secret) = secret else { return Err(Error::Unauthorized.into()) };
+    list_repos(&state.client, &secret.token).await.map_err(AppError::from)
 }

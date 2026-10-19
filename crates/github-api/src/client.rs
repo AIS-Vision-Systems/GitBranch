@@ -3,6 +3,7 @@
 use std::fmt::Write as _;
 
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::error::Error;
 use crate::http::{Method, Request, Response, Transport};
@@ -36,6 +37,32 @@ impl<T: Transport> GitHub<T> {
         self.request(Method::Get, token, path, None).await
     }
 
+    /// GET of an absolute URL (e.g. a `Link: rel="next"` target), errors mapped.
+    pub async fn get_url(&self, token: Option<&str>, url: &str) -> Result<Response, Error> {
+        self.send(Method::Get, token, url.to_string(), None).await
+    }
+
+    /// GETs `path` (relative, with its query) and follows `Link: rel="next"` up to `max_pages`
+    /// pages, concatenating the JSON arrays.
+    pub async fn get_all<R: DeserializeOwned>(
+        &self,
+        token: Option<&str>,
+        path: &str,
+        max_pages: usize,
+    ) -> Result<Vec<R>, Error> {
+        let mut out = Vec::new();
+        let mut res = self.get(token, path).await?;
+        for page in 1.. {
+            out.extend(res.json::<Vec<R>>()?);
+            let next = res.header("link").and_then(next_link);
+            match next {
+                Some(url) if page < max_pages => res = self.get_url(token, &url).await?,
+                _ => break,
+            }
+        }
+        Ok(out)
+    }
+
     /// `POST api_base + path` with a JSON body, errors mapped.
     pub async fn post_json(
         &self,
@@ -55,6 +82,17 @@ impl<T: Transport> GitHub<T> {
         path: &str,
         body: Option<Vec<u8>>,
     ) -> Result<Response, Error> {
+        let url = format!("{}{path}", self.api_base);
+        self.send(method, token, url, body).await
+    }
+
+    async fn send(
+        &self,
+        method: Method,
+        token: Option<&str>,
+        url: String,
+        body: Option<Vec<u8>>,
+    ) -> Result<Response, Error> {
         let mut headers = vec![
             ("Accept".to_string(), "application/vnd.github+json".to_string()),
             ("X-GitHub-Api-Version".to_string(), "2022-11-28".to_string()),
@@ -65,7 +103,6 @@ impl<T: Transport> GitHub<T> {
         if body.is_some() {
             headers.push(("Content-Type".into(), "application/json".into()));
         }
-        let url = format!("{}{path}", self.api_base);
         let res = self.transport.send(Request { method, url, headers, body }).await?;
         map_status(res)
     }
@@ -91,6 +128,21 @@ impl<T: Transport> GitHub<T> {
             .send(Request { method: Method::Post, url, headers, body: Some(body.into_bytes()) })
             .await
     }
+}
+
+/// Parses an RFC 8288 `Link` header and returns the `rel="next"` URL, if any.
+pub fn next_link(link_header: &str) -> Option<String> {
+    link_header.split(',').find_map(|part| {
+        let mut pieces = part.split(';');
+        let target = pieces.next()?.trim();
+        let url = target.strip_prefix('<')?.strip_suffix('>')?;
+        let is_next = pieces.any(|p| {
+            p.trim().strip_prefix("rel=").is_some_and(|v| {
+                v.trim_matches('"').split_whitespace().any(|r| r.eq_ignore_ascii_case("next"))
+            })
+        });
+        is_next.then(|| url.to_string())
+    })
 }
 
 fn urlencode(s: &str) -> String {
@@ -145,4 +197,34 @@ fn status_text(status: u16) -> String {
         _ => "Error",
     }
     .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_link;
+
+    #[test]
+    fn next_with_prev_and_spaces() {
+        let h = r#"<https://api.github.com/x?page=1>; rel="prev" ,  <https://api.github.com/x?page=3> ; rel="next", <https://api.github.com/x?page=9>; rel="last""#;
+        assert_eq!(next_link(h).as_deref(), Some("https://api.github.com/x?page=3"));
+    }
+
+    #[test]
+    fn no_next() {
+        let h = r#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#;
+        assert_eq!(next_link(h), None);
+        assert_eq!(next_link(""), None);
+    }
+
+    #[test]
+    fn single_next_link() {
+        assert_eq!(
+            next_link(r#"<https://a/b?page=2>; rel="next""#).as_deref(),
+            Some("https://a/b?page=2")
+        );
+        assert_eq!(
+            next_link("<https://a/b?page=2>; rel=next").as_deref(),
+            Some("https://a/b?page=2")
+        );
+    }
 }

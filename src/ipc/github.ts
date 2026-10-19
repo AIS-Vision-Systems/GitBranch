@@ -35,4 +35,24 @@ export const githubLoginWait = (): Promise<GithubAccount> => call("github_login_
 
 export const githubLoginCancel = (): Promise<void> => call("github_login_cancel");
 
+export interface GithubRepo {
+  id: number;
+  name: string;
+  fullName: string;
+  owner: string;
+  private: boolean;
+  fork: boolean;
+  archived: boolean;
+  description: string | null;
+  htmlUrl: string;
+  cloneUrl: string;
+  sshUrl: string;
+  defaultBranch: string;
+  pushedAt: string | null;
+  language: string | null;
+}
+
+/** Rejects with `github.unauthorized` when signed out, `github.network`, `github.rate_limit`, ... */
+export const githubRepos = (): Promise<GithubRepo[]> => call("github_repos");
+
 export const githubLogout = (): Promise<void> => call("github_logout");

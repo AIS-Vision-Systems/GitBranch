@@ -218,3 +218,15 @@
   flex: 1;
   min-width: 0;
 }
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: var(--space-2);
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
