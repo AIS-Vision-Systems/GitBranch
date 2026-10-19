@@ -8,7 +8,15 @@
 
 pub mod askpass;
 pub mod auth;
+pub mod client;
+pub mod error;
+pub mod http;
 pub mod token;
+pub mod user;
+
+pub use client::GitHub;
+pub use error::Error;
+pub use http::ReqwestTransport;
 
 /// Crate version, exposed so the Tauri shell can report it in `User-Agent`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

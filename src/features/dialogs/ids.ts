@@ -15,4 +15,5 @@ export const DIALOG = {
   clone: "repo.clone",
   addWorktree: "worktree.add",
   lockWorktree: "worktree.lock",
+  githubLogin: "github.login",
 } as const;

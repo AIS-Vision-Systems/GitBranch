@@ -208,3 +208,17 @@ another worktree is not restyled. (4) The watcher emits a new `worktrees` change
 checkouts; a commit made in a linked worktree reaches the main tab through the shared `refs` directory already.
 Consequences: `Change::Worktrees` on both sides of the IPC; the worktree list is reloaded on `worktrees` and
 `head` changes; `remove` without force fails on dirty or locked worktrees and the UI offers the forced retry.
+
+## D-027 · accepted · 2026-10-19 — GitHub client: transport trait over `reqwest` (rustls), two-command login
+Context: item 5.1 adds the first network code outside git. The crate must be testable offline (no OAuth app in CI),
+must not pull OpenSSL on Linux, and the UI needs a simple way to drive the Device Flow (show code, wait, cancel).
+Decision: (1) `github-api::http::Transport` is the only seam: `ReqwestTransport` in the app (reqwest 0.13 with the
+`rustls` default TLS, already in the lock file through tauri) and `MockTransport` (feature `mock`) in tests, with
+tokio paused time for the polling loop. (2) One `GitHub<T>` client with a single private `request()` where 401/404/
+rate-limit mapping and, later, ETag caching (5.7) live. (3) The login is two commands: `github_login_start` returns
+the user code and spawns the poll task; `github_login_wait` awaits it; `github_login_cancel` aborts. No events.
+(4) `github_account` with a stored token but no network returns the keyring login with `offline: true`; a 401
+deletes the stored token (revoked or expired) and reports "signed out". (5) The revoke page URL is built in the UI
+from a mirrored client id constant; the id is public (D-004).
+Consequences: the `device_code` is never serialized or logged; the token only crosses the keyring and the
+`Authorization` header; `workflow` scope is a checkbox at login (D-005), re-authorizing replaces the token.

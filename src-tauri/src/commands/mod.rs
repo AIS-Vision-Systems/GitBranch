@@ -6,6 +6,7 @@ pub mod clone;
 pub mod commit;
 pub mod commit_ops;
 pub mod conflict;
+pub mod github;
 pub mod graph;
 pub mod history;
 pub mod merge;

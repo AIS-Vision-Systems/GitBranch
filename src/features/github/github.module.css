@@ -1,0 +1,136 @@
+.loginBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.code {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.6rem;
+  letter-spacing: 0.1em;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  user-select: all;
+}
+
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.wrap {
+  position: relative;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+
+.muted {
+  color: var(--color-fg-muted);
+}
+
+.popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 240px;
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.name {
+  font-weight: 600;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chip {
+  background: var(--color-chip-bg);
+  border-radius: var(--radius-1);
+  padding: 0 var(--space-2);
+  font-size: 0.75rem;
+}
+
+.item {
+  background: transparent;
+  color: var(--color-fg);
+  border: none;
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--color-row-hover);
+}

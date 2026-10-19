@@ -62,3 +62,5 @@ export const openAddWorktree = (repoId: RepoId, startPoint?: string, startLabel?
 
 export const openLockWorktree = (repoId: RepoId, path: string): void =>
   open(DIALOG.lockWorktree, { repoId, path });
+
+export const openGithubLogin = (): void => open(DIALOG.githubLogin, {});

@@ -51,6 +51,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(commands::graph::GraphCache::default())
+        .manage(commands::github::GithubState::default())
         .manage(watcher::Watchers::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
@@ -129,6 +130,11 @@ pub fn run() {
             commands::conflict::open_in_editor,
             commands::reflog::undo_preview,
             commands::reflog::undo_last,
+            commands::github::github_account,
+            commands::github::github_login_start,
+            commands::github::github_login_wait,
+            commands::github::github_login_cancel,
+            commands::github::github_logout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

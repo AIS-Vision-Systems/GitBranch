@@ -6,6 +6,7 @@ import { LockWorktreeDialog, type LockWorktreeDialogProps } from "./LockWorktree
 import { CloneDialog, type CloneDialogProps } from "./CloneDialog";
 import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranchDialog";
 import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
+import { LoginDialog, type LoginDialogProps } from "../github/LoginDialog";
 import { DIALOG } from "./ids";
 import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
 import { PullDialog, type PullDialogProps } from "./PullDialog";
@@ -87,5 +88,8 @@ export function registerPhase2Dialogs(): void {
       ...(p as unknown as Props<LockWorktreeDialogProps>),
       onClose,
     }),
+  );
+  registerDialog(DIALOG.githubLogin, (p, onClose) =>
+    createElement(LoginDialog, { ...(p as unknown as Props<LoginDialogProps>), onClose }),
   );
 }

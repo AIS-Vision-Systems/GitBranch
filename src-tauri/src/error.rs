@@ -60,3 +60,9 @@ from_parse_module_error!(ShowError);
 from_parse_module_error!(DiffError);
 from_parse_module_error!(RemoteError);
 from_parse_module_error!(SubmoduleError);
+
+impl From<github_api::Error> for AppError {
+    fn from(err: github_api::Error) -> Self {
+        AppError::new(err.code(), err.to_string())
+    }
+}
