@@ -336,3 +336,47 @@
 .avatar11 {
   fill: var(--avatar-11);
 }
+
+.prBadge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -2px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.prBadge:hover {
+  color: var(--color-fg);
+}
+
+.prDraft {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.prDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-fg-muted);
+}
+
+.prDotSuccess {
+  background: var(--color-success);
+}
+
+.prDotFailure {
+  background: var(--color-danger);
+}
+
+.prDotPending {
+  background: var(--color-warning);
+}

@@ -1,14 +1,17 @@
 //! GitHub sign-in (OAuth Device Flow) and account commands. No token ever leaves this module;
 //! the policy lives in `github-api` (`auth::complete_login`, `user::resolve_account`).
 
+use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use git_core::ops::pull_request::{CheckoutPr, checkout_pr};
 use git_core::ops::remote::list_remotes;
 use git_core::refname::is_valid_branch_name;
 use github_api::auth::{DeviceCode, complete_login, request_device_code, scopes};
+use github_api::checks::ChecksCache;
 use github_api::pulls::{
-    NewPull, PullDetail, PullState, PullSummary, create_pull, get_pull, list_pulls,
+    ChecksSummary, NewPull, PullDetail, PullState, PullSummary, create_pull, get_pull, list_pulls,
 };
 use github_api::repos::{Repo, RepoSlug, get_repo, list_repos, parse_github_remote};
 use github_api::token::{GITHUB_HOST, KeyringStore, TokenStore};
@@ -20,7 +23,7 @@ use tauri::async_runtime::{JoinHandle, spawn, spawn_blocking};
 use tokio_util::sync::CancellationToken;
 
 use super::remote::{check_op_id, check_remote, op_ctx};
-use super::{emit_changed, invalid_arg, not_open};
+use super::{emit_changed, invalid_arg, not_open, valid_oid};
 use crate::AppError;
 use crate::state::AppState;
 use crate::watcher::Change;
@@ -39,6 +42,8 @@ pub struct GithubState {
     pub client: GitHub<ReqwestTransport>,
     /// OS keyring.
     pub store: KeyringStore,
+    /// Cached check summaries per commit.
+    pub checks: ChecksCache,
     pending: Mutex<Pending>,
 }
 
@@ -47,6 +52,7 @@ impl Default for GithubState {
         Self {
             client: GitHub::new(ReqwestTransport::default()),
             store: KeyringStore,
+            checks: ChecksCache::new(Duration::from_secs(120), Duration::from_secs(20)),
             pending: Mutex::new(Pending::default()),
         }
     }
@@ -128,11 +134,29 @@ pub async fn github_login_cancel(state: State<'_, GithubState>) -> Result<(), Ap
 /// Removes the stored token.
 #[tauri::command]
 pub async fn github_logout(state: State<'_, GithubState>) -> Result<(), AppError> {
+    state.checks.clear();
     let store = state.store;
     spawn_blocking(move || store.delete(GITHUB_HOST))
         .await
         .map_err(|e| AppError::new("github.keyring", format!("background task failed: {e}")))?
         .map_err(|e| AppError::from(Error::from(e)))
+}
+
+/// Check summaries for up to 50 commits, cached (120 s, 20 s while pending); `force` bypasses it.
+#[tauri::command]
+pub async fn github_checks(
+    state: State<'_, AppState>,
+    gh: State<'_, GithubState>,
+    repo_id: String,
+    shas: Vec<String>,
+    force: bool,
+) -> Result<HashMap<String, ChecksSummary>, AppError> {
+    if shas.len() > 50 || !shas.iter().all(|s| s.len() >= 7 && valid_oid(s)) {
+        return Err(invalid_arg("shas (at most 50 hex ids of 7 to 64 characters)"));
+    }
+    let slug = require_slug(&state, &repo_id).await?;
+    let token = stored_token(&gh).await?;
+    gh.checks.get_many(&gh.client, &token, &slug, &shas, force).await.map_err(AppError::from)
 }
 
 /// The stored token, read on the blocking pool; `Unauthorized` when signed out.

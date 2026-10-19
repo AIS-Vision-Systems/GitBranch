@@ -1484,6 +1484,7 @@ dependencies = [
 name = "github-api"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "github-api",
  "keyring",
  "reqwest",

@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { isIpcError } from "../ipc/core";
 import * as ipc from "../ipc/github";
-import type { GithubRepoSlug, PullDetail, PullState, PullSummary } from "../ipc/github";
+import type {
+  ChecksSummary,
+  GithubRepoSlug,
+  PullDetail,
+  PullState,
+  PullSummary,
+} from "../ipc/github";
 import type { RepoId } from "../ipc/types";
 import { useDetailsStore } from "./details";
 import { useGraphStore } from "./graph";
@@ -26,6 +32,9 @@ export interface PullsRepo {
   detail: PullDetail | null;
   detailLoading: boolean;
   detailError: string | null;
+  /** Check summaries by head sha, for the open pull requests. */
+  checksBySha: Record<string, ChecksSummary>;
+  checksLoading: boolean;
 }
 
 export const EMPTY_PULLS: PullsRepo = {
@@ -40,12 +49,49 @@ export const EMPTY_PULLS: PullsRepo = {
   detail: null,
   detailLoading: false,
   detailError: null,
+  checksBySha: {},
+  checksLoading: false,
 };
+
+export interface PrMark {
+  number: number;
+  draft: boolean;
+  title: string;
+  overall: ChecksSummary["overall"] | "unknown";
+}
+
+const marksCache = new WeakMap<PullsRepo, Map<string, PrMark>>();
+
+/** Open same-repo pull requests keyed by local branch name and remote-tracking name. Memoized per entry. */
+export function prMarks(repo: PullsRepo): Map<string, PrMark> {
+  const hit = marksCache.get(repo);
+  if (hit !== undefined) return hit;
+  const byHead = new Map<string, PullSummary>();
+  for (const p of repo.pulls) {
+    if (p.state !== "open" || p.headRepo !== p.baseRepo) continue;
+    const cur = byHead.get(p.headRef);
+    if (cur === undefined || p.number < cur.number) byHead.set(p.headRef, p);
+  }
+  const out = new Map<string, PrMark>();
+  for (const [ref, p] of byHead) {
+    const mark: PrMark = {
+      number: p.number,
+      draft: p.draft,
+      title: p.title,
+      overall: repo.checksBySha[p.headSha]?.overall ?? "unknown",
+    };
+    out.set(ref, mark);
+    if (repo.slug != null) out.set(`${repo.slug.remote}/${ref}`, mark);
+  }
+  marksCache.set(repo, out);
+  return out;
+}
 
 interface PullsState {
   byRepo: Record<RepoId, PullsRepo>;
   loadSlug: (repoId: RepoId) => Promise<void>;
   loadPulls: (repoId: RepoId, force?: boolean) => Promise<void>;
+  loadChecks: (repoId: RepoId, force?: boolean) => Promise<void>;
   setFilter: (repoId: RepoId, filter: PullFilter) => Promise<void>;
   select: (repoId: RepoId, number: number | null) => Promise<void>;
   refresh: (repoId: RepoId) => Promise<void>;
@@ -131,10 +177,34 @@ export const usePullsStore = create<PullsState>((set, get) => {
         if (gen !== listGen.get(repoId)) return;
         if (filter === "mine") pulls = pulls.filter((p) => p.author === login);
         patch(repoId, { pulls, loaded: true, loading: false });
+        void get().loadChecks(repoId);
       } catch (e) {
         if (gen !== listGen.get(repoId)) return;
         if (codeOf(e) === UNAUTHORIZED) return unauthorized();
         patch(repoId, { loading: false, error: messageOf(e), errorCode: codeOf(e) });
+      }
+    },
+
+    loadChecks: async (repoId, force = false) => {
+      const shas = [
+        ...new Set(
+          pullsOf(get(), repoId)
+            .pulls.filter((p) => p.state === "open")
+            .map((p) => p.headSha),
+        ),
+      ].slice(0, 50);
+      if (shas.length === 0) return;
+      patch(repoId, { checksLoading: true });
+      try {
+        const res = await ipc.githubChecks(repoId, shas, force);
+        patch(repoId, {
+          checksBySha: { ...pullsOf(get(), repoId).checksBySha, ...res },
+          checksLoading: false,
+        });
+      } catch (e) {
+        patch(repoId, { checksLoading: false });
+        if (codeOf(e) === UNAUTHORIZED) return unauthorized();
+        console.debug("github checks failed", e);
       }
     },
 
@@ -177,6 +247,7 @@ export const usePullsStore = create<PullsState>((set, get) => {
       const list = get().loadPulls(repoId, true);
       if (sel !== null) await get().select(repoId, sel);
       await list;
+      await get().loadChecks(repoId, true);
     },
 
     checkout: (repoId, pull) => {

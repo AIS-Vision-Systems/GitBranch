@@ -197,3 +197,23 @@
   color: var(--color-fg-muted);
   font-size: 0.8rem;
 }
+
+.checkDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-fg-muted);
+}
+
+.checkSuccess {
+  background: var(--color-success);
+}
+
+.checkFailure {
+  background: var(--color-danger);
+}
+
+.checkPending {
+  background: var(--color-warning);
+}

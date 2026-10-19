@@ -134,6 +134,7 @@ pub fn run() {
             commands::github::github_repos,
             commands::github::github_repo_slug,
             commands::github::github_pulls,
+            commands::github::github_checks,
             commands::github::github_pull,
             commands::github::github_repo_info,
             commands::github::github_create_pull,

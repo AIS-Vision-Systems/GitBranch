@@ -1,6 +1,6 @@
-import { memo, useMemo, type MouseEvent } from "react";
+import { Fragment, memo, useMemo, type MouseEvent } from "react";
 import { formatRelative } from "../../lib/time";
-import type { Commit, Ref, Row } from "../../ipc/types";
+import type { Commit, Ref, RepoId, Row } from "../../ipc/types";
 import { avatarColor, initials } from "./avatar";
 import { chipItems } from "./chips";
 import { MAX_CHIPS } from "./constants";
@@ -8,6 +8,8 @@ import { colorIndex } from "./lanePaths";
 import { acceptDrag, leaveDrag, takeDrop } from "./dnd";
 import { rowDomId } from "./domId";
 import { LaneStrip } from "./LaneStrip";
+import { remoteTrackingName } from "./menus";
+import { PrBadge } from "./PrBadge";
 import { RefChip } from "./RefChip";
 import { WorktreeChip } from "./WorktreeChip";
 import type { WorktreeMark } from "./worktreeMarks";
@@ -15,6 +17,8 @@ import styles from "./Graph.module.css";
 
 export interface GraphRowProps {
   row: Row;
+  /** Repo of this graph; enables pull request badges on branch chips. */
+  repoId?: RepoId;
   commit: Commit;
   refs: Ref[];
   /** Other linked worktrees that have this commit checked out (always shown, never collapsed). */
@@ -42,6 +46,7 @@ export interface GraphRowProps {
 
 export const GraphRow = memo(function GraphRow({
   row,
+  repoId,
   commit,
   refs,
   worktrees,
@@ -76,15 +81,24 @@ export const GraphRow = memo(function GraphRow({
   const first = shown[0];
   const hasHeadChip = first?.gitRef.kind === "localBranch" && first.gitRef.isHead;
   const rest = hasHeadChip ? shown.slice(1) : shown;
-  const chip = (it: (typeof shown)[number]) => (
-    <RefChip
-      key={it.gitRef.fullName}
-      gitRef={it.gitRef}
-      withUpstream={it.withUpstream}
-      {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
-      {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
-    />
-  );
+  const chip = (it: (typeof shown)[number]) => {
+    const r = it.gitRef;
+    const local = r.kind === "localBranch";
+    const isBranch = local || (typeof r.kind === "object" && "remoteBranch" in r.kind);
+    return (
+      <Fragment key={r.fullName}>
+        <RefChip
+          gitRef={r}
+          withUpstream={it.withUpstream}
+          {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
+          {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
+        />
+        {repoId !== undefined && isBranch && (
+          <PrBadge repoId={repoId} name={local ? r.name : remoteTrackingName(r)} />
+        )}
+      </Fragment>
+    );
+  };
   const headChip = hasHeadChip && first !== undefined ? chip(first) : null;
   return (
     <div

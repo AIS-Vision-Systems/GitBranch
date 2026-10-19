@@ -166,3 +166,10 @@ export const githubRepoInfo = (repoId: RepoId): Promise<GithubRepo> =>
 
 export const githubCreatePull = (repoId: RepoId, args: NewPull): Promise<PullSummary> =>
   call("github_create_pull", { repoId, args });
+
+/** Backend caches for ~2 min; at most 50 shas; missing shas are simply absent. */
+export const githubChecks = (
+  repoId: RepoId,
+  shas: string[],
+  force: boolean,
+): Promise<Record<string, ChecksSummary>> => call("github_checks", { repoId, shas, force });

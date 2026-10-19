@@ -291,6 +291,7 @@ export function GraphView({ repoId }: Props) {
               <GraphRow
                 key={row.oid}
                 row={row}
+                repoId={repoId}
                 commit={commit}
                 refs={refMap.get(row.oid) ?? NO_REFS}
                 worktrees={worktreeMarks.get(row.oid) ?? NO_MARKS}

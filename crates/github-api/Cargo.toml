@@ -23,6 +23,7 @@ reqwest.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 github-api = { path = ".", features = ["mock"] }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 2026-10-19: Graph decorations (item 5.6): branch chips with an open pull request show a `#N` badge and a
+  check-status dot (green/red/yellow); clicking the badge opens the PR. The sidebar list shows the same dot.
+  Check runs are fetched in batches and cached for two minutes (20 s while pending).
 - 2026-10-19: Create pull request (item 5.5): from the Pull requests header or the current branch menu; base picker
   (default branch preselected), title and description prefilled from the commits, draft flag; the branch is pushed
   first (with upstream) when needed, and the new PR is selected in the sidebar.

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { KeyboardEvent } from "react";
-import type { PullSummary } from "../../ipc/github";
+import type { ChecksSummary, PullSummary } from "../../ipc/github";
 import type { RepoId } from "../../ipc/types";
 import { useGithubStore } from "../../state/github";
 import { pullsOf, usePullsStore } from "../../state/pulls";
@@ -20,13 +20,21 @@ const EMPTY_TEXT: Record<PullFilter, string> = {
   mine: "You have no pull requests here",
 };
 
+const CHECK_CLASS: Partial<Record<ChecksSummary["overall"], string>> = {
+  success: "checkSuccess",
+  failure: "checkFailure",
+  pending: "checkPending",
+};
+
 function PullRow({
   pull,
   selected,
+  checks,
   onSelect,
 }: {
   pull: PullSummary;
   selected: boolean;
+  checks: ChecksSummary | undefined;
   onSelect: (n: number) => void;
 }) {
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
@@ -48,6 +56,13 @@ function PullRow({
       onKeyDown={onKeyDown}
     >
       <div className={styles["line1"]}>
+        {checks !== undefined && CHECK_CLASS[checks.overall] !== undefined && (
+          <span
+            data-testid="check-dot"
+            title={`checks: ${checks.overall}`}
+            className={`${styles["checkDot"]} ${styles[CHECK_CLASS[checks.overall] ?? ""] ?? ""}`}
+          />
+        )}
         <span className={styles["pullNumber"]}>#{pull.number}</span>
         <span className={styles["pullTitle"]} title={pull.title}>
           {pull.title}
@@ -74,6 +89,7 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
   const loading = usePullsStore((s) => pullsOf(s, repoId).loading);
   const error = usePullsStore((s) => pullsOf(s, repoId).error);
   const selected = usePullsStore((s) => pullsOf(s, repoId).selected);
+  const checksBySha = usePullsStore((s) => pullsOf(s, repoId).checksBySha);
   const loadSlug = usePullsStore((s) => s.loadSlug);
   const loadPulls = usePullsStore((s) => s.loadPulls);
   const setFilter = usePullsStore((s) => s.setFilter);
@@ -128,6 +144,7 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
             key={p.number}
             pull={p}
             selected={p.number === selected}
+            checks={checksBySha[p.headSha]}
             onSelect={(n) => void select(repoId, n)}
           />
         ))}

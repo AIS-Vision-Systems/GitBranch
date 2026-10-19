@@ -98,8 +98,8 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 - [x] 5.3 Repo picker: list user/org repos (private included), clone from picker.
 - [x] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
 - [x] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
-- [~] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
-- [ ] 5.7 Rate-limit + offline handling; ETag caching for lists.
+- [x] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
+- [~] 5.7 Rate-limit + offline handling; ETag caching for lists.
 
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 

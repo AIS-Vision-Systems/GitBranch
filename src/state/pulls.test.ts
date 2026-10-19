@@ -5,12 +5,13 @@ import type { GithubAccount, PullDetail, PullSummary } from "../ipc/github";
 import type { RepoId } from "../ipc/types";
 import { useGithubStore } from "./github";
 import { useOpsStore } from "./ops";
-import { pullsOf, usePullsStore } from "./pulls";
+import { EMPTY_PULLS, prMarks, pullsOf, usePullsStore } from "./pulls";
 
 vi.mock("../ipc/github", () => ({
   githubRepoSlug: vi.fn(),
   githubPulls: vi.fn(),
   githubPull: vi.fn(),
+  githubChecks: vi.fn(),
   githubCheckoutPull: vi.fn(),
   githubAccount: vi.fn(),
   githubRepos: vi.fn(),
@@ -136,5 +137,54 @@ describe("pulls store", () => {
     expect(pullsOf(usePullsStore.getState(), id).loading).toBe(false);
     await usePullsStore.getState().loadPulls(id);
     expect(ipc.githubPulls).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("checks and prMarks", () => {
+  const slug = { remote: "origin", owner: "o", name: "r" };
+  const sum = (overall: "success" | "failure"): ipc.ChecksSummary => ({
+    total: 1,
+    success: 0,
+    failure: 0,
+    pending: 0,
+    skipped: 0,
+    overall,
+    runs: [],
+  });
+
+  it("loads checks for open PR shas after loadPulls", async () => {
+    vi.mocked(ipc.githubPulls).mockResolvedValue([
+      pull({ number: 1, headSha: "a" }),
+      pull({ number: 2, headSha: "a" }),
+      pull({ number: 3, headSha: "b" }),
+    ]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({ a: sum("success") });
+    await usePullsStore.getState().loadPulls(id);
+    expect(ipc.githubChecks).toHaveBeenCalledWith(id, ["a", "b"], false);
+    await vi.waitFor(() =>
+      expect(pullsOf(usePullsStore.getState(), id).checksBySha["a"]?.overall).toBe("success"),
+    );
+  });
+
+  it("marks same-repo open PRs by both names, lowest number wins", () => {
+    const repo = {
+      ...EMPTY_PULLS,
+      slug,
+      pulls: [
+        pull({ number: 9, headRef: "feat", headSha: "a" }),
+        pull({ number: 4, headRef: "feat", headSha: "a", draft: true }),
+        pull({ number: 5, headRef: "fork", headRepo: "x/r" }),
+        pull({ number: 6, headRef: "old", state: "closed" }),
+        pull({ number: 7, headRef: "nochk", headSha: "z" }),
+      ],
+      checksBySha: { a: sum("failure") },
+    };
+    const m = prMarks(repo);
+    expect(m.get("feat")).toMatchObject({ number: 4, draft: true, overall: "failure" });
+    expect(m.get("origin/feat")).toBe(m.get("feat"));
+    expect(m.get("nochk")?.overall).toBe("unknown");
+    expect(m.has("fork")).toBe(false);
+    expect(m.has("old")).toBe(false);
+    expect(prMarks(repo)).toBe(m);
   });
 });
