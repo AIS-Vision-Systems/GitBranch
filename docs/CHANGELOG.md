@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-19: Pull requests (item 5.4, D-028): a "Pull requests" sidebar section for GitHub repositories (Open /
+  Closed / Mine, draft and merged badges); selecting one shows the detail in the right pane (description, base and
+  head, +/- counts, check runs with status dots and links, review summary), with Checkout (same-repo PRs become a
+  tracking branch named after the head, fork PRs a local `pr/N` branch) and Open in browser.
 - 2026-10-19: GitHub repo picker (item 5.3): "Clone from GitHub..." on the welcome screen and "Pick from GitHub..." in
   the Clone dialog list your own, collaborator and organization repositories (private included) with search,
   owner filter, archived toggle and badges; choosing one prefills the Clone dialog.

@@ -3,7 +3,9 @@ import type { HunkSelection, PatchOp } from "../../ipc/stage";
 import type { RepoId } from "../../ipc/types";
 import { sameTarget, useDetailsStore } from "../../state/details";
 import { EMPTY_GRAPH, useGraphStore, WIP_OID } from "../../state/graph";
+import { pullsOf, usePullsStore } from "../../state/pulls";
 import { useWipStore } from "../../state/wip";
+import { PullDetailView } from "../github/PullDetailView";
 import { DiffView } from "../diff/DiffView";
 import { CommitDetails } from "./CommitDetails";
 import type { FileListItem } from "./FileList";
@@ -31,6 +33,8 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
     else if (selectedOid === WIP_OID) clear();
     else void loadDetails(repoId, selectedOid);
   }, [repoId, selectedOid, loadDetails, clear]);
+
+  const pullSelected = usePullsStore((s) => pullsOf(s, repoId).selected !== null);
 
   const entries = status?.entries;
   const wip = useMemo(() => (entries === undefined ? [] : wipItems(entries)), [entries]);
@@ -62,6 +66,16 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
       await selectFile(repoId, now.target, now.label);
     }
   };
+
+  if (pullSelected) {
+    return (
+      <div className={styles["pane"]}>
+        <div className={styles["top"]}>
+          <PullDetailView repoId={repoId} />
+        </div>
+      </div>
+    );
+  }
 
   let top;
   if (selectedOid === null) {

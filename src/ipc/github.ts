@@ -1,4 +1,5 @@
 import { call } from "./core";
+import type { RepoId } from "./types";
 
 export interface GithubUser {
   login: string;
@@ -56,3 +57,97 @@ export interface GithubRepo {
 export const githubRepos = (): Promise<GithubRepo[]> => call("github_repos");
 
 export const githubLogout = (): Promise<void> => call("github_logout");
+
+export interface GithubRepoSlug {
+  remote: string;
+  owner: string;
+  name: string;
+}
+
+export type PullState = "open" | "closed" | "all";
+
+export interface PullSummary {
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  draft: boolean;
+  merged: boolean;
+  author: string;
+  headRef: string;
+  headSha: string;
+  headRepo: string | null;
+  baseRef: string;
+  baseRepo: string;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  labels: string[];
+}
+
+/** state: approved | changes_requested | commented | dismissed | pending */
+export interface Reviewer {
+  login: string;
+  state: string;
+}
+
+export interface ReviewSummary {
+  approved: number;
+  changesRequested: number;
+  commented: number;
+  reviewers: Reviewer[];
+}
+
+export interface CheckRun {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  htmlUrl: string | null;
+}
+
+export interface ChecksSummary {
+  total: number;
+  success: number;
+  failure: number;
+  pending: number;
+  skipped: number;
+  overall: "none" | "failure" | "pending" | "success";
+  runs: CheckRun[];
+}
+
+export interface PullDetail extends PullSummary {
+  body: string | null;
+  mergeable: boolean | null;
+  mergeableState: string | null;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  commits: number;
+  comments: number;
+  reviewComments: number;
+  mergedBy: string | null;
+  reviews: ReviewSummary;
+  checks: ChecksSummary;
+}
+
+export interface CheckoutPrArgs {
+  remote: string;
+  number: number;
+  headRef: string;
+  sameRepo: boolean;
+}
+
+export const githubRepoSlug = (repoId: RepoId): Promise<GithubRepoSlug | null> =>
+  call("github_repo_slug", { repoId });
+
+export const githubPulls = (repoId: RepoId, pullState: PullState): Promise<PullSummary[]> =>
+  call("github_pulls", { repoId, pullState });
+
+export const githubPull = (repoId: RepoId, number: number): Promise<PullDetail> =>
+  call("github_pull", { repoId, number });
+
+/** Resolves with the local branch name; the backend emits repo-changed itself. */
+export const githubCheckoutPull = (
+  repoId: RepoId,
+  args: CheckoutPrArgs,
+  opId: string,
+): Promise<string> => call("github_checkout_pull", { repoId, args, opId });

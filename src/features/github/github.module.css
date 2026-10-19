@@ -219,3 +219,177 @@
   gap: var(--space-3);
   color: var(--color-fg-muted);
 }
+
+.pr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.prHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.prTitle {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.prNumber {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.prClose {
+  background: transparent;
+  color: var(--color-fg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.prClose:hover {
+  background: var(--color-row-hover);
+}
+
+.prBadge {
+  flex: none;
+  font-size: 0.75rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-1);
+  background: var(--color-chip-bg);
+  color: var(--color-fg-muted);
+}
+
+.prBadgeOpen {
+  background: var(--color-success);
+  color: var(--color-on-accent);
+}
+
+.prBadgeMerged {
+  background: var(--color-merged);
+  color: var(--color-on-accent);
+}
+
+.prBadgeClosed {
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+}
+
+.prMeta {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.prRef {
+  font-family: var(--font-mono);
+  color: var(--color-fg);
+}
+
+.prChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.prCounts {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 0.85rem;
+}
+
+.prAdd {
+  color: var(--color-success);
+}
+
+.prDel {
+  color: var(--color-danger);
+}
+
+.prBody {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.prSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.prRun {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.prRunName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prRunStatus {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.prLink {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-fg-muted);
+}
+
+.dotSuccess {
+  background: var(--color-success);
+}
+
+.dotFailure {
+  background: var(--color-danger);
+}
+
+.dotPending {
+  background: var(--color-warning);
+}
+
+.prActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.prError {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+}

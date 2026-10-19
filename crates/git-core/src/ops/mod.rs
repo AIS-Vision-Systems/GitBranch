@@ -10,6 +10,7 @@ pub mod ignore;
 pub mod maintenance;
 pub mod merge;
 pub mod patch;
+pub mod pull_request;
 pub mod rebase;
 pub mod reflog;
 pub mod remote;

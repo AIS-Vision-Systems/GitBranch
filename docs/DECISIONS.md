@@ -237,3 +237,7 @@ detail fetches the PR, its reviews, and the head commit's check runs + combined 
 is shown as plain text in Phase 5; markdown rendering is a Phase 6 polish item.
 Consequences: `FetchArgs` gains `refspecs`; `github_repo_slug`, `github_pulls`, `github_pull`, `github_checkout_pull`
 Tauri commands; the checks summary type is shared with the graph decorations of 5.6.
+
+Amendment 2026-10-19: the fork PR head is fetched to `refs/pull/<remote>/N` (not `refs/remotes/<remote>/pr/N`), so
+`fetch --prune` cannot delete it and a real remote branch `pr/N` cannot collide; local `pr/N` is created from it.
+Checkout never relies on `branch.autoSetupMerge`: same-repo uses `switch --track`, forks `switch --no-track`.

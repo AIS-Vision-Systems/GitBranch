@@ -25,6 +25,8 @@ interface GithubState {
   cancelLogin: () => Promise<void>;
   resetLogin: () => void;
   logout: () => Promise<void>;
+  /** The backend said the token is invalid: drop the account locally (no backend call). */
+  signedOut: () => void;
 }
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -100,6 +102,8 @@ export const useGithubStore = create<GithubState>((set, get) => {
     },
 
     resetLogin: () => set({ login: { step: "idle" } }),
+
+    signedOut: () => set({ account: null, error: null, repos: null, reposError: null }),
 
     logout: async () => {
       try {

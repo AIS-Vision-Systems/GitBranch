@@ -96,8 +96,8 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 - [x] 5.1 Device Flow login (`github-api::auth`): request code, show user code + open browser, poll, store token with `keyring` (Windows Credential Manager / Secret Service). Scopes: `repo`, `read:org`; `workflow` optional toggle.
 - [x] 5.2 Account panel: user, scopes, logout (delete local token; link to GitHub revoke page).
 - [x] 5.3 Repo picker: list user/org repos (private included), clone from picker.
-- [~] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
-- [ ] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
+- [x] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
+- [~] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
 - [ ] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
 - [ ] 5.7 Rate-limit + offline handling; ETag caching for lists.
 
