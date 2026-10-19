@@ -93,8 +93,8 @@ Acceptance: fetch/pull/push against a private GitHub repo over HTTPS using only 
 Acceptance: create, commit in worktree, see it in the main tab graph without manual refresh, remove.
 
 ### Phase 5 — GitHub integration (OAuth App)
-- [ ] 5.1 Device Flow login (`github-api::auth`): request code, show user code + open browser, poll, store token with `keyring` (Windows Credential Manager / Secret Service). Scopes: `repo`, `read:org`; `workflow` optional toggle.
-- [ ] 5.2 Account panel: user, scopes, logout (delete local token; link to GitHub revoke page).
+- [x] 5.1 Device Flow login (`github-api::auth`): request code, show user code + open browser, poll, store token with `keyring` (Windows Credential Manager / Secret Service). Scopes: `repo`, `read:org`; `workflow` optional toggle.
+- [x] 5.2 Account panel: user, scopes, logout (delete local token; link to GitHub revoke page).
 - [ ] 5.3 Repo picker: list user/org repos (private included), clone from picker.
 - [ ] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
 - [ ] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.

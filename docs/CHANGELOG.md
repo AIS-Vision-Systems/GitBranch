@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 2026-10-19: GitHub sign-in (Phase 5, items 5.1-5.2, D-027): "Sign in to GitHub" in the header starts the OAuth Device
+  Flow (one-time code, Copy, Open github.com, countdown, optional `workflow` scope); the token goes to the OS keyring
+  and feeds git over HTTPS through the askpass bridge. The account menu shows name, login, granted scopes, an
+  offline marker when GitHub is unreachable, Sign out (removes the local token), Re-authorize and a link to the
+  GitHub revoke page.
 - 2026-10-19: Worktrees (Phase 4, items 4.1-4.4, D-025/D-026): a collapsible left sidebar with a Worktrees section
   (branch or detached commit, path, main/current/locked/prunable badges), Add worktree dialog (new/existing branch
   or detached, default path `../<repo>.<branch>`, folder picker, force; Ctrl+Shift+W or "Add worktree here..." from

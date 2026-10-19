@@ -21,6 +21,7 @@ import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
 import { openAddWorktree, openClone } from "./features/dialogs/open";
+import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
 import { useReposStore } from "./state/repos";
@@ -155,6 +156,7 @@ export default function App() {
         >
           Theme: {theme}
         </button>
+        <AccountMenu />
       </header>
       <ProgressBar />
       {current !== null && <OpBanner repoId={current.repoId} />}
