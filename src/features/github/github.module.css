@@ -419,3 +419,48 @@
 .pullBodyText {
   min-height: 7rem;
 }
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-warning);
+  font-size: 0.85rem;
+}
+
+.noticeCompact {
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.noticeButton {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.noticeButton:hover {
+  background: var(--color-row-hover);
+}
+
+.warnDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: var(--space-1);
+  border-radius: 50%;
+  background: var(--color-warning);
+}
+
+.statusLine {
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.statusWarn {
+  color: var(--color-warning);
+}

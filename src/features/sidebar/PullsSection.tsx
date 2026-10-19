@@ -5,6 +5,7 @@ import type { RepoId } from "../../ipc/types";
 import { useGithubStore } from "../../state/github";
 import { pullsOf, usePullsStore } from "../../state/pulls";
 import type { PullFilter } from "../../state/pulls";
+import { GithubNotice } from "../github/GithubNotice";
 import { openCreatePull, openGithubLogin } from "../dialogs/open";
 import styles from "./Sidebar.module.css";
 
@@ -88,6 +89,7 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
   const loaded = usePullsStore((s) => pullsOf(s, repoId).loaded);
   const loading = usePullsStore((s) => pullsOf(s, repoId).loading);
   const error = usePullsStore((s) => pullsOf(s, repoId).error);
+  const problem = usePullsStore((s) => pullsOf(s, repoId).problem);
   const selected = usePullsStore((s) => pullsOf(s, repoId).selected);
   const checksBySha = usePullsStore((s) => pullsOf(s, repoId).checksBySha);
   const loadSlug = usePullsStore((s) => s.loadSlug);
@@ -119,6 +121,8 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
         </button>
       </div>
     );
+  } else if (error !== null && problem !== null && problem.kind !== "other") {
+    body = <GithubNotice compact problem={problem} onRetry={() => void loadPulls(repoId, true)} />;
   } else if (error !== null) {
     body = (
       <div className={styles["sectionNote"]} role="alert">

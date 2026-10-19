@@ -68,4 +68,41 @@ describe("PullsSection", () => {
     fireEvent.click(screen.getByText("Second"));
     expect(select).toHaveBeenCalledWith(id, 2);
   });
+
+  it("shows the offline notice with Retry instead of the raw error", () => {
+    setup(slug, account);
+    const loadPulls = vi.fn().mockResolvedValue(undefined);
+    usePullsStore.setState((st) => ({
+      loadPulls,
+      byRepo: {
+        [id]: {
+          ...(st.byRepo[id] ?? EMPTY_PULLS),
+          error: "raw network failure",
+          errorCode: "github.network",
+          problem: { kind: "offline" },
+        },
+      },
+    }));
+    render(<PullsSection repoId={id} />);
+    expect(screen.getByText("GitHub is unreachable. Working offline.")).toBeTruthy();
+    expect(screen.queryByText("raw network failure")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(loadPulls).toHaveBeenCalledWith(id, true);
+  });
+
+  it("keeps the raw message for other errors", () => {
+    setup(slug, account);
+    usePullsStore.setState((st) => ({
+      byRepo: {
+        [id]: {
+          ...(st.byRepo[id] ?? EMPTY_PULLS),
+          error: "weird failure",
+          errorCode: "github.http",
+          problem: { kind: "other", message: "weird failure" },
+        },
+      },
+    }));
+    render(<PullsSection repoId={id} />);
+    expect(screen.getByText("weird failure")).toBeTruthy();
+  });
 });

@@ -2,7 +2,7 @@
 //! the policy lives in `github-api` (`auth::complete_login`, `user::resolve_account`).
 
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use git_core::ops::pull_request::{CheckoutPr, checkout_pr};
@@ -10,6 +10,7 @@ use git_core::ops::remote::list_remotes;
 use git_core::refname::is_valid_branch_name;
 use github_api::auth::{DeviceCode, complete_login, request_device_code, scopes};
 use github_api::checks::ChecksCache;
+use github_api::client::GithubStatus;
 use github_api::pulls::{
     ChecksSummary, NewPull, PullDetail, PullState, PullSummary, create_pull, get_pull, list_pulls,
 };
@@ -39,7 +40,7 @@ struct Pending {
 /// Shared GitHub client, credential store and the in-flight login.
 pub struct GithubState {
     /// REST client.
-    pub client: GitHub<ReqwestTransport>,
+    pub client: Arc<GitHub<ReqwestTransport>>,
     /// OS keyring.
     pub store: KeyringStore,
     /// Cached check summaries per commit.
@@ -50,7 +51,7 @@ pub struct GithubState {
 impl Default for GithubState {
     fn default() -> Self {
         Self {
-            client: GitHub::new(ReqwestTransport::default()),
+            client: Arc::new(GitHub::new(ReqwestTransport::default())),
             store: KeyringStore,
             checks: ChecksCache::new(Duration::from_secs(120), Duration::from_secs(20)),
             pending: Mutex::new(Pending::default()),
@@ -77,7 +78,7 @@ impl GithubState {
 #[tauri::command]
 pub async fn github_account(state: State<'_, GithubState>) -> Result<Option<Account>, AppError> {
     // Keyring access blocks, so the whole resolution runs on the blocking pool.
-    let gh = GitHub::new(ReqwestTransport::default());
+    let gh = Arc::clone(&state.client);
     let store = state.store;
     spawn_blocking(move || {
         tauri::async_runtime::block_on(async move { resolve_account(&gh, &store).await })
@@ -85,6 +86,12 @@ pub async fn github_account(state: State<'_, GithubState>) -> Result<Option<Acco
     .await
     .map_err(|e| AppError::new("github.network", format!("background task failed: {e}")))?
     .map_err(AppError::from)
+}
+
+/// Connectivity and rate-limit snapshot of the shared client.
+#[tauri::command]
+pub async fn github_status(gh: State<'_, GithubState>) -> Result<GithubStatus, AppError> {
+    Ok(gh.client.status())
 }
 
 /// Starts a device-flow login: returns the code to show, polls in the background.
@@ -98,10 +105,8 @@ pub async fn github_login_start(
     let cancel = CancellationToken::new();
     let store = state.store;
     let (task_code, task_cancel) = (code.clone(), cancel.clone());
-    let task = spawn(async move {
-        let gh = GitHub::new(ReqwestTransport::default());
-        complete_login(&gh, &store, &task_code, &task_cancel).await
-    });
+    let gh = Arc::clone(&state.client);
+    let task = spawn(async move { complete_login(&gh, &store, &task_code, &task_cancel).await });
     let mut p = state.pending();
     // A concurrent start may have registered meanwhile: always cancel what was live.
     if let Some(old) = p.cancel.replace(cancel) {
@@ -135,6 +140,7 @@ pub async fn github_login_cancel(state: State<'_, GithubState>) -> Result<(), Ap
 #[tauri::command]
 pub async fn github_logout(state: State<'_, GithubState>) -> Result<(), AppError> {
     state.checks.clear();
+    state.client.clear_cache();
     let store = state.store;
     spawn_blocking(move || store.delete(GITHUB_HOST))
         .await

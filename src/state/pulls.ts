@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { isIpcError } from "../ipc/core";
+import { classifyGithubError } from "../lib/githubErrors";
+import type { GithubProblem } from "../lib/githubErrors";
 import * as ipc from "../ipc/github";
 import type {
   ChecksSummary,
@@ -28,6 +30,8 @@ export interface PullsRepo {
   error: string | null;
   /** Error code of the last failure (e.g. `github.unauthorized`). */
   errorCode: string | null;
+  /** Classified form of the last failure (offline, rate limit, ...). */
+  problem: GithubProblem | null;
   selected: number | null;
   detail: PullDetail | null;
   detailLoading: boolean;
@@ -45,6 +49,7 @@ export const EMPTY_PULLS: PullsRepo = {
   loading: false,
   error: null,
   errorCode: null,
+  problem: null,
   selected: null,
   detail: null,
   detailLoading: false,
@@ -171,17 +176,24 @@ export const usePullsStore = create<PullsState>((set, get) => {
       if (account === null || account === undefined) return; // signed out or not loaded yet
       const login = account.user.login;
       const gen = bump(listGen, repoId);
-      patch(repoId, { loading: true, error: null, errorCode: null });
+      patch(repoId, { loading: true, error: null, errorCode: null, problem: null });
       try {
         let pulls = await ipc.githubPulls(repoId, STATE_OF[filter]);
         if (gen !== listGen.get(repoId)) return;
         if (filter === "mine") pulls = pulls.filter((p) => p.author === login);
         patch(repoId, { pulls, loaded: true, loading: false });
+        useGithubStore.getState().noteSuccess();
         void get().loadChecks(repoId);
       } catch (e) {
         if (gen !== listGen.get(repoId)) return;
         if (codeOf(e) === UNAUTHORIZED) return unauthorized();
-        patch(repoId, { loading: false, error: messageOf(e), errorCode: codeOf(e) });
+        useGithubStore.getState().noteError(e);
+        patch(repoId, {
+          loading: false,
+          error: messageOf(e),
+          errorCode: codeOf(e),
+          problem: classifyGithubError(e),
+        });
       }
     },
 
@@ -201,9 +213,11 @@ export const usePullsStore = create<PullsState>((set, get) => {
           checksBySha: { ...pullsOf(get(), repoId).checksBySha, ...res },
           checksLoading: false,
         });
+        useGithubStore.getState().noteSuccess();
       } catch (e) {
         patch(repoId, { checksLoading: false });
         if (codeOf(e) === UNAUTHORIZED) return unauthorized();
+        useGithubStore.getState().noteError(e);
         console.debug("github checks failed", e);
       }
     },
@@ -217,6 +231,7 @@ export const usePullsStore = create<PullsState>((set, get) => {
         loading: false,
         error: null,
         errorCode: null,
+        problem: null,
       });
       await get().loadPulls(repoId);
     },
@@ -235,9 +250,11 @@ export const usePullsStore = create<PullsState>((set, get) => {
         const detail = await ipc.githubPull(repoId, number);
         if (gen !== detailGen.get(repoId)) return;
         patch(repoId, { detail, detailLoading: false });
+        useGithubStore.getState().noteSuccess();
       } catch (e) {
         if (gen !== detailGen.get(repoId)) return;
         if (codeOf(e) === "github.unauthorized") return unauthorized();
+        useGithubStore.getState().noteError(e);
         patch(repoId, { detailLoading: false, detailError: messageOf(e) });
       }
     },

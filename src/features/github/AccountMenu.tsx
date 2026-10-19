@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { GITHUB_REVOKE_URL } from "../../ipc/github";
+import { useNow } from "../../lib/useNow";
+import { describeProblem, formatClock } from "../../lib/githubErrors";
 import { useGithubStore } from "../../state/github";
 import { openGithubLogin } from "../dialogs/open";
 import appStyles from "../../App.module.css";
@@ -18,7 +20,10 @@ export function AccountMenu() {
   const account = useGithubStore((s) => s.account);
   const refresh = useGithubStore((s) => s.refresh);
   const logout = useGithubStore((s) => s.logout);
+  const status = useGithubStore((s) => s.status);
+  const loadStatus = useGithubStore((s) => s.loadStatus);
   const [open, setOpen] = useState(false);
+  const nowMs = useNow(open || status?.rateLimitedUntil != null ? 15000 : null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -26,6 +31,10 @@ export function AccountMenu() {
   useEffect(() => {
     if (open) popoverRef.current?.querySelector<HTMLElement>("button")?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (open) void loadStatus();
+  }, [open, loadStatus]);
 
   useEffect(() => {
     void refresh();
@@ -57,7 +66,19 @@ export function AccountMenu() {
     );
   }
 
-  const { user, scopes, offline } = account;
+  const limitedUntil =
+    status?.rateLimitedUntil != null && status.rateLimitedUntil * 1000 > nowMs
+      ? status.rateLimitedUntil
+      : null;
+  const offline = limitedUntil === null && (account.offline || status?.online === false);
+  const { user, scopes } = account;
+  const rl = status?.rateLimit ?? null;
+  const warning: string | null =
+    limitedUntil !== null
+      ? describeProblem({ kind: "rateLimited", resetAt: limitedUntil }, nowMs)
+      : offline
+        ? describeProblem({ kind: "offline" })
+        : null;
   return (
     <div className={styles["wrap"]} ref={wrapRef}>
       <button
@@ -66,7 +87,7 @@ export function AccountMenu() {
         className={appStyles["themeButton"]}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={offline ? "GitHub unreachable; showing the stored account" : undefined}
+        title={warning ?? undefined}
         onClick={() => setOpen((v) => !v)}
       >
         <span className={styles["avatar"]} aria-hidden="true">
@@ -74,6 +95,9 @@ export function AccountMenu() {
         </span>
         {user.login}
         {offline && <span className={styles["muted"]}> (offline)</span>}
+        {warning !== null && (
+          <span className={styles["warnDot"]} data-testid="github-warning-dot" aria-hidden="true" />
+        )}
       </button>
       {open && (
         <div
@@ -90,7 +114,17 @@ export function AccountMenu() {
           >
             @{user.login}
           </button>
-          {offline ? (
+          {limitedUntil !== null && (
+            <div className={`${styles["statusLine"]} ${styles["statusWarn"]}`}>
+              Rate limited until {formatClock(limitedUntil)}
+            </div>
+          )}
+          {rl !== null && rl.remaining < 500 && (
+            <div className={styles["statusLine"]}>
+              API: {rl.remaining} of {rl.limit} requests left, resets {formatClock(rl.reset)}
+            </div>
+          )}
+          {account.offline ? (
             <div className={styles["muted"]}>scopes unknown (offline)</div>
           ) : (
             <div className={styles["chips"]}>

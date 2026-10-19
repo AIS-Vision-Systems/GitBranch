@@ -144,6 +144,7 @@ pub fn run() {
             commands::github::github_login_wait,
             commands::github::github_login_cancel,
             commands::github::github_logout,
+            commands::github::github_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

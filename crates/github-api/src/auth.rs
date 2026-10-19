@@ -188,6 +188,7 @@ pub async fn complete_login<T: Transport, S: TokenStore + Sync>(
     let token = poll_access_token(gh, code, cancel).await?;
     let account = current_user(gh, &token.token).await?;
     store.set(GITHUB_HOST, &account.user.login, &token.token)?;
+    gh.clear_cache(); // responses cached under the previous token
     tracing::info!(login = %account.user.login, "signed in to GitHub");
     Ok(account)
 }

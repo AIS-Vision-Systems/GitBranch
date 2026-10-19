@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-19: GitHub resilience (item 5.7): list calls use ETag caching (304 answers do not count against the
+  rate limit); the account menu shows the remaining API budget and a warning dot when offline or rate limited; the
+  Pull requests section, repo picker and Create PR dialog show a clear offline / rate-limit / signed-out notice with
+  Retry instead of retrying on their own.
 - 2026-10-19: Graph decorations (item 5.6): branch chips with an open pull request show a `#N` badge and a
   check-status dot (green/red/yellow); clicking the badge opens the PR. The sidebar list shows the same dot.
   Check runs are fetched in batches and cached for two minutes (20 s while pending).

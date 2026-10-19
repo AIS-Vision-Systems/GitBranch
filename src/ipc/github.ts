@@ -173,3 +173,19 @@ export const githubChecks = (
   shas: string[],
   force: boolean,
 ): Promise<Record<string, ChecksSummary>> => call("github_checks", { repoId, shas, force });
+
+export interface RateLimit {
+  limit: number;
+  remaining: number;
+  /** Epoch seconds. */
+  reset: number;
+}
+
+export interface GithubStatus {
+  online: boolean;
+  rateLimit: RateLimit | null;
+  /** Epoch seconds; set while the backend refuses calls after a rate-limit response. */
+  rateLimitedUntil: number | null;
+}
+
+export const githubStatus = (): Promise<GithubStatus> => call("github_status");

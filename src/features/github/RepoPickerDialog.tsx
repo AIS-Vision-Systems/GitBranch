@@ -3,6 +3,7 @@ import type { GithubRepo } from "../../ipc/github";
 import { useGithubStore } from "../../state/github";
 import { formatRelative } from "../../lib/time";
 import { Dialog } from "../shell/Dialog";
+import { GithubNotice } from "./GithubNotice";
 import form from "../dialogs/Form.module.css";
 import { openClone, openGithubLogin } from "../dialogs/open";
 import styles from "./github.module.css";
@@ -23,6 +24,7 @@ export function RepoPickerDialog({ onClose }: RepoPickerDialogProps) {
   const repos = useGithubStore((s) => s.repos);
   const loading = useGithubStore((s) => s.reposLoading);
   const error = useGithubStore((s) => s.reposError);
+  const problem = useGithubStore((s) => s.reposProblem);
   const loadRepos = useGithubStore((s) => s.loadRepos);
   const [query, setQuery] = useState("");
   const [owner, setOwner] = useState("");
@@ -119,12 +121,18 @@ export function RepoPickerDialog({ onClose }: RepoPickerDialogProps) {
   if (error !== null) {
     list = (
       <div className={styles["pickerMessage"]}>
-        <div className={form["error"]} role="alert">
-          {error}
-        </div>
-        <button type="button" className={form["cancel"]} onClick={() => void loadRepos(true)}>
-          Retry
-        </button>
+        {problem !== null && problem.kind !== "other" ? (
+          <GithubNotice problem={problem} onRetry={() => void loadRepos(true)} />
+        ) : (
+          <>
+            <div className={form["error"]} role="alert">
+              {error}
+            </div>
+            <button type="button" className={form["cancel"]} onClick={() => void loadRepos(true)}>
+              Retry
+            </button>
+          </>
+        )}
       </div>
     );
   } else if (repos === null || loading) {

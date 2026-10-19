@@ -11,6 +11,7 @@ vi.mock("../ipc/github", () => ({
   githubLoginCancel: vi.fn(),
   githubLogout: vi.fn(),
   githubRepos: vi.fn(),
+  githubStatus: vi.fn(),
 }));
 
 const acct: GithubAccount = {
@@ -148,5 +149,34 @@ describe("github store", () => {
       await useGithubStore.getState().logout();
       expect(useGithubStore.getState().repos).toBeNull();
     });
+  });
+});
+
+describe("problem tracking", () => {
+  it("noteError classifies and loads the status", async () => {
+    const status = { online: false, rateLimit: null, rateLimitedUntil: null };
+    vi.mocked(ipc.githubStatus).mockResolvedValue(status);
+    useGithubStore.getState().noteError(new IpcError({ code: "github.network", message: "down" }));
+    expect(useGithubStore.getState().problem).toEqual({ kind: "offline" });
+    await vi.waitFor(() => expect(useGithubStore.getState().status).toEqual(status));
+  });
+
+  it("noteError swallows status failures", async () => {
+    useGithubStore.setState({ status: null });
+    vi.mocked(ipc.githubStatus).mockRejectedValue(new Error("x"));
+    useGithubStore.getState().noteError(new Error("boom"));
+    await useGithubStore.getState().loadStatus();
+    expect(useGithubStore.getState().problem).toEqual({ kind: "other", message: "boom" });
+    expect(useGithubStore.getState().status).toBeNull();
+  });
+
+  it("noteSuccess clears the problem and marks online", () => {
+    useGithubStore.setState({
+      problem: { kind: "offline" },
+      status: { online: false, rateLimit: null, rateLimitedUntil: null },
+    });
+    useGithubStore.getState().noteSuccess();
+    expect(useGithubStore.getState().problem).toBeNull();
+    expect(useGithubStore.getState().status?.online).toBe(true);
   });
 });

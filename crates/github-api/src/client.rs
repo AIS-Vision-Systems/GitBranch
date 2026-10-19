@@ -1,9 +1,14 @@
 //! Thin GitHub REST client over a [`Transport`].
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 
 use crate::error::Error;
 use crate::http::{Method, Request, Response, Transport};
@@ -13,18 +18,116 @@ pub const API_BASE: &str = "https://api.github.com";
 /// Web base URL (OAuth endpoints).
 pub const WEB_BASE: &str = "https://github.com";
 
+/// Default ETag cache capacity (entries).
+const CACHE_CAPACITY: usize = 256;
+/// Back-off when GitHub signals a rate limit without saying when it ends.
+const DEFAULT_BACKOFF_SECS: u64 = 60;
+/// Longest local refusal window, whatever the server asks for.
+const MAX_BACKOFF_SECS: u64 = 3600;
+
+/// Rate-limit counters from the last response carrying `x-ratelimit-*` headers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RateLimit {
+    /// Requests allowed per window.
+    pub limit: u32,
+    /// Requests left in the window.
+    pub remaining: u32,
+    /// Window end, epoch seconds.
+    pub reset: u64,
+}
+
+/// Connectivity and rate-limit state, for the UI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GithubStatus {
+    /// `false` after a network failure until the next response.
+    pub online: bool,
+    /// Last known counters.
+    pub rate_limit: Option<RateLimit>,
+    /// While set (and in the future), requests are refused locally. Epoch seconds.
+    pub rate_limited_until: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+struct CachedEntry {
+    etag: String,
+    body: Vec<u8>,
+    headers: Vec<(String, String)>,
+    inserted: Instant,
+}
+
+/// Mutable client state. The back-off window is tracked twice: `Instant` decides when to
+/// stop refusing (monotonic, controllable with tokio's paused time in tests), the epoch value
+/// is what is reported to the UI.
+#[derive(Debug)]
+struct State {
+    rate: Option<RateLimit>,
+    online: bool,
+    blocked: Option<(Instant, u64)>,
+}
+
 /// GitHub client.
 #[derive(Debug)]
 pub struct GitHub<T: Transport> {
     transport: T,
     api_base: String,
     web_base: String,
+    etags: Mutex<HashMap<String, CachedEntry>>,
+    cache_capacity: usize,
+    generation: AtomicU64,
+    state: Mutex<State>,
+}
+
+fn lock<V>(m: &Mutex<V>) -> MutexGuard<'_, V> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn epoch_now() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
+fn parse_rate(res: &Response) -> Option<RateLimit> {
+    Some(RateLimit {
+        limit: res.header("x-ratelimit-limit")?.trim().parse().ok()?,
+        remaining: res.header("x-ratelimit-remaining")?.trim().parse().ok()?,
+        reset: res.header("x-ratelimit-reset")?.trim().parse().ok()?,
+    })
 }
 
 impl<T: Transport> GitHub<T> {
     /// Client against github.com.
     pub fn new(transport: T) -> Self {
-        Self { transport, api_base: API_BASE.into(), web_base: WEB_BASE.into() }
+        Self {
+            transport,
+            api_base: API_BASE.into(),
+            web_base: WEB_BASE.into(),
+            etags: Mutex::new(HashMap::new()),
+            cache_capacity: CACHE_CAPACITY,
+            generation: AtomicU64::new(0),
+            state: Mutex::new(State { rate: None, online: true, blocked: None }),
+        }
+    }
+
+    /// Sets the ETag cache capacity (at least 1).
+    #[must_use]
+    pub fn with_cache_capacity(mut self, capacity: usize) -> Self {
+        self.cache_capacity = capacity.max(1);
+        self
+    }
+
+    /// Drops every cached response (sign-out).
+    pub fn clear_cache(&self) {
+        let mut map = lock(&self.etags);
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        map.clear();
+    }
+
+    /// Connectivity and rate-limit snapshot.
+    pub fn status(&self) -> GithubStatus {
+        let st = lock(&self.state);
+        let until = st.blocked.filter(|(i, _)| Instant::now() < *i).map(|(_, e)| e);
+        GithubStatus { online: st.online, rate_limit: st.rate, rate_limited_until: until }
     }
 
     /// The underlying transport.
@@ -93,18 +196,105 @@ impl<T: Transport> GitHub<T> {
         url: String,
         body: Option<Vec<u8>>,
     ) -> Result<Response, Error> {
-        let mut headers = vec![
-            ("Accept".to_string(), "application/vnd.github+json".to_string()),
-            ("X-GitHub-Api-Version".to_string(), "2022-11-28".to_string()),
-        ];
-        if let Some(t) = token {
-            headers.push(("Authorization".into(), format!("Bearer {t}")));
+        let until = {
+            let st = lock(&self.state);
+            st.blocked.filter(|(i, _)| Instant::now() < *i).map(|(_, e)| e)
+        };
+        if let Some(until) = until {
+            return Err(Error::RateLimited { reset: Some(until) });
         }
-        if body.is_some() {
-            headers.push(("Content-Type".into(), "application/json".into()));
+        let is_get = method == Method::Get;
+        let generation = self.generation.load(Ordering::SeqCst);
+        let mut use_cache = is_get;
+        loop {
+            let mut headers = vec![
+                ("Accept".to_string(), "application/vnd.github+json".to_string()),
+                ("X-GitHub-Api-Version".to_string(), "2022-11-28".to_string()),
+            ];
+            if let Some(t) = token {
+                headers.push(("Authorization".into(), format!("Bearer {t}")));
+            }
+            if body.is_some() {
+                headers.push(("Content-Type".into(), "application/json".into()));
+            }
+            if use_cache && let Some(e) = lock(&self.etags).get(&url) {
+                headers.push(("If-None-Match".into(), e.etag.clone()));
+            }
+            let req = Request { method, url: url.clone(), headers, body: body.clone() };
+            let res = match self.transport.send(req).await {
+                Ok(r) => r,
+                Err(e) => {
+                    if matches!(e, Error::Network(_)) {
+                        lock(&self.state).online = false;
+                    }
+                    return Err(e);
+                }
+            };
+            self.observe(&res);
+            if use_cache && res.status == 304 {
+                if let Some(e) = lock(&self.etags).get_mut(&url) {
+                    e.inserted = Instant::now();
+                    return Ok(Response {
+                        status: 200,
+                        headers: e.headers.clone(),
+                        body: e.body.clone(),
+                    });
+                }
+                // The entry vanished during the request: refetch unconditionally, once.
+                use_cache = false;
+                continue;
+            }
+            let etag = res.header("etag").map(str::to_string);
+            let mapped = map_status(res.clone());
+            match &mapped {
+                Ok(r) if is_get => {
+                    if let Some(etag) = etag {
+                        self.store(url, etag, r, generation);
+                    }
+                }
+                Err(Error::RateLimited { reset }) => self.block(&res, *reset),
+                _ => {}
+            }
+            return mapped;
         }
-        let res = self.transport.send(Request { method, url, headers, body }).await?;
-        map_status(res)
+    }
+
+    /// Records connectivity and the rate-limit counters of any received response.
+    fn observe(&self, res: &Response) {
+        let mut st = lock(&self.state);
+        st.online = true;
+        if let Some(r) = parse_rate(res) {
+            st.rate = Some(r);
+        }
+    }
+
+    /// Starts the local back-off: `retry-after` if sent, else the reset time, else 60 s.
+    fn block(&self, res: &Response, reset: Option<u64>) {
+        let now = epoch_now();
+        let retry: Option<u64> = res.header("retry-after").and_then(|v| v.trim().parse().ok());
+        let until = retry.map(|s| now + s).or(reset).unwrap_or(now + DEFAULT_BACKOFF_SECS);
+        let wait = Duration::from_secs(until.saturating_sub(now).min(MAX_BACKOFF_SECS));
+        lock(&self.state).blocked = Some((Instant::now() + wait, until));
+    }
+
+    fn store(&self, key: String, etag: String, res: &Response, generation: u64) {
+        let mut map = lock(&self.etags);
+        if self.generation.load(Ordering::SeqCst) != generation {
+            return; // cleared while this request was in flight
+        }
+        if !map.contains_key(&key) && map.len() >= self.cache_capacity {
+            let oldest = map.iter().min_by_key(|(_, e)| e.inserted).map(|(k, _)| k.clone());
+            if let Some(k) = oldest {
+                map.remove(&k);
+            }
+        }
+        let entry = CachedEntry {
+            etag,
+            body: res.body.clone(),
+            headers: res.headers.clone(),
+            inserted: Instant::now(),
+        };
+        map.insert(key, entry);
     }
 
     /// `POST web_base + path` as a form. Statuses are not mapped: the device flow reports

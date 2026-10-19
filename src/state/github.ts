@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import * as ipc from "../ipc/github";
-import type { GithubAccount, GithubDeviceCode, GithubRepo } from "../ipc/github";
+import type { GithubAccount, GithubDeviceCode, GithubRepo, GithubStatus } from "../ipc/github";
+import { classifyGithubError } from "../lib/githubErrors";
+import type { GithubProblem } from "../lib/githubErrors";
 import { isIpcError } from "../ipc/core";
 
 export type LoginState =
@@ -19,6 +21,14 @@ interface GithubState {
   repos: GithubRepo[] | null;
   reposLoading: boolean;
   reposError: string | null;
+  reposProblem: GithubProblem | null;
+  status: GithubStatus | null;
+  /** Last GitHub problem (offline, rate limit, ...); cleared by the next successful call. */
+  problem: GithubProblem | null;
+  loadStatus: () => Promise<void>;
+  noteError: (e: unknown) => void;
+  noteSuccess: () => void;
+  clearProblem: () => void;
   loadRepos: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   startLogin: (workflow: boolean) => Promise<void>;
@@ -46,16 +56,46 @@ export const useGithubStore = create<GithubState>((set, get) => {
     repos: null,
     reposLoading: false,
     reposError: null,
+    reposProblem: null,
+    status: null,
+    problem: null,
+
+    loadStatus: async () => {
+      try {
+        const status = await ipc.githubStatus();
+        set({ status });
+      } catch {
+        // Informational only.
+      }
+    },
+
+    noteError: (e) => {
+      set({ problem: classifyGithubError(e) });
+      void get().loadStatus();
+    },
+
+    noteSuccess: () => {
+      const st = get().status;
+      set({ problem: null, ...(st !== null ? { status: { ...st, online: true } } : {}) });
+    },
+
+    clearProblem: () => set({ problem: null }),
 
     loadRepos: async (force = false) => {
       const st = get();
       if (st.reposLoading || (!force && st.repos !== null)) return;
-      set({ reposLoading: true, reposError: null });
+      set({ reposLoading: true, reposError: null, reposProblem: null });
       try {
         const repos = await ipc.githubRepos();
         set({ repos, reposLoading: false });
+        get().noteSuccess();
       } catch (e) {
-        set({ reposLoading: false, reposError: messageOf(e) });
+        set({
+          reposLoading: false,
+          reposError: messageOf(e),
+          reposProblem: classifyGithubError(e),
+        });
+        get().noteError(e);
       }
     },
 
@@ -64,6 +104,7 @@ export const useGithubStore = create<GithubState>((set, get) => {
       try {
         const account = await ipc.githubAccount();
         set({ account, loading: false });
+        get().clearProblem();
       } catch (e) {
         set({ loading: false, error: messageOf(e) });
       }

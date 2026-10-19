@@ -14,6 +14,7 @@ import form from "../dialogs/Form.module.css";
 import { FormDialog } from "../dialogs/FormDialog";
 import { openGithubLogin } from "../dialogs/open";
 import { Dialog } from "../shell/Dialog";
+import { GithubNotice } from "./GithubNotice";
 import styles from "./github.module.css";
 
 export interface CreatePullDialogProps {
@@ -103,6 +104,8 @@ function PullForm({
   headBranch: string;
   onClose: () => void;
 }) {
+  const problem = useGithubStore((s) => s.problem);
+  const [infoTry, setInfoTry] = useState(0);
   const refs = useGraphStore((s) => s.byRepo[repoId]?.refs ?? null);
   const remotes = useRemotesStore((s) => remotesOf(s, repoId));
   const [chosen, setChosen] = useState<string | null>(null);
@@ -159,13 +162,21 @@ function PullForm({
   useEffect(() => {
     let live = true;
     githubRepoInfo(repoId).then(
-      (info) => live && setDefaultBranch(info.defaultBranch),
-      () => live && setDefaultBranch(null),
+      (info) => {
+        if (!live) return;
+        setDefaultBranch(info.defaultBranch);
+        useGithubStore.getState().noteSuccess();
+      },
+      (e: unknown) => {
+        if (!live) return;
+        setDefaultBranch(null);
+        useGithubStore.getState().noteError(e);
+      },
     );
     return () => {
       live = false;
     };
-  }, [repoId]);
+  }, [repoId, infoTry]);
 
   useEffect(() => {
     if (base === "") return;
@@ -220,6 +231,7 @@ function PullForm({
         base,
         draft,
       });
+      useGithubStore.getState().noteSuccess();
       useUiStore
         .getState()
         .pushToast({ kind: "success", title: `Pull request #${pr.number} created` });
@@ -232,6 +244,7 @@ function PullForm({
       }
       return true;
     } catch (e) {
+      useGithubStore.getState().noteError(e);
       setError(e instanceof Error ? e.message : String(e));
       return false;
     } finally {
@@ -247,6 +260,9 @@ function PullForm({
     }
   };
 
+  const blocked =
+    problem !== null && (problem.kind === "offline" || problem.kind === "rateLimited");
+
   const submitLabel =
     phase === "pushing" ? "Pushing…" : phase === "creating" ? "Creating…" : "Create pull request";
 
@@ -256,6 +272,7 @@ function PullForm({
       submitLabel={submitLabel}
       valid={
         phase === "idle" &&
+        !blocked &&
         !foreign &&
         base !== "" &&
         title.trim() !== "" &&
@@ -267,6 +284,17 @@ function PullForm({
       onSubmit={submit}
     >
       <div className={styles["pullBody"]} onKeyDown={onKeyDown}>
+        {blocked && (
+          <GithubNotice
+            compact
+            problem={problem}
+            onRetry={() => {
+              useGithubStore.getState().clearProblem();
+              void useGithubStore.getState().loadStatus();
+              setInfoTry((n) => n + 1);
+            }}
+          />
+        )}
         <div className={styles["headLine"]}>
           <span>
             From <code>{headBranch}</code>

@@ -49,7 +49,7 @@ pub async fn current_user<T: Transport>(gh: &GitHub<T>, token: &str) -> Result<A
 /// The stored account, validated against GitHub.
 ///
 /// `None` when nothing is stored or the token was rejected (it is then deleted, unless it changed
-/// meanwhile, e.g. a new sign-in finished). Network failures and rate limits yield an offline
+/// meanwhile, e.g. a new sign-in finished). Network failures yield an offline
 /// account built from the stored login.
 pub async fn resolve_account<T: Transport, S: TokenStore + Sync>(
     gh: &GitHub<T>,
@@ -66,7 +66,7 @@ pub async fn resolve_account<T: Transport, S: TokenStore + Sync>(
             tracing::info!("stored GitHub token was rejected");
             Ok(None)
         }
-        Err(Error::Network(_) | Error::RateLimited { .. }) => {
+        Err(Error::Network(_)) => {
             let login = secret.login;
             Ok(Some(Account {
                 user: User {
