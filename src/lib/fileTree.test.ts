@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, type TreeNode } from "./fileTree";
+import {
+  buildTree,
+  countStatuses,
+  statusOf,
+  statusOfEntry,
+  summaryText,
+  type StatusKey,
+  type TreeNode,
+} from "./fileTree";
+import type { StatusEntry } from "../ipc/types";
 
 const e = (path: string, extra: object = {}) => ({ path, ...extra });
 const names = (n: TreeNode<{ path: string }>[]): string[] =>
@@ -36,5 +45,49 @@ describe("buildTree", () => {
 
   it("returns an empty tree for no entries", () => {
     expect(buildTree([])).toEqual([]);
+  });
+});
+
+describe("folder counts", () => {
+  const st = (path: string, status: StatusKey) => ({ path, status });
+  it("aggregates statuses up the folders", () => {
+    const tree = buildTree(
+      [
+        st("src/a/x.ts", "added"),
+        st("src/a/y.ts", "added"),
+        st("src/b.ts", "modified"),
+        st("src/c/d/e.ts", "deleted"),
+        st("top.ts", "renamed"),
+      ],
+      (f) => f.status,
+    );
+    const src = tree[0]!;
+    if (src.kind !== "dir") throw new Error("dir expected");
+    expect(src.counts).toEqual({ modified: 1, added: 2, deleted: 1, renamed: 0, conflicted: 0 });
+    const a = src.children[0]!;
+    if (a.kind !== "dir") throw new Error("dir expected");
+    expect(a.counts.added).toBe(2);
+  });
+
+  it("maps entries and summarises without zeros", () => {
+    const entry = (o: Partial<StatusEntry>): StatusEntry => ({
+      path: "p",
+      origPath: null,
+      staged: "unmodified",
+      unstaged: "unmodified",
+      conflicted: false,
+      submodule: false,
+      ...o,
+    });
+    expect(statusOfEntry(entry({ unstaged: "untracked" }))).toBe("added");
+    expect(statusOfEntry(entry({ staged: "deleted" }))).toBe("deleted");
+    expect(statusOfEntry(entry({ unstaged: "modified" }))).toBe("modified");
+    expect(statusOfEntry(entry({ conflicted: true, staged: "unmerged" }))).toBe("conflicted");
+    expect(statusOf({ kind: "renamed" })).toBe("renamed");
+    const c = countStatuses(
+      [{ kind: "modified" }, { kind: "modified" }, { kind: "added" }] as const,
+      statusOf,
+    );
+    expect(summaryText(c)).toBe("2 modified · 1 added");
   });
 });

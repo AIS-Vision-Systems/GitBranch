@@ -90,7 +90,7 @@ describe("WipPane", () => {
   });
 
   it("tree mode nests files under collapsible folders; flat mode lists paths", () => {
-    localStorage.removeItem("gitbranch.wipTree");
+    localStorage.removeItem("gitbranch.fileTree");
     setup([entry({ path: "src/lib/x.ts", unstaged: "modified" })]);
     const dir = screen.getByTitle("src/lib");
     expect(dir).toHaveAttribute("aria-expanded", "true");
@@ -98,10 +98,36 @@ describe("WipPane", () => {
     fireEvent.click(dir);
     expect(screen.queryByTitle("src/lib/x.ts")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Flat" }));
-    expect(localStorage.getItem("gitbranch.wipTree")).toBe("false");
+    expect(localStorage.getItem("gitbranch.fileTree")).toBe("false");
     expect(screen.getByTitle("src/lib/x.ts")).toBeInTheDocument();
     expect(screen.queryByTitle("src/lib")).toBeNull();
-    localStorage.removeItem("gitbranch.wipTree");
+    localStorage.removeItem("gitbranch.fileTree");
+  });
+
+  it("Expand all / Collapse all and section summaries", () => {
+    localStorage.removeItem("gitbranch.fileTree");
+    setup([
+      entry({ path: "src/lib/x.ts", unstaged: "modified" }),
+      entry({ path: "src/y.ts", unstaged: "untracked" }),
+    ]);
+    const sec = screen.getByRole("region", { name: "Unstaged files" });
+    expect(within(sec).getByText("1 modified · 1 added")).toBeInTheDocument();
+    expect(within(sec).getByTitle("src/lib/x.ts")).toBeInTheDocument();
+    fireEvent.click(within(sec).getByRole("button", { name: "Collapse all" }));
+    expect(within(sec).queryByTitle("src/lib/x.ts")).toBeNull();
+    expect(within(sec).queryByTitle("src/lib")).toBeNull();
+    fireEvent.click(within(sec).getByRole("button", { name: "Expand all" }));
+    expect(within(sec).getByTitle("src/lib/x.ts")).toBeInTheDocument();
+  });
+
+  it("migrates the old wipTree key silently", () => {
+    localStorage.removeItem("gitbranch.fileTree");
+    localStorage.setItem("gitbranch.wipTree", "false");
+    setup([entry({ path: "src/lib/x.ts", unstaged: "modified" })]);
+    expect(screen.queryByTitle("src/lib")).toBeNull();
+    expect(localStorage.getItem("gitbranch.fileTree")).toBe("false");
+    expect(localStorage.getItem("gitbranch.wipTree")).toBeNull();
+    localStorage.removeItem("gitbranch.fileTree");
   });
 
   it("row actions call the store", async () => {

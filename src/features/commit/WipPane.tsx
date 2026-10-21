@@ -6,18 +6,10 @@ import { submoduleStateLabel, submodulesOf, useSubmodulesStore } from "../../sta
 import { useWipStore } from "../../state/wip";
 import { CommitForm } from "./CommitForm";
 import { FileList, type FileListItem } from "./FileList";
-import { FileTree } from "./FileTree";
+import { countStatuses, statusOf, summaryText } from "../../lib/fileTree";
+import { ExpandLink, FileTree, TreeModeToggle } from "./FileTree";
+import { useExpanded, useTreeMode, type Expanded } from "./treeState";
 import styles from "./Commit.module.css";
-
-export const WIP_TREE_KEY = "gitbranch.wipTree";
-
-function readTree(): boolean {
-  try {
-    return localStorage.getItem(WIP_TREE_KEY) !== "false";
-  } catch {
-    return true;
-  }
-}
 
 export interface WipPaneProps {
   repoId: RepoId;
@@ -31,11 +23,17 @@ function Section({
   title,
   count,
   headerAction,
+  summary,
+  treeAction,
   children,
 }: {
   title: string;
   count: number;
   headerAction?: ReactNode;
+  /** Status summary line, e.g. "2 modified · 1 added". */
+  summary?: string;
+  /** Expand all / Collapse all link (tree mode only). */
+  treeAction?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -46,6 +44,12 @@ function Section({
         </h3>
         {headerAction}
       </header>
+      {(summary !== undefined && summary !== "") || treeAction !== undefined ? (
+        <div className={styles["fileHeader"]}>
+          <span className={styles["summaryText"]}>{summary}</span>
+          {treeAction}
+        </div>
+      ) : null}
       {children}
     </section>
   );
@@ -127,20 +131,24 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
     return g;
   }, [items]);
 
-  const [tree, setTree] = useState(readTree);
-  const chooseTree = (v: boolean): void => {
-    setTree(v);
-    try {
-      localStorage.setItem(WIP_TREE_KEY, String(v));
-    } catch {
-      /* storage unavailable */
-    }
-  };
+  const [tree, chooseTree] = useTreeMode();
+  const [expConflicts, setExpConflicts] = useExpanded();
+  const [expStaged, setExpStaged] = useExpanded();
+  const [expUnstaged, setExpUnstaged] = useExpanded();
+  const treeLink = (
+    list: FileListItem[],
+    expanded: Expanded,
+    set: (e: Expanded) => void,
+  ): ReactNode =>
+    tree && list.length > 0 ? <ExpandLink expanded={expanded} onChange={set} /> : undefined;
+  const summaryOf = (list: FileListItem[]): string => summaryText(countStatuses(list, statusOf));
   const files = (
     list: FileListItem[],
     actions: (item: FileListItem) => ReactNode,
     ariaLabel: string,
     emptyText: string,
+    expanded: Expanded,
+    setExpanded: (e: Expanded) => void,
   ): ReactNode =>
     list.length === 0 ? (
       <p className={`${styles["empty"]} ${styles["muted"]}`}>{emptyText}</p>
@@ -151,6 +159,8 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
         onSelect={onSelect}
         actions={actions}
         ariaLabel={ariaLabel}
+        expanded={expanded}
+        onExpandedChange={setExpanded}
       />
     ) : (
       <FileList
@@ -228,28 +238,13 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
 
   return (
     <>
-      <div className={styles["viewToggle"]} role="group" aria-label="File view">
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          aria-pressed={tree}
-          onClick={() => chooseTree(true)}
-        >
-          Tree
-        </button>
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          aria-pressed={!tree}
-          onClick={() => chooseTree(false)}
-        >
-          Flat
-        </button>
-      </div>
+      <TreeModeToggle tree={tree} onChange={chooseTree} />
       {groups.conflicts.length > 0 && (
         <Section
           title="Conflicts"
           count={groups.conflicts.length}
+          summary={summaryOf(groups.conflicts)}
+          treeAction={treeLink(groups.conflicts, expConflicts, setExpConflicts)}
           headerAction={
             <span className={styles["headerActions"]}>
               {headerButton(
@@ -263,26 +258,51 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
             </span>
           }
         >
-          {files(groups.conflicts, conflictActions, "Conflicted files", "")}
+          {files(
+            groups.conflicts,
+            conflictActions,
+            "Conflicted files",
+            "",
+            expConflicts,
+            setExpConflicts,
+          )}
         </Section>
       )}
       <Section
         title="Staged files"
         count={stagedCount}
+        summary={summaryOf(groups.staged)}
+        treeAction={treeLink(groups.staged, expStaged, setExpStaged)}
         headerAction={headerButton("Unstage all", () => void unstageAll(repoId), stagedCount === 0)}
       >
-        {files(groups.staged, stagedActions, "Staged files", "No staged files")}
+        {files(
+          groups.staged,
+          stagedActions,
+          "Staged files",
+          "No staged files",
+          expStaged,
+          setExpStaged,
+        )}
       </Section>
       <Section
         title="Unstaged files"
         count={groups.unstaged.length}
+        summary={summaryOf(groups.unstaged)}
+        treeAction={treeLink(groups.unstaged, expUnstaged, setExpUnstaged)}
         headerAction={headerButton(
           "Stage all",
           () => void stageAll(repoId),
           groups.unstaged.length === 0,
         )}
       >
-        {files(groups.unstaged, unstagedActions, "Unstaged files", "No unstaged changes")}
+        {files(
+          groups.unstaged,
+          unstagedActions,
+          "Unstaged files",
+          "No unstaged changes",
+          expUnstaged,
+          setExpUnstaged,
+        )}
       </Section>
       <SubmodulesSection repoId={repoId} />
       <CommitForm repoId={repoId} stagedCount={stagedCount} dirty={items.length > 0} />

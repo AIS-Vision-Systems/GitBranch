@@ -103,6 +103,9 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 - [x] 5.8 GitKraken parity from the owner's Phase 5 test: (a) WIP panel with Staged above Unstaged, each as a
   directory tree; (b) clicking a file shows its diff in the center pane, toggled off by Esc or clicking the same file
   again; (c) double-click on a branch chip checks it out.
+- [x] 5.9 GitKraken parity, round 2: (a) split diff with a fixed divider, independent scrollbars per side
+  (vertical scroll kept in sync) and a change-overview ruler at the right edge; (b) commit file list in tree mode
+  with per-folder modified/added/deleted counts, Expand/Collapse all, header summary ("N modified + M added").
 
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 

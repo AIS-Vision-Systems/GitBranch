@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-21: GitKraken parity, round 2 (item 5.9): the split diff is two panes with a fixed divider, their own
+  scrollbars kept in sync both ways, a Wrap toggle, and a change ruler at the right edge (red marks on the left
+  half for deletions, green on the right for additions; click to jump). File lists of a commit and of the working
+  tree are directory trees with per-folder modified/added/deleted counts, Expand/Collapse all and a summary line.
 - 2026-10-21: GitKraken parity (item 5.8, owner feedback): the working-tree panel always shows Staged files above
   Unstaged files (untracked included) as a directory tree with a Tree/Flat toggle; clicking a file opens its diff in
   the center pane (Esc, the x button or a second click on the file returns to the graph); double-clicking a local or

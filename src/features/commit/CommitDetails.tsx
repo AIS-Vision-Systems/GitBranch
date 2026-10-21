@@ -1,7 +1,11 @@
 import type { CommitDetails as Details } from "../../ipc/commit";
 import { formatAbsolute } from "../../lib/time";
 import { reportError, useUiStore } from "../../state/ui";
+import { countStatuses, statusOf, summaryText } from "../../lib/fileTree";
+import { useMemo } from "react";
 import { FileList, type FileListItem } from "./FileList";
+import { ExpandLink, FileTree, TreeModeToggle } from "./FileTree";
+import { useExpanded, useTreeMode } from "./treeState";
 import styles from "./Commit.module.css";
 
 export const SHORT_OID = 7;
@@ -52,6 +56,9 @@ export function CommitDetails({
   onSelectFile,
   onSelectParent,
 }: CommitDetailsProps) {
+  const [tree, chooseTree] = useTreeMode();
+  const [expanded, setExpanded] = useExpanded();
+  const summary = useMemo(() => summaryText(countStatuses(files, statusOf)), [files]);
   const sameAsAuthor =
     d.committerName === d.authorName &&
     d.committerEmail === d.authorEmail &&
@@ -101,7 +108,23 @@ export function CommitDetails({
           </div>
         )}
       </header>
-      <FileList files={files} selectedKey={selectedKey} onSelect={onSelectFile} />
+      <TreeModeToggle tree={tree} onChange={chooseTree} />
+      <div className={styles["fileHeader"]}>
+        <span className={styles["summaryText"]}>{summary}</span>
+        {tree && files.length > 0 && <ExpandLink expanded={expanded} onChange={setExpanded} />}
+      </div>
+      {tree && files.length > 0 ? (
+        <FileTree
+          files={files}
+          selectedKey={selectedKey}
+          onSelect={onSelectFile}
+          ariaLabel="Changed files"
+          expanded={expanded}
+          onExpandedChange={setExpanded}
+        />
+      ) : (
+        <FileList files={files} selectedKey={selectedKey} onSelect={onSelectFile} />
+      )}
     </div>
   );
 }

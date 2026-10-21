@@ -1,5 +1,8 @@
 import {
+  Fragment,
   memo,
+  type ReactNode,
+  type RefObject,
   useCallback,
   type KeyboardEvent as ReactKeyboardEvent,
   useEffect,
@@ -8,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import type { DiffLine, DiffTarget, FileDiff } from "../../ipc/commit";
 import type { HunkSelection, PatchOp } from "../../ipc/stage";
 import { confirm } from "../../state/dialogs";
@@ -16,6 +19,8 @@ import { useWipStore } from "../../state/wip";
 import type { DiffViewMode } from "../../state/details";
 import { highlight, langFor, type Lang } from "./highlight";
 import { buildRows, hunkPatch, type DiffRow } from "./buildRows";
+import { overviewMarks } from "./overview";
+import { loadWrap, WRAP_BELOW, WRAP_KEY } from "./wrap";
 import styles from "./Diff.module.css";
 
 /** Keep in sync with `--diff-line-h`. */
@@ -214,28 +219,8 @@ const RowView = memo(function RowView({
         </div>
       );
     }
-    case "split": {
-      const side = (l: DiffLine | null, i: number | null): ((shift: boolean) => void) | null =>
-        handlers.kind !== null && isChange(l) && i !== null
-          ? (shift) => handlers.toggle(row.hunkIndex, [i], shift)
-          : null;
-      const onLeft = side(row.left, row.leftIndex);
-      const onRight = side(row.right, row.rightIndex);
-      const leftSel = onLeft !== null && row.leftIndex !== null && sel?.has(row.leftIndex) === true;
-      const rightSel =
-        onRight !== null && row.rightIndex !== null && sel?.has(row.rightIndex) === true;
-      const selectable = onLeft !== null || onRight !== null;
-      return (
-        <div
-          role="row"
-          className={`${styles["row"]} ${styles["split"]}`}
-          aria-selected={selectable ? leftSel || rightSel : undefined}
-        >
-          <Side line={row.left} side="old" lang={lang} selected={leftSel} onGutter={onLeft} />
-          <Side line={row.right} side="new" lang={lang} selected={rightSel} onGutter={onRight} />
-        </div>
-      );
-    }
+    case "split":
+      return null;
   }
 });
 
@@ -251,31 +236,87 @@ function rowSel(row: DiffRow, s: Selection | null): ReadonlySet<number> | null {
   return s.lines;
 }
 
-function Rows({
-  rows,
+const PaneRowView = memo(function PaneRowView({
+  row,
+  side,
   lang,
-  selection,
+  sel,
   handlers,
 }: {
-  rows: DiffRow[];
+  row: DiffRow;
+  side: "old" | "new";
   lang: Lang | null;
-  selection: Selection | null;
+  sel: ReadonlySet<number> | null;
   handlers: RowHandlers;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const virtual = rows.length > VIRTUALIZE_ABOVE;
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: virtual ? rows.length : 0,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => LINE_H,
-    overscan: 20,
-  });
+  switch (row.type) {
+    case "hunk":
+      return (
+        <div role="row" className={`${styles["row"]} ${styles["hunkRow"]}`}>
+          {side === "old" ? (
+            <span role="cell" className={styles["hunkText"]}>
+              {row.header}
+            </span>
+          ) : (
+            handlers.kind !== null && (
+              <HunkActions hunkIndex={row.hunkIndex} count={sel?.size ?? 0} handlers={handlers} />
+            )
+          )}
+        </div>
+      );
+    case "nonl":
+      return (
+        <div role="row" className={`${styles["row"]} ${styles["nonlRow"]}`}>
+          <span role="cell" className={styles["nonlText"]}>
+            ↵ No newline at end of file
+          </span>
+        </div>
+      );
+    case "split": {
+      const line = side === "old" ? row.left : row.right;
+      const index = side === "old" ? row.leftIndex : row.rightIndex;
+      const onGutter: ((shift: boolean) => void) | null =
+        handlers.kind !== null && isChange(line) && index !== null
+          ? (shift) => handlers.toggle(row.hunkIndex, [index], shift)
+          : null;
+      const selected = onGutter !== null && index !== null && sel?.has(index) === true;
+      return (
+        <div
+          role="row"
+          className={`${styles["row"]} ${styles["pane"]}`}
+          aria-selected={onGutter !== null ? selected : undefined}
+        >
+          <Side line={line} side={side} lang={lang} selected={selected} onGutter={onGutter} />
+        </div>
+      );
+    }
+    case "line":
+      return null;
+  }
+});
+
+function Pane({
+  scrollRef,
+  rows,
+  virtualizer,
+  virtual,
+  label,
+  onScroll,
+  render,
+}: {
+  scrollRef: RefObject<HTMLDivElement | null>;
+  rows: DiffRow[];
+  virtualizer: Virtualizer<HTMLDivElement, Element>;
+  virtual: boolean;
+  label: string;
+  onScroll: () => void;
+  render: (row: DiffRow) => ReactNode;
+}) {
   return (
-    <div ref={scrollRef} className={styles["scroll"]}>
+    <div ref={scrollRef} className={styles["scroll"]} onScroll={onScroll}>
       <div
         role="table"
-        aria-label="Diff"
+        aria-label={label}
         aria-rowcount={rows.length}
         className={styles["table"]}
         style={virtual ? { height: virtualizer.getTotalSize() } : undefined}
@@ -287,24 +328,241 @@ function Rows({
                 className={styles["virtualRow"]}
                 style={{ transform: `translateY(${v.start}px)` }}
               >
-                <RowView
-                  row={rows[v.index]!}
-                  lang={lang}
-                  sel={rowSel(rows[v.index]!, selection)}
-                  handlers={handlers}
-                />
+                {render(rows[v.index]!)}
               </div>
             ))
-          : rows.map((r) => (
-              <RowView
-                key={r.key}
-                row={r}
-                lang={lang}
-                sel={rowSel(r, selection)}
-                handlers={handlers}
-              />
-            ))}
+          : rows.map((r) => <Fragment key={r.key}>{render(r)}</Fragment>)}
       </div>
+    </div>
+  );
+}
+
+interface Viewport {
+  top: number;
+  height: number;
+}
+
+function Ruler({
+  rows,
+  viewport,
+  onSeek,
+}: {
+  rows: DiffRow[];
+  viewport: Viewport;
+  onSeek: (fraction: number) => void;
+}) {
+  const marks = useMemo(() => overviewMarks(rows), [rows]);
+  return (
+    <div
+      className={styles["ruler"]}
+      data-testid="diff-ruler"
+      aria-hidden="true"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        if (r.height > 0) onSeek((e.clientY - r.top) / r.height);
+      }}
+    >
+      {marks.map((m, i) => (
+        <span
+          key={i}
+          className={`${styles["mark"]} ${styles[`mark_${m.side}`] ?? ""}`}
+          style={{ top: `${m.top * 100}%`, height: `${m.height * 100}%` }}
+        />
+      ))}
+      <span
+        className={styles["rulerView"]}
+        style={{
+          top: `${viewport.top * 100}%`,
+          height: `${viewport.height * 100}%`,
+        }}
+      />
+    </div>
+  );
+}
+
+/** Give each aligned row pair the taller of its two heights (wrapped split view). */
+function alignPanes(left: HTMLElement, right: HTMLElement): void {
+  const l = left.querySelectorAll<HTMLElement>("[role=table] > [role=row]");
+  const r = right.querySelectorAll<HTMLElement>("[role=table] > [role=row]");
+  const n = Math.min(l.length, r.length);
+  for (let i = 0; i < n; i++) {
+    l[i]!.style.minHeight = "";
+    r[i]!.style.minHeight = "";
+  }
+  const heights: number[] = [];
+  for (let i = 0; i < n; i++) heights.push(Math.max(l[i]!.offsetHeight, r[i]!.offsetHeight));
+  for (let i = 0; i < n; i++) {
+    const h = `${heights[i]}px`;
+    l[i]!.style.minHeight = h;
+    r[i]!.style.minHeight = h;
+  }
+}
+
+function Rows({
+  rows,
+  view,
+  wrap,
+  lang,
+  selection,
+  handlers,
+}: {
+  rows: DiffRow[];
+  view: DiffViewMode;
+  wrap: boolean;
+  lang: Lang | null;
+  selection: Selection | null;
+  handlers: RowHandlers;
+}) {
+  const split = view === "split";
+  // Wrapped rows have variable height, which two independently scrolled virtual panes cannot
+  // keep aligned; wrapping is therefore only applied to non-virtualized renders.
+  const wrapActive = wrap && rows.length <= WRAP_BELOW;
+  const virtual = rows.length > VIRTUALIZE_ABOVE && !wrapActive;
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  /** A programmatic sync scroll whose event must not be echoed back (matched by pane and position). */
+  const echo = useRef<{ el: HTMLDivElement; top: number; left: number } | null>(null);
+  const [viewport, setViewport] = useState<Viewport>({ top: 0, height: 1 });
+
+  /* eslint-disable react-hooks/incompatible-library */
+  const leftV = useVirtualizer({
+    count: virtual ? rows.length : 0,
+    getScrollElement: () => leftRef.current,
+    estimateSize: () => LINE_H,
+    overscan: 20,
+  });
+  const rightV = useVirtualizer({
+    count: virtual && split ? rows.length : 0,
+    getScrollElement: () => rightRef.current,
+    estimateSize: () => LINE_H,
+    overscan: 20,
+  });
+  /* eslint-enable react-hooks/incompatible-library */
+
+  const updateViewport = useCallback(() => {
+    const el = leftRef.current;
+    if (el === null || el.scrollHeight <= 0) return;
+    setViewport({
+      top: el.scrollTop / el.scrollHeight,
+      height: Math.min(1, el.clientHeight / el.scrollHeight),
+    });
+  }, []);
+
+  const onScroll = (src: "left" | "right"): void => {
+    const from = src === "left" ? leftRef.current : rightRef.current;
+    const to = src === "left" ? rightRef.current : leftRef.current;
+    if (from === null) return;
+    if (
+      echo.current !== null &&
+      echo.current.el === from &&
+      echo.current.top === from.scrollTop &&
+      echo.current.left === from.scrollLeft
+    ) {
+      echo.current = null;
+      return;
+    }
+    if (
+      split &&
+      to !== null &&
+      (to.scrollTop !== from.scrollTop || to.scrollLeft !== from.scrollLeft)
+    ) {
+      const before = [to.scrollTop, to.scrollLeft];
+      to.scrollTop = from.scrollTop;
+      to.scrollLeft = from.scrollLeft;
+      if (to.scrollTop !== before[0] || to.scrollLeft !== before[1]) {
+        echo.current = { el: to, top: to.scrollTop, left: to.scrollLeft };
+      }
+    }
+    updateViewport();
+  };
+
+  const seek = (fraction: number): void => {
+    const el = leftRef.current;
+    if (el === null) return;
+    const top = Math.max(0, fraction * el.scrollHeight - el.clientHeight / 2);
+    el.scrollTop = top;
+    if (split && rightRef.current !== null) rightRef.current.scrollTop = top;
+    updateViewport();
+  };
+
+  useLayoutEffect(() => {
+    updateViewport();
+  }, [rows, updateViewport]);
+
+  const aligned = split && wrapActive;
+  useLayoutEffect(() => {
+    const l = leftRef.current;
+    const r = rightRef.current;
+    if (!aligned || l === null || r === null) return;
+    alignPanes(l, r);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => alignPanes(l, r));
+    ro.observe(l);
+    ro.observe(r);
+    return () => ro.disconnect();
+  }, [aligned, rows]);
+
+  const cls = [
+    styles["panes"],
+    split ? styles["panesSplit"] : "",
+    wrapActive ? styles["wrap"] : "",
+  ];
+  return (
+    <div className={styles["body"]}>
+      <div className={cls.join(" ")}>
+        {split ? (
+          <>
+            <Pane
+              scrollRef={leftRef}
+              rows={rows}
+              virtualizer={leftV}
+              virtual={virtual}
+              label="Diff (old)"
+              onScroll={() => onScroll("left")}
+              render={(r) => (
+                <PaneRowView
+                  row={r}
+                  side="old"
+                  lang={lang}
+                  sel={rowSel(r, selection)}
+                  handlers={handlers}
+                />
+              )}
+            />
+            <div className={styles["divider"]} />
+            <Pane
+              scrollRef={rightRef}
+              rows={rows}
+              virtualizer={rightV}
+              virtual={virtual}
+              label="Diff (new)"
+              onScroll={() => onScroll("right")}
+              render={(r) => (
+                <PaneRowView
+                  row={r}
+                  side="new"
+                  lang={lang}
+                  sel={rowSel(r, selection)}
+                  handlers={handlers}
+                />
+              )}
+            />
+          </>
+        ) : (
+          <Pane
+            scrollRef={leftRef}
+            rows={rows}
+            virtualizer={leftV}
+            virtual={virtual}
+            label="Diff"
+            onScroll={() => onScroll("left")}
+            render={(r) => (
+              <RowView row={r} lang={lang} sel={rowSel(r, selection)} handlers={handlers} />
+            )}
+          />
+        )}
+      </div>
+      <Ruler rows={rows} viewport={viewport} onSeek={seek} />
     </div>
   );
 }
@@ -340,6 +598,15 @@ export function DiffView({
       ? target.kind
       : null;
   const busy = useWipStore((s) => s.busy);
+  const [wrap, setWrapState] = useState(loadWrap);
+  const setWrap = (v: boolean): void => {
+    setWrapState(v);
+    try {
+      localStorage.setItem(WRAP_KEY, String(v));
+    } catch {
+      // storage unavailable: keep the in-memory value
+    }
+  };
   const [rawSelection, setSelection] = useState<Selection | null>(null);
   // A new diff (after any op or reload) invalidates the selection.
   const selection = rawSelection !== null && rawSelection.diff === diff ? rawSelection : null;
@@ -460,11 +727,27 @@ export function DiffView({
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-pressed={wrap}
+          className={wrap ? styles["toggleOn"] : styles["toggleOff"]}
+          title="Wrap long lines (off above 5000 rows)"
+          onClick={() => setWrap(!wrap)}
+        >
+          Wrap
+        </button>
       </div>
       {loading && <p className={styles["state"]}>Loading diff…</p>}
       {!loading && diff !== null && notice !== null && <p className={styles["state"]}>{notice}</p>}
       {!loading && diff !== null && notice === null && (
-        <Rows rows={rows} lang={lang} selection={selection} handlers={handlers} />
+        <Rows
+          rows={rows}
+          view={view}
+          wrap={wrap}
+          lang={lang}
+          selection={selection}
+          handlers={handlers}
+        />
       )}
     </section>
   );
