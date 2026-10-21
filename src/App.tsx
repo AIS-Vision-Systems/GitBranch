@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { appInfo } from "./ipc/app";
+import { appInfo, loadSession } from "./ipc/app";
 import type { AppInfo } from "./ipc/types";
 import { registerPhase2Dialogs } from "./features/dialogs";
 import { OpBanner } from "./features/shell/OpBanner";
@@ -27,6 +27,7 @@ import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
 import { useReposStore } from "./state/repos";
+import { startSessionSync } from "./state/session";
 import { reportError, useUiStore, type Theme } from "./state/ui";
 import styles from "./App.module.css";
 
@@ -38,6 +39,7 @@ export default function App() {
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
   const current = useReposStore((s) => s.open.find((r) => r.repoId === s.currentId) ?? null);
+  const hasTabs = useReposStore((s) => s.open.length > 0);
   const loadRecent = useReposStore((s) => s.loadRecent);
   const openViaDialog = useReposStore((s) => s.openViaDialog);
   const close = useReposStore((s) => s.close);
@@ -48,16 +50,29 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    appInfo().then(
-      (i) => {
-        if (cancelled) return;
-        setInfo(i);
-        if (i.startupRepo !== null) void useReposStore.getState().openPath(i.startupRepo);
-      },
-      (e: unknown) => reportError(e, "Failed to load app info"),
-    );
+    let stopSync: (() => void) | null = null;
+    void (async () => {
+      let startup: string | null = null;
+      try {
+        const i = await appInfo();
+        startup = i.startupRepo;
+        if (!cancelled) setInfo(i);
+      } catch (e) {
+        reportError(e, "Failed to load app info");
+      }
+      try {
+        await useReposStore.getState().restoreSession(await loadSession());
+      } catch (e) {
+        reportError(e, "Could not restore the previous session");
+      }
+      if (cancelled) return;
+      if (cancelled) return;
+      stopSync = startSessionSync();
+      if (startup !== null) await useReposStore.getState().openPath(startup);
+    })();
     return () => {
       cancelled = true;
+      stopSync?.();
     };
   }, []);
 
@@ -125,6 +140,18 @@ export default function App() {
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      if (
+        mod &&
+        !e.shiftKey &&
+        !e.altKey &&
+        k === "t" &&
+        !e.repeat &&
+        useDialogsStore.getState().current === null
+      ) {
+        e.preventDefault();
+        useReposStore.getState().newTab();
+        return;
+      }
       const tabKey =
         mod && !e.shiftKey && !e.altKey && (e.key === "PageDown" || e.key === "PageUp");
       const closeTab = mod && !e.shiftKey && !e.altKey && k === "w" && currentId !== null;
@@ -156,7 +183,7 @@ export default function App() {
   return (
     <div className={styles["app"]}>
       <header className={styles["header"]}>
-        {current !== null ? <RepoTabs /> : <span className={styles["name"]}>GitBranch</span>}
+        {hasTabs ? <RepoTabs /> : <span className={styles["name"]}>GitBranch</span>}
         {current !== null && <Toolbar repoId={current.repoId} />}
         {current !== null && (
           <button

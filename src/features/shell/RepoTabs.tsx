@@ -10,6 +10,7 @@ export function RepoTabs() {
   const currentId = useReposStore((s) => s.currentId);
   const select = useReposStore((s) => s.select);
   const close = useReposStore((s) => s.close);
+  const newTab = useReposStore((s) => s.newTab);
   const tabs = useMemo(() => orderTabs(open), [open]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>, repoId: string): void => {
@@ -66,6 +67,15 @@ export function RepoTabs() {
           </div>
         );
       })}
+      <button
+        type="button"
+        className={styles["newTab"]}
+        aria-label="New tab"
+        title="Open or clone a repository"
+        onClick={newTab}
+      >
+        +
+      </button>
     </div>
   );
 }

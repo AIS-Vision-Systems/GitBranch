@@ -730,7 +730,7 @@ export function DiffView({
         <button
           type="button"
           aria-pressed={wrap}
-          className={wrap ? styles["toggleOn"] : styles["toggleOff"]}
+          className={`${wrap ? styles["toggleOn"] : styles["toggleOff"]} ${styles["wrapButton"]}`}
           title="Wrap long lines (off above 5000 rows)"
           onClick={() => setWrap(!wrap)}
         >

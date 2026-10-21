@@ -37,6 +37,16 @@ pub struct RecentRepo {
     pub last_opened: u64,
 }
 
+/// The repositories open when the app last ran, restored on the next start.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Session {
+    /// Repository paths as passed to `open_repo`, in tab order.
+    pub open: Vec<String>,
+    /// The path of the active tab, if any.
+    pub current: Option<String>,
+}
+
 /// Shared state managed by Tauri.
 pub struct AppState {
     /// The git runner used by every command.
@@ -44,6 +54,7 @@ pub struct AppState {
     repos: Mutex<HashMap<String, OpenRepo>>,
     recent: Mutex<Vec<RecentRepo>>,
     recent_file: PathBuf,
+    session_file: PathBuf,
     /// Running cancellable operations by UI-chosen op id.
     ops: Arc<OpMap>,
     op_serial: AtomicU64,
@@ -103,10 +114,27 @@ impl AppState {
             runner,
             repos: Mutex::new(HashMap::new()),
             recent: Mutex::new(recent),
+            session_file: recent_file.with_file_name("session.json"),
             recent_file,
             ops: Arc::new(Mutex::new(HashMap::new())),
             op_serial: AtomicU64::new(0),
         }
+    }
+
+    /// Loads the saved session; a missing or corrupt file gives the empty session.
+    pub fn load_session(&self) -> Session {
+        match std::fs::read(&self.session_file) {
+            Ok(b) => serde_json::from_slice(&b).unwrap_or_else(|e| {
+                tracing::warn!("ignoring corrupt session file: {e}");
+                Session::default()
+            }),
+            Err(_) => Session::default(),
+        }
+    }
+
+    /// Persists the session atomically.
+    pub fn save_session(&self, s: &Session) -> std::io::Result<()> {
+        save_atomic(&self.session_file, s)
     }
 
     /// Registers a cancellable operation; the entry lives until the guard drops.
@@ -185,13 +213,13 @@ impl AppState {
     fn update_recent(&self, f: impl FnOnce(&mut Vec<RecentRepo>)) {
         let Ok(mut r) = self.recent.lock() else { return };
         f(&mut r);
-        if let Err(e) = save_atomic(&self.recent_file, &r) {
+        if let Err(e) = save_atomic(&self.recent_file, &*r) {
             tracing::warn!("could not persist recent repositories: {e}");
         }
     }
 }
 
-fn save_atomic(file: &Path, list: &[RecentRepo]) -> std::io::Result<()> {
+fn save_atomic<T: Serialize + ?Sized>(file: &Path, list: &T) -> std::io::Result<()> {
     if let Some(dir) = file.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -246,6 +274,18 @@ mod tests {
         let reloaded = state(d.path());
         assert_eq!(reloaded.recent(), s.recent());
         assert_eq!(reloaded.recent().len(), 1);
+    }
+
+    #[test]
+    fn session_round_trip_and_corrupt_fallback() {
+        let d = tempfile::tempdir().unwrap();
+        let s = state(d.path());
+        assert_eq!(s.load_session(), Session::default());
+        let sess = Session { open: vec!["/a".into(), "/b".into()], current: Some("/b".into()) };
+        s.save_session(&sess).unwrap();
+        assert_eq!(state(d.path()).load_session(), sess);
+        std::fs::write(d.path().join("cfg").join("session.json"), b"{not json").unwrap();
+        assert_eq!(s.load_session(), Session::default());
     }
 
     #[test]

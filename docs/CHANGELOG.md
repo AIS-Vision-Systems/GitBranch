@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-21: GitKraken parity, round 3 (item 5.10): thicker change ruler with a clearer viewport indicator and
+  an explicit Wrap button; the app restores its window (size, position, maximized), the right-pane width, the open
+  repository tabs and the selected one on the next start (`session.json`); a "+" tab (Ctrl+T) opens the welcome
+  screen to open or clone another repository while the current tabs stay open.
 - 2026-10-21: GitKraken parity, round 2 (item 5.9): the split diff is two panes with a fixed divider, their own
   scrollbars kept in sync both ways, a Wrap toggle, and a change ruler at the right edge (red marks on the left
   half for deletions, green on the right for additions; click to jump). File lists of a commit and of the working

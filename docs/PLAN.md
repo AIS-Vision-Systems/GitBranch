@@ -106,6 +106,10 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 - [x] 5.9 GitKraken parity, round 2: (a) split diff with a fixed divider, independent scrollbars per side
   (vertical scroll kept in sync) and a change-overview ruler at the right edge; (b) commit file list in tree mode
   with per-folder modified/added/deleted counts, Expand/Collapse all, header summary ("N modified + M added").
+- [x] 5.10 GitKraken parity, round 3: (a) change ruler twice as thick, clearer viewport indicator, visible Wrap
+  toggle; (b) session restore: window state (maximized/size/position via tauri-plugin-window-state), right-pane
+  width, open repository tabs and the selected one (session.json next to recent.json); (c) a "+" tab at the right
+  of the repo tabs opens the welcome screen (Open / Clone / Clone from GitHub / recent).
 
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 

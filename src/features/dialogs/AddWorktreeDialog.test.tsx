@@ -93,7 +93,7 @@ describe("AddWorktreeDialog", () => {
     const path = screen.getByLabelText("Path");
     await user.clear(path);
     await user.type(path, "rel/path");
-    expect(screen.getByRole("alert")).toHaveTextContent("absolute");
+    expect(await screen.findByRole("alert")).toHaveTextContent("absolute");
     expect(btn).toBeDisabled();
   });
 

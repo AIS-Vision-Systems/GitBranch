@@ -32,6 +32,15 @@ describe("RepoTabs", () => {
     useReposStore.setState({ open: [main, other, wt], currentId: "r1" });
   });
 
+  it("+ button shows the new-tab state and a tab click returns", () => {
+    render(<RepoTabs />);
+    fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+    expect(useReposStore.getState().currentId).toBeNull();
+    expect(useReposStore.getState().open).toHaveLength(3);
+    fireEvent.click(screen.getAllByRole("tab")[0]!);
+    expect(useReposStore.getState().currentId).toBe("r1");
+  });
+
   it("groups worktrees next to their main repository", () => {
     render(<RepoTabs />);
     const names = screen.getAllByRole("tab").map((t) => t.textContent);

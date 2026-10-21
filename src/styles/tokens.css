@@ -45,6 +45,8 @@
   --diff-add-fg: #116329;
   --diff-del-fg: #82071e;
   --diff-hunk-bg: #ddf4ff;
+  --diff-ruler-view-bg: rgb(15 23 42 / 12%);
+  --diff-ruler-view-border: rgb(15 23 42 / 40%);
   --syntax-keyword: #cf222e;
   --syntax-string: #0a3069;
   --syntax-comment: #6e7781;
@@ -99,6 +101,8 @@
   --diff-add-fg: #7ee787;
   --diff-del-fg: #ffa198;
   --diff-hunk-bg: #121d2f;
+  --diff-ruler-view-bg: rgb(255 255 255 / 12%);
+  --diff-ruler-view-border: rgb(255 255 255 / 45%);
   --syntax-keyword: #ff7b72;
   --syntax-string: #a5d6ff;
   --syntax-comment: #8b949e;

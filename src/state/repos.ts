@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { Session } from "../ipc/app";
 import { isIpcError } from "../ipc/core";
 import * as ipc from "../ipc/repo";
 import type { OpenedRepo, RecentRepo, RepoId } from "../ipc/types";
@@ -18,6 +19,10 @@ interface ReposState {
   openPath: (path: string) => Promise<boolean>;
   /** Opens a worktree as its own tab (no main/worktree prompt); selects it if already open. */
   openWorktree: (path: string) => Promise<void>;
+  /** Reopens the saved tabs silently (no worktree prompt); failures toast and are skipped. */
+  restoreSession: (session: Session) => Promise<void>;
+  /** Shows the Welcome screen as a transient "new tab" while the repos stay open. */
+  newTab: () => void;
   /** Switches the current tab. */
   select: (repoId: string) => void;
   /** Cycles the current tab in display order. */
@@ -117,6 +122,31 @@ export const useReposStore = create<ReposState>((set, get) => {
         return;
       }
       await get().loadRecent();
+    },
+
+    restoreSession: async (session) => {
+      let current: OpenedRepo | null = null;
+      for (const path of session.open) {
+        try {
+          const repo = await ipc.openRepo(path);
+          set((s) => ({
+            open: s.open.some((r) => r.repoId === repo.repoId) ? s.open : [...s.open, repo],
+          }));
+          if (session.current !== null && samePath(path, session.current)) current = repo;
+        } catch {
+          useUiStore.getState().pushToast({ kind: "error", title: `Could not reopen ${path}` });
+        }
+      }
+      if (current !== null) {
+        resetSelection();
+        set({ currentId: current.repoId });
+      }
+    },
+
+    newTab: () => {
+      if (get().currentId === null) return;
+      resetSelection();
+      set({ currentId: null });
     },
 
     select: (repoId) => {

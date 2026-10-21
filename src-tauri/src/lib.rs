@@ -50,6 +50,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::graph::GraphCache::default())
         .manage(commands::github::GithubState::default())
         .manage(watcher::Watchers::default())
@@ -64,6 +65,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::app_info,
+            commands::app::load_session,
+            commands::app::save_session,
             commands::repo::pick_repo_dir,
             commands::repo::open_repo,
             commands::repo::list_recent,
