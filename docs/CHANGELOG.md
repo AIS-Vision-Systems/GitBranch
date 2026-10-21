@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-21: GitKraken parity (item 5.8, owner feedback): the working-tree panel always shows Staged files above
+  Unstaged files (untracked included) as a directory tree with a Tree/Flat toggle; clicking a file opens its diff in
+  the center pane (Esc, the x button or a second click on the file returns to the graph); double-clicking a local or
+  remote branch chip checks it out.
 - 2026-10-19: GitHub resilience (item 5.7): list calls use ETag caching (304 answers do not count against the
   rate limit); the account menu shows the remaining API budget and a warning dot when offline or rate limited; the
   Pull requests section, repo picker and Create PR dialog show a clear offline / rate-limit / signed-out notice with

@@ -6,7 +6,18 @@ import { submoduleStateLabel, submodulesOf, useSubmodulesStore } from "../../sta
 import { useWipStore } from "../../state/wip";
 import { CommitForm } from "./CommitForm";
 import { FileList, type FileListItem } from "./FileList";
+import { FileTree } from "./FileTree";
 import styles from "./Commit.module.css";
+
+export const WIP_TREE_KEY = "gitbranch.wipTree";
+
+function readTree(): boolean {
+  try {
+    return localStorage.getItem(WIP_TREE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
 
 export interface WipPaneProps {
   repoId: RepoId;
@@ -106,15 +117,50 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
     const g = {
       staged: [] as FileListItem[],
       unstaged: [] as FileListItem[],
-      untracked: [] as FileListItem[],
       conflicts: [] as FileListItem[],
     };
     for (const i of items) {
       if (i.conflicted === true) g.conflicts.push(i);
-      else g[i.target.kind === "commit" ? "unstaged" : i.target.kind].push(i);
+      else if (i.target.kind === "staged") g.staged.push(i);
+      else g.unstaged.push(i); // unstaged and untracked share one section
     }
     return g;
   }, [items]);
+
+  const [tree, setTree] = useState(readTree);
+  const chooseTree = (v: boolean): void => {
+    setTree(v);
+    try {
+      localStorage.setItem(WIP_TREE_KEY, String(v));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const files = (
+    list: FileListItem[],
+    actions: (item: FileListItem) => ReactNode,
+    ariaLabel: string,
+    emptyText: string,
+  ): ReactNode =>
+    list.length === 0 ? (
+      <p className={`${styles["empty"]} ${styles["muted"]}`}>{emptyText}</p>
+    ) : tree ? (
+      <FileTree
+        files={list}
+        selectedKey={selectedKey}
+        onSelect={onSelect}
+        actions={actions}
+        ariaLabel={ariaLabel}
+      />
+    ) : (
+      <FileList
+        files={list}
+        selectedKey={selectedKey}
+        onSelect={onSelect}
+        actions={actions}
+        ariaLabel={ariaLabel}
+      />
+    );
 
   const rebasing = useGraphStore((st) => st.byRepo[repoId]?.inProgress?.kind === "rebase");
   const actionButton = (
@@ -166,11 +212,11 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
     </>
   );
 
-  const headerButton = (label: string, onClick: () => void) => (
+  const headerButton = (label: string, onClick: () => void, empty = false) => (
     <button
       type="button"
       className={styles["headerAction"]}
-      disabled={busy || opsBusy}
+      disabled={busy || opsBusy || empty}
       onClick={onClick}
     >
       {label}
@@ -182,7 +228,24 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
 
   return (
     <>
-      {items.length === 0 && <p className={styles["placeholder"]}>Working tree clean</p>}
+      <div className={styles["viewToggle"]} role="group" aria-label="File view">
+        <button
+          type="button"
+          className={styles["headerAction"]}
+          aria-pressed={tree}
+          onClick={() => chooseTree(true)}
+        >
+          Tree
+        </button>
+        <button
+          type="button"
+          className={styles["headerAction"]}
+          aria-pressed={!tree}
+          onClick={() => chooseTree(false)}
+        >
+          Flat
+        </button>
+      </div>
       {groups.conflicts.length > 0 && (
         <Section
           title="Conflicts"
@@ -200,56 +263,27 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
             </span>
           }
         >
-          <FileList
-            files={groups.conflicts}
-            selectedKey={selectedKey}
-            onSelect={onSelect}
-            actions={conflictActions}
-            ariaLabel="Conflicted files"
-          />
+          {files(groups.conflicts, conflictActions, "Conflicted files", "")}
         </Section>
       )}
-      {stagedCount > 0 && (
-        <Section
-          title="Staged"
-          count={stagedCount}
-          headerAction={headerButton("Unstage all", () => void unstageAll(repoId))}
-        >
-          <FileList
-            files={groups.staged}
-            selectedKey={selectedKey}
-            onSelect={onSelect}
-            actions={stagedActions}
-            ariaLabel="Staged files"
-          />
-        </Section>
-      )}
-      {groups.unstaged.length > 0 && (
-        <Section
-          title="Unstaged"
-          count={groups.unstaged.length}
-          headerAction={headerButton("Stage all", () => void stageAll(repoId))}
-        >
-          <FileList
-            files={groups.unstaged}
-            selectedKey={selectedKey}
-            onSelect={onSelect}
-            actions={unstagedActions}
-            ariaLabel="Unstaged files"
-          />
-        </Section>
-      )}
-      {groups.untracked.length > 0 && (
-        <Section title="Untracked" count={groups.untracked.length}>
-          <FileList
-            files={groups.untracked}
-            selectedKey={selectedKey}
-            onSelect={onSelect}
-            actions={unstagedActions}
-            ariaLabel="Untracked files"
-          />
-        </Section>
-      )}
+      <Section
+        title="Staged files"
+        count={stagedCount}
+        headerAction={headerButton("Unstage all", () => void unstageAll(repoId), stagedCount === 0)}
+      >
+        {files(groups.staged, stagedActions, "Staged files", "No staged files")}
+      </Section>
+      <Section
+        title="Unstaged files"
+        count={groups.unstaged.length}
+        headerAction={headerButton(
+          "Stage all",
+          () => void stageAll(repoId),
+          groups.unstaged.length === 0,
+        )}
+      >
+        {files(groups.unstaged, unstagedActions, "Unstaged files", "No unstaged changes")}
+      </Section>
       <SubmodulesSection repoId={repoId} />
       <CommitForm repoId={repoId} stagedCount={stagedCount} dirty={items.length > 0} />
     </>

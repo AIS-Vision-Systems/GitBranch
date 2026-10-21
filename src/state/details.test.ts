@@ -7,6 +7,7 @@ vi.mock("../ipc/commit", () => ({ commitDetails: vi.fn(), fileDiff: vi.fn() }));
 
 import * as ipc from "../ipc/commit";
 import { useDetailsStore, VIEW_KEY } from "./details";
+import { useUiStore } from "./ui";
 
 const m = vi.mocked(ipc);
 const id = "r1" as RepoId;
@@ -40,6 +41,45 @@ function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
 beforeEach(() => {
   vi.resetAllMocks();
   useDetailsStore.getState().clear();
+});
+
+describe("details store center view", () => {
+  it("selecting shows the diff, selecting the same file again returns to the graph", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    expect(useUiStore.getState().centerView).toBe("diff");
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    expect(useUiStore.getState().centerView).toBe("graph");
+    expect(useDetailsStore.getState().selectedFile).toBeNull();
+    expect(m.fileDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("selecting a different file keeps the diff view", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    await useDetailsStore.getState().selectFile(id, { ...target, path: "g.ts" }, "g.ts");
+    expect(useUiStore.getState().centerView).toBe("diff");
+    expect(useDetailsStore.getState().selectedFile?.label).toBe("g.ts");
+  });
+
+  it("reloadFile never toggles", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    await useDetailsStore.getState().reloadFile(id, target, "f.ts");
+    expect(useUiStore.getState().centerView).toBe("diff");
+    expect(useDetailsStore.getState().selectedFile).not.toBeNull();
+  });
+
+  it("clear and loadDetails reset centerView", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    useDetailsStore.getState().clear();
+    expect(useUiStore.getState().centerView).toBe("graph");
+    await useDetailsStore.getState().selectFile(id, target, "f.ts");
+    m.commitDetails.mockResolvedValue(details("b"));
+    await useDetailsStore.getState().loadDetails(id, "b");
+    expect(useUiStore.getState().centerView).toBe("graph");
+  });
 });
 
 describe("details store", () => {

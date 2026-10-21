@@ -88,6 +88,7 @@ export const GraphRow = memo(function GraphRow({
     return (
       <Fragment key={r.fullName}>
         <RefChip
+          {...(repoId !== undefined ? { repoId } : {})}
           gitRef={r}
           withUpstream={it.withUpstream}
           {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}

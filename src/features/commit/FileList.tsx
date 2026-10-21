@@ -50,12 +50,15 @@ function PathLabel({ path }: { path: string }) {
   );
 }
 
-const Item = memo(function Item({
+export const Item = memo(function Item({
   item,
   selected,
   onSelect,
   actions,
+  depth,
 }: {
+  /** Tree mode: indent by depth and show only the file name. */
+  depth?: number;
   item: FileListItem;
   selected: boolean;
   onSelect: (item: FileListItem) => void;
@@ -69,6 +72,11 @@ const Item = memo(function Item({
           selected ? `${styles["fileRow"]} ${styles["fileRowSelected"]}` : styles["fileRow"]
         }
         aria-current={selected ? "true" : undefined}
+        style={
+          depth !== undefined
+            ? { paddingLeft: `calc(var(--space-3) + ${depth} * var(--space-3))` }
+            : undefined
+        }
         title={item.origPath !== null ? `${item.origPath} → ${item.path}` : item.path}
         onClick={() => onSelect(item)}
       >
@@ -85,7 +93,13 @@ const Item = memo(function Item({
               <span className={styles["arrow"]}> → </span>
             </>
           )}
-          <PathLabel path={item.path} />
+          {depth !== undefined ? (
+            <span className={styles["file"]}>
+              {item.path.slice(item.path.lastIndexOf("/") + 1)}
+            </span>
+          ) : (
+            <PathLabel path={item.path} />
+          )}
           {item.suffix !== undefined && <span className={styles["suffix"]}> {item.suffix}</span>}
           {item.submodule === true && (
             <span

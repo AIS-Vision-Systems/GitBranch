@@ -60,14 +60,48 @@ describe("WipPane", () => {
   it("renders sections with counts", () => {
     setup();
     for (const [name, count] of [
-      ["Staged", "(1)"],
-      ["Unstaged", "(1)"],
-      ["Untracked", "(1)"],
+      ["Staged files", "(1)"],
+      ["Unstaged files", "(2)"],
       ["Conflicts", "(1)"],
     ] as const) {
       const sec = screen.getByRole("region", { name });
       expect(within(sec).getByRole("heading")).toHaveTextContent(`${name} ${count}`);
     }
+  });
+
+  it("always renders both sections, with placeholders and disabled bulk buttons when empty", () => {
+    setup([]);
+    expect(screen.getByRole("region", { name: "Staged files" })).toHaveTextContent(
+      "No staged files",
+    );
+    expect(screen.getByRole("region", { name: "Unstaged files" })).toHaveTextContent(
+      "No unstaged changes",
+    );
+    expect(screen.getByRole("button", { name: "Unstage all" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Stage all" })).toBeDisabled();
+    expect(screen.queryByRole("region", { name: "Conflicts" })).toBeNull();
+  });
+
+  it("lists untracked files under Unstaged files with a ? badge", () => {
+    setup();
+    const sec = screen.getByRole("region", { name: "Unstaged files" });
+    expect(within(sec).getByTitle("n.ts")).toHaveTextContent("?");
+    expect(screen.queryByRole("region", { name: "Untracked" })).toBeNull();
+  });
+
+  it("tree mode nests files under collapsible folders; flat mode lists paths", () => {
+    localStorage.removeItem("gitbranch.wipTree");
+    setup([entry({ path: "src/lib/x.ts", unstaged: "modified" })]);
+    const dir = screen.getByTitle("src/lib");
+    expect(dir).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTitle("src/lib/x.ts")).toBeInTheDocument();
+    fireEvent.click(dir);
+    expect(screen.queryByTitle("src/lib/x.ts")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Flat" }));
+    expect(localStorage.getItem("gitbranch.wipTree")).toBe("false");
+    expect(screen.getByTitle("src/lib/x.ts")).toBeInTheDocument();
+    expect(screen.queryByTitle("src/lib")).toBeNull();
+    localStorage.removeItem("gitbranch.wipTree");
   });
 
   it("row actions call the store", async () => {

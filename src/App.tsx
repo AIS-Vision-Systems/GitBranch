@@ -7,6 +7,8 @@ import { RepoTabs } from "./features/shell/RepoTabs";
 import { Toolbar } from "./features/shell/Toolbar";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
+import { CenterDiff } from "./features/diff/CenterDiff";
+import { useDetailsStore } from "./state/details";
 import { DetailsPane } from "./features/commit/DetailsPane";
 import { onRepoChanged } from "./ipc/events";
 import { onOpProgress } from "./ipc/progress";
@@ -97,8 +99,25 @@ export default function App() {
     void loadRecent();
   }, [loadRecent]);
 
+  const centerView = useUiStore((s) => s.centerView);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        const t = e.target;
+        const blocked =
+          useDialogsStore.getState().current !== null ||
+          t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement ||
+          t instanceof HTMLSelectElement ||
+          (t instanceof HTMLElement &&
+            (t.isContentEditable ||
+              t.closest('[aria-modal="true"]') !== null ||
+              t.closest('[role="menu"]') !== null));
+        if (!blocked && useUiStore.getState().centerView === "diff") {
+          useDetailsStore.getState().clear();
+        }
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
         void openViaDialog();
@@ -165,7 +184,11 @@ export default function App() {
           <div className={styles["panes"]}>
             {sidebarOpen && <Sidebar key={current.repoId} repoId={current.repoId} />}
             <div className={styles["graphPane"]}>
-              <GraphView key={current.repoId} repoId={current.repoId} />
+              {centerView === "diff" ? (
+                <CenterDiff key={current.repoId} repoId={current.repoId} />
+              ) : (
+                <GraphView key={current.repoId} repoId={current.repoId} />
+              )}
             </div>
             <Splitter width={detailsWidth} onChange={setDetailsWidth} />
             <aside className={styles["details"]} style={{ width: detailsWidth }}>

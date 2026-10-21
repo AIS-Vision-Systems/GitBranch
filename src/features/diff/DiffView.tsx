@@ -313,6 +313,8 @@ export interface DiffViewProps {
   diff: FileDiff | null;
   loading: boolean;
   label: string;
+  /** Hide the file label in the toolbar (the host already shows it). */
+  hideLabel?: boolean;
   view: DiffViewMode;
   onViewChange: (v: DiffViewMode) => void;
   /** With `onHunkOp`, enables hunk and line staging for `staged` / `unstaged` targets. */
@@ -324,6 +326,7 @@ export function DiffView({
   diff,
   loading,
   label,
+  hideLabel = false,
   view,
   onViewChange,
   target,
@@ -403,7 +406,11 @@ export function DiffView({
   useEffect(() => {
     if (!hasSelection) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "Escape") setSelection(null);
+      if (e.key === "Escape") {
+        setSelection(null);
+        // Consumed: the app-level Escape (close the diff) only fires with no selection.
+        e.stopPropagation();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -433,9 +440,11 @@ export function DiffView({
   return (
     <section className={styles["diff"]} aria-label="File diff">
       <div className={styles["toolbar"]}>
-        <span className={styles["label"]} title={label}>
-          {label}
-        </span>
+        {!hideLabel && (
+          <span className={styles["label"]} title={label}>
+            {label}
+          </span>
+        )}
         {modeChange !== null && <span className={styles["mode"]}>{modeChange}</span>}
         <div role="radiogroup" aria-label="Diff view" className={styles["toggle"]}>
           {(["unified", "split"] as const).map((v) => (

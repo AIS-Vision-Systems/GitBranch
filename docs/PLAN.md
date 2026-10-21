@@ -100,6 +100,9 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 - [x] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
 - [x] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
 - [x] 5.7 Rate-limit + offline handling; ETag caching for lists.
+- [x] 5.8 GitKraken parity from the owner's Phase 5 test: (a) WIP panel with Staged above Unstaged, each as a
+  directory tree; (b) clicking a file shows its diff in the center pane, toggled off by Esc or clicking the same file
+  again; (c) double-click on a branch chip checks it out.
 
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 

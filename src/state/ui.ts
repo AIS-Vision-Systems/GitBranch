@@ -48,6 +48,9 @@ interface UiState {
   setTheme: (theme: Theme) => void;
   /** Recompute resolvedTheme (e.g. when the OS preference changes). */
   refreshTheme: () => void;
+  centerView: "graph" | "diff";
+  showDiff: () => void;
+  showGraph: () => void;
   toasts: Toast[];
   pushToast: (t: Omit<Toast, "id" | "createdAt">) => string;
   dismissToast: (id: string) => void;
@@ -64,6 +67,9 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ theme, resolvedTheme: resolveTheme(theme) });
   },
   refreshTheme: () => set({ resolvedTheme: resolveTheme(get().theme) }),
+  centerView: "graph",
+  showDiff: () => set({ centerView: "diff" }),
+  showGraph: () => set({ centerView: "graph" }),
   toasts: [],
   pushToast: (t) => {
     const id = `toast-${nextId++}`;

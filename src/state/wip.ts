@@ -89,7 +89,7 @@ export const useWipStore = create<WipState>((set, get) => {
         if (isIpcError(e) && e.error.code === "stage.stale") {
           useUiStore.getState().pushToast({ kind: "info", title: "File changed, diff reloaded" });
           const f = useDetailsStore.getState().selectedFile;
-          if (f !== null) void useDetailsStore.getState().selectFile(repoId, f.target, f.label);
+          if (f !== null) void useDetailsStore.getState().reloadFile(repoId, f.target, f.label);
         } else {
           reportError(e, "Could not apply change");
         }

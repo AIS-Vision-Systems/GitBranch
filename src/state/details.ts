@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as ipc from "../ipc/commit";
 import type { CommitDetails, DiffTarget, FileDiff } from "../ipc/commit";
 import type { RepoId } from "../ipc/types";
-import { reportError } from "./ui";
+import { reportError, useUiStore } from "./ui";
 
 export type DiffViewMode = "unified" | "split";
 export const VIEW_KEY = "gitbranch.diffView";
@@ -21,6 +21,8 @@ interface DetailsState {
   view: DiffViewMode;
   loadDetails: (repoId: RepoId, oid: string) => Promise<void>;
   selectFile: (repoId: RepoId, target: DiffTarget, label: string) => Promise<void>;
+  /** Like selectFile but never toggles: (re)loads the diff of this file. */
+  reloadFile: (repoId: RepoId, target: DiffTarget, label: string) => Promise<void>;
   setView: (v: DiffViewMode) => void;
   clear: () => void;
 }
@@ -56,6 +58,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   loadDetails: async (repoId, oid) => {
     const gen = ++detailsGen;
     ++diffGen;
+    useUiStore.getState().showGraph();
     set({
       details: null,
       loadingDetails: true,
@@ -75,6 +78,19 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   },
 
   selectFile: async (repoId, target, label) => {
+    const cur = get().selectedFile;
+    if (cur !== null && sameTarget(cur.target, target)) {
+      // Clicking the open file again closes the diff (commit details stay).
+      ++diffGen;
+      set({ selectedFile: null, diff: null, loadingDiff: false });
+      useUiStore.getState().showGraph();
+      return;
+    }
+    await get().reloadFile(repoId, target, label);
+  },
+
+  reloadFile: async (repoId, target, label) => {
+    useUiStore.getState().showDiff();
     const gen = ++diffGen;
     set({ selectedFile: { target, label }, diff: null, loadingDiff: true });
     try {
@@ -98,6 +114,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   },
 
   clear: () => {
+    useUiStore.getState().showGraph();
     ++detailsGen;
     ++diffGen;
     set({
