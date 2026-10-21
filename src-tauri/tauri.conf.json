@@ -33,5 +33,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxQUY1NjY2QTQ4RjczMEQKUldRTmM0K2tabGF2NFZlLzdHNEcwa0RhNmdVcVUzZjY2WkZNUmh4WnQraElrbmhmRkdKS3U4M0gK",
+      "endpoints": [
+        "https://github.com/AIS-Vision-Systems/GitBranch/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
