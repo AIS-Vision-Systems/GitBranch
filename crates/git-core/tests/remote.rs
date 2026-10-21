@@ -24,7 +24,7 @@ fn push_args(branch: Option<&str>) -> PushArgs {
 }
 
 fn fetch_args(remote: Option<&str>, prune: bool) -> FetchArgs {
-    FetchArgs { remote: remote.map(Into::into), prune, tags: false }
+    FetchArgs { remote: remote.map(Into::into), prune, tags: false, refspecs: vec![] }
 }
 
 /// Fixture plus a second clone that pushed one new commit to `origin/main`.
@@ -374,7 +374,8 @@ async fn fetch_tags_brings_tag_only_present_on_remote() {
     let r = fx.runner();
     fetch(&r, fx.path(), &fetch_args(Some("origin"), false), &OpCtx::noop()).await.unwrap();
     assert!(!fx.git(&["tag", "-l"]).contains("only-remote"));
-    let args = FetchArgs { remote: Some("origin".into()), prune: false, tags: true };
+    let args =
+        FetchArgs { remote: Some("origin".into()), prune: false, tags: true, refspecs: vec![] };
     fetch(&r, fx.path(), &args, &OpCtx::noop()).await.unwrap();
     assert!(fx.git(&["tag", "-l"]).contains("only-remote"));
 }

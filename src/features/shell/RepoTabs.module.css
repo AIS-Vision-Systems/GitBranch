@@ -65,3 +65,21 @@
   align-self: center;
   margin-left: calc(-1 * var(--space-1));
 }
+
+.newTab {
+  flex: none;
+  align-self: center;
+  background: transparent;
+  color: var(--color-fg-muted);
+  border: 0;
+  border-radius: var(--radius-1);
+  padding: 0 var(--space-2);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newTab:hover {
+  background: var(--color-row-hover);
+  color: var(--color-fg);
+}

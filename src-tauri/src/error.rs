@@ -60,3 +60,14 @@ from_parse_module_error!(ShowError);
 from_parse_module_error!(DiffError);
 from_parse_module_error!(RemoteError);
 from_parse_module_error!(SubmoduleError);
+
+impl From<github_api::Error> for AppError {
+    fn from(err: github_api::Error) -> Self {
+        let e = AppError::new(err.code(), err.to_string());
+        match err {
+            // Reset time as epoch seconds; the UI formats it.
+            github_api::Error::RateLimited { reset: Some(r) } => e.with_detail(r.to_string()),
+            _ => e,
+        }
+    }
+}

@@ -50,7 +50,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::graph::GraphCache::default())
+        .manage(commands::github::GithubState::default())
         .manage(watcher::Watchers::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
@@ -63,6 +65,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::app_info,
+            commands::app::load_session,
+            commands::app::save_session,
             commands::repo::pick_repo_dir,
             commands::repo::open_repo,
             commands::repo::list_recent,
@@ -129,6 +133,21 @@ pub fn run() {
             commands::conflict::open_in_editor,
             commands::reflog::undo_preview,
             commands::reflog::undo_last,
+            commands::github::github_account,
+            commands::github::github_repos,
+            commands::github::github_repo_slug,
+            commands::github::github_pulls,
+            commands::github::github_checks,
+            commands::github::github_pull,
+            commands::github::github_repo_info,
+            commands::github::github_create_pull,
+            commands::history::commits_between,
+            commands::github::github_checkout_pull,
+            commands::github::github_login_start,
+            commands::github::github_login_wait,
+            commands::github::github_login_cancel,
+            commands::github::github_logout,
+            commands::github::github_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

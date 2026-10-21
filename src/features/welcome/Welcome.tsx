@@ -1,4 +1,4 @@
-import { openClone } from "../dialogs/open";
+import { openClone, openGithubRepoPicker } from "../dialogs/open";
 import { useReposStore } from "../../state/repos";
 import styles from "./Welcome.module.css";
 
@@ -16,8 +16,11 @@ export function Welcome() {
       <button type="button" className={styles["primary"]} onClick={() => void openViaDialog()}>
         Open repository…
       </button>
-      <button type="button" className={styles["secondary"]} onClick={openClone}>
+      <button type="button" className={styles["secondary"]} onClick={() => openClone()}>
         Clone…
+      </button>
+      <button type="button" className={styles["secondary"]} onClick={() => openGithubRepoPicker()}>
+        Clone from GitHub…
       </button>
       <h2 className={styles["heading"]}>Recent</h2>
       {recent.length === 0 ? (

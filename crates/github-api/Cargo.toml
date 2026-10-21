@@ -10,7 +10,21 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+# In-memory transport for offline tests (enabled for `tests/` by the self dev-dependency).
+mock = []
+
 [dependencies]
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 keyring.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+github-api = { path = ".", features = ["mock"] }
+tokio = { workspace = true, features = ["test-util"] }

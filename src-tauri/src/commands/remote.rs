@@ -87,7 +87,7 @@ fn has_embedded_password(url: &str) -> bool {
         })
 }
 
-fn check_remote(name: &str) -> Result<(), AppError> {
+pub(super) fn check_remote(name: &str) -> Result<(), AppError> {
     if is_valid_remote_name(name) { Ok(()) } else { Err(invalid_arg("remote name")) }
 }
 

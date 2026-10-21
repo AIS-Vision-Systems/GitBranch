@@ -5,6 +5,8 @@ import * as cloneIpc from "../ipc/clone";
 import type { CloneArgs } from "../ipc/clone";
 import * as conflictIpc from "../ipc/conflict";
 import type { Side } from "../ipc/conflict";
+import * as githubIpc from "../ipc/github";
+import type { CheckoutPrArgs } from "../ipc/github";
 import * as historyIpc from "../ipc/history";
 import type { ResetMode } from "../ipc/history";
 import * as mergeIpc from "../ipc/merge";
@@ -123,6 +125,8 @@ interface OpsState {
   fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
   pull: (repoId: RepoId, args: PullArgs) => Promise<boolean>;
   push: (repoId: RepoId, args: PushArgs) => Promise<boolean>;
+  /** Resolves with the local branch name, or null on failure/cancel. */
+  checkoutPull: (repoId: RepoId, number: number, args: CheckoutPrArgs) => Promise<string | null>;
   addRemote: (repoId: RepoId, name: string, url: string) => Promise<boolean>;
   removeRemote: (repoId: RepoId, name: string) => Promise<boolean>;
   renameRemote: (repoId: RepoId, old: string, name: string) => Promise<boolean>;
@@ -343,6 +347,22 @@ export const useOpsStore = create<OpsState>((set, get) => {
         }
         return ok;
       }),
+
+    checkoutPull: async (repoId, number, args) => {
+      const res: { branch: string | null } = { branch: null };
+      await withProgress(repoId, `Checking out PR #${number}`, (title, opId) =>
+        run(
+          "Checkout failed",
+          async () => {
+            res.branch = await githubIpc.githubCheckoutPull(repoId, args, opId);
+          },
+          undefined,
+          cancelledAs(title, authRequired),
+        ),
+      );
+      if (res.branch !== null) toast(`Checked out ${res.branch}`);
+      return res.branch;
+    },
 
     addRemote: async (repoId, name, url) => {
       const ok = await run("Add remote failed", () => remoteIpc.addRemote(repoId, name, url));

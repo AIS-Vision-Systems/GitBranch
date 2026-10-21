@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- 2026-10-21: GitKraken parity, round 3 (item 5.10): thicker change ruler with a clearer viewport indicator and
+  an explicit Wrap button; the app restores its window (size, position, maximized), the right-pane width, the open
+  repository tabs and the selected one on the next start (`session.json`); a "+" tab (Ctrl+T) opens the welcome
+  screen to open or clone another repository while the current tabs stay open.
+- 2026-10-21: GitKraken parity, round 2 (item 5.9): the split diff is two panes with a fixed divider, their own
+  scrollbars kept in sync both ways, a Wrap toggle, and a change ruler at the right edge (red marks on the left
+  half for deletions, green on the right for additions; click to jump). File lists of a commit and of the working
+  tree are directory trees with per-folder modified/added/deleted counts, Expand/Collapse all and a summary line.
+- 2026-10-21: GitKraken parity (item 5.8, owner feedback): the working-tree panel always shows Staged files above
+  Unstaged files (untracked included) as a directory tree with a Tree/Flat toggle; clicking a file opens its diff in
+  the center pane (Esc, the x button or a second click on the file returns to the graph); double-clicking a local or
+  remote branch chip checks it out.
+- 2026-10-19: GitHub resilience (item 5.7): list calls use ETag caching (304 answers do not count against the
+  rate limit); the account menu shows the remaining API budget and a warning dot when offline or rate limited; the
+  Pull requests section, repo picker and Create PR dialog show a clear offline / rate-limit / signed-out notice with
+  Retry instead of retrying on their own.
+- 2026-10-19: Graph decorations (item 5.6): branch chips with an open pull request show a `#N` badge and a
+  check-status dot (green/red/yellow); clicking the badge opens the PR. The sidebar list shows the same dot.
+  Check runs are fetched in batches and cached for two minutes (20 s while pending).
+- 2026-10-19: Create pull request (item 5.5): from the Pull requests header or the current branch menu; base picker
+  (default branch preselected), title and description prefilled from the commits, draft flag; the branch is pushed
+  first (with upstream) when needed, and the new PR is selected in the sidebar.
+- 2026-10-19: Pull requests (item 5.4, D-028): a "Pull requests" sidebar section for GitHub repositories (Open /
+  Closed / Mine, draft and merged badges); selecting one shows the detail in the right pane (description, base and
+  head, +/- counts, check runs with status dots and links, review summary), with Checkout (same-repo PRs become a
+  tracking branch named after the head, fork PRs a local `pr/N` branch) and Open in browser.
+- 2026-10-19: GitHub repo picker (item 5.3): "Clone from GitHub..." on the welcome screen and "Pick from GitHub..." in
+  the Clone dialog list your own, collaborator and organization repositories (private included) with search,
+  owner filter, archived toggle and badges; choosing one prefills the Clone dialog.
+- 2026-10-19: GitHub sign-in (Phase 5, items 5.1-5.2, D-027): "Sign in to GitHub" in the header starts the OAuth Device
+  Flow (one-time code, Copy, Open github.com, countdown, optional `workflow` scope); the token goes to the OS keyring
+  and feeds git over HTTPS through the askpass bridge. The account menu shows name, login, granted scopes, an
+  offline marker when GitHub is unreachable, Sign out (removes the local token), Re-authorize and a link to the
+  GitHub revoke page.
 - 2026-10-19: Worktrees (Phase 4, items 4.1-4.4, D-025/D-026): a collapsible left sidebar with a Worktrees section
   (branch or detached commit, path, main/current/locked/prunable badges), Add worktree dialog (new/existing branch
   or detached, default path `../<repo>.<branch>`, folder picker, force; Ctrl+Shift+W or "Add worktree here..." from
@@ -36,6 +70,24 @@
   files; unified/split diff viewer with light syntax coloring; live refresh from a debounced file watcher;
   perf pass on git/git (85.6k commits): first page 124 ms, full history 1.2 s, layout of 100k commits 73 ms.
   Decisions D-014–D-017.
+
+### Phase 5 demo (2026-10-19, branch `phase/5`)
+- "Sign in to GitHub" in the header runs the OAuth Device Flow of the registered app (D-004): the dialog shows the
+  one-time code with Copy / Open github.com and a 15-minute countdown; the token lands in the OS keyring and feeds
+  git over HTTPS through the Phase 3 askpass bridge. The account menu shows login, scopes, API budget, Sign out,
+  Re-authorize and the revoke page; "Clone from GitHub…" lists your and your organizations' repositories.
+- For a GitHub repository the sidebar lists pull requests (Open / Closed / Mine); the detail pane shows
+  description, checks and reviews with Checkout (tracking branch, or `pr/N` for forks, D-028) and Open in browser;
+  "New pull request" pushes the branch first if needed and prefills title/body from the commits. Branch chips carry
+  a `#N` badge and a check dot; offline / rate-limit states are sticky notices with Retry (ETag-cached lists).
+- Smoke test on the real app: Sign in → Continue returned a live device code from GitHub for the registered
+  client id and the countdown ran; Cancel returned to the signed-out header with no backend error. The browser
+  authorization, a private clone and a real PR round-trip are left for the owner (own account).
+- 351 Rust tests (67 in `github-api` on a mock transport with paused time: device flow, ETag/304, rate-limit
+  window, checks cache; 9 new git-core fixture tests for PR checkout and commit ranges), 426 vitest tests;
+  `pnpm check` green. Release build 5.5 min: `gitbranch.exe` 7.6 MB (+2.3 MB for reqwest/rustls), NSIS installer
+  2.6 MB (target < 25 MB).
+- Transport seam, two-command login and offline account are D-027; slug parsing and PR checkout semantics are D-028.
 
 ### Phase 4 demo (2026-10-19, branch `phase/4`)
 - The left sidebar (toggle in the header) lists the worktrees: branch or `detached @ <oid>`, path, main / current /

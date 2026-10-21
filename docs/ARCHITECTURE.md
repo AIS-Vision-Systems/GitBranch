@@ -29,7 +29,7 @@ GitBranch/
       diff/                    # DiffView, Hunk, line staging
       sidebar/                 # Branches, Remotes, Tags, Stashes, Worktrees, PullRequests
       dialogs/                 # one folder per dialog (NewBranch, Clone, CreatePr, ...)
-      github/                  # Login (device flow UI), Account, RepoPicker
+      github/                  # LoginDialog, AccountMenu, RepoPickerDialog, PullDetailView, CreatePullDialog, PrBadge
     styles/tokens.css
   src-tauri/
     Cargo.toml                 # the Tauri binary crate (member of the root workspace)
@@ -48,7 +48,7 @@ GitBranch/
       tests/{fixtures,runner}.rs
       examples/make_fixture.rs # cargo run -p git-core --features fixtures --example make_fixture -- <kind> <dir>
     github-api/
-      src/{auth,client,models,prs,repos}.rs
+      src/{http,client,error,auth,token,askpass,user,repos,pulls,checks}.rs  # Transport trait + reqwest/mock
   docs/
   .claude/                     # Claude Code harness (see HARNESS.md)
 ```
@@ -121,8 +121,15 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   answer `x-access-token`, for "Password" answer the token. Any other host: fail fast (exit 1); git asks credential helpers
   *before* askpass, and with `GIT_TERMINAL_PROMPT=0` an exit 1 ends in `AuthRequired`, which the UI reports.
 - SSH remotes are untouched (system `ssh`, agent, keys).
-- API client: `reqwest` + `serde`, `Authorization: Bearer`, `If-None-Match` caching for list endpoints, backoff on
-  403 rate limit, explicit offline mode.
+- API client (D-027): `github-api::http::Transport` is the only seam (`ReqwestTransport` with rustls in the app,
+  `MockTransport` in tests); one `GitHub<T>::send()` path adds `Authorization: Bearer`, `Accept`, the API version,
+  `If-None-Match` from a bounded ETag cache (304 serves the cached body), reads `x-ratelimit-*` into a status the
+  UI can show, short-circuits while rate limited, and flips an `online` flag on transport errors. Check summaries
+  are cached per commit (`checks::ChecksCache`). The UI never retries on its own: offline / rate-limit / signed-out
+  are sticky notices with a Retry or Sign in button.
+- Pull requests (D-028): the repo slug comes from the remote URL; checkout of a PR is one git-core op
+  (`ops::pull_request::checkout_pr`): tracking branch for same-repo PRs, local `pr/N` from `refs/pull/<remote>/N`
+  for forks.
 
 ## IPC contract
 

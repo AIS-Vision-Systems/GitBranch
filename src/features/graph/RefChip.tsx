@@ -1,5 +1,6 @@
 import { memo, type DragEvent, type MouseEvent } from "react";
-import type { Ref } from "../../ipc/types";
+import type { Ref, RepoId } from "../../ipc/types";
+import { useOpsStore } from "../../state/ops";
 import { acceptDrag, endDrag, leaveDrag, startDrag, takeDrop } from "./dnd";
 import { CheckIcon, CloudIcon, LaptopIcon, TagIcon } from "./icons";
 import { remoteTrackingName } from "./menus";
@@ -7,6 +8,8 @@ import styles from "./Graph.module.css";
 
 interface Props {
   gitRef: Ref;
+  /** Needed for double-click checkout. */
+  repoId?: RepoId;
   /** Stable callback; receives the chip's own ref. */
   onContextMenu?: (e: MouseEvent, gitRef: Ref) => void;
   /** Stable callback: a local branch named `source` was dropped on this chip. */
@@ -17,6 +20,7 @@ interface Props {
 
 export const RefChip = memo(function RefChip({
   gitRef,
+  repoId,
   onContextMenu,
   onBranchDrop,
   withUpstream = false,
@@ -42,6 +46,15 @@ export const RefChip = memo(function RefChip({
           onContextMenu(e, gitRef);
         };
   const { kind, name, upstream, isHead } = gitRef;
+  const onDouble =
+    repoId === undefined || (kind === "localBranch" && isHead)
+      ? undefined
+      : (e: MouseEvent): void => {
+          e.stopPropagation();
+          void useOpsStore
+            .getState()
+            .checkout(repoId, kind === "localBranch" ? name : remoteTrackingName(gitRef));
+        };
   if (kind === "localBranch") {
     const gone = upstream?.gone === true;
     const cls = [
@@ -56,11 +69,15 @@ export const RefChip = memo(function RefChip({
       <span
         className={cls.join(" ")}
         onContextMenu={onMenu}
+        onDoubleClick={onDouble}
         draggable
         onDragStart={(e) => startDrag(e, name)}
         onDragEnd={endDrag}
         {...dropProps}
-        title={gone ? `${name} (upstream ${upstream?.name ?? ""} is gone)` : name}
+        title={
+          (gone ? `${name} (upstream ${upstream?.name ?? ""} is gone)` : name) +
+          (onDouble !== undefined ? "\nDouble-click to checkout" : "")
+        }
       >
         {isHead && <CheckIcon />}
         <LaptopIcon />
@@ -82,8 +99,9 @@ export const RefChip = memo(function RefChip({
     return (
       <span
         className={`${styles["chip"]} ${styles["remote"]}`}
-        title={label}
+        title={onDouble !== undefined ? `${label}\nDouble-click to checkout` : label}
         onContextMenu={onMenu}
+        onDoubleClick={onDouble}
         {...dropProps}
       >
         <CloudIcon />

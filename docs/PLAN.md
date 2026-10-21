@@ -93,13 +93,23 @@ Acceptance: fetch/pull/push against a private GitHub repo over HTTPS using only 
 Acceptance: create, commit in worktree, see it in the main tab graph without manual refresh, remove.
 
 ### Phase 5 — GitHub integration (OAuth App)
-- [ ] 5.1 Device Flow login (`github-api::auth`): request code, show user code + open browser, poll, store token with `keyring` (Windows Credential Manager / Secret Service). Scopes: `repo`, `read:org`; `workflow` optional toggle.
-- [ ] 5.2 Account panel: user, scopes, logout (delete local token; link to GitHub revoke page).
-- [ ] 5.3 Repo picker: list user/org repos (private included), clone from picker.
-- [ ] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
-- [ ] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
-- [ ] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
-- [ ] 5.7 Rate-limit + offline handling; ETag caching for lists.
+- [x] 5.1 Device Flow login (`github-api::auth`): request code, show user code + open browser, poll, store token with `keyring` (Windows Credential Manager / Secret Service). Scopes: `repo`, `read:org`; `workflow` optional toggle.
+- [x] 5.2 Account panel: user, scopes, logout (delete local token; link to GitHub revoke page).
+- [x] 5.3 Repo picker: list user/org repos (private included), clone from picker.
+- [x] 5.4 Pull requests: list for current repo (open/closed/mine), detail (title, body, checks, reviews summary), checkout PR head (`refs/pull/N/head`), open in browser.
+- [x] 5.5 Create PR from current branch: base/head picker, title/body (prefilled from commits), draft flag; push first if needed.
+- [x] 5.6 Graph decorations: PR badge on branch tips, check-status dot.
+- [x] 5.7 Rate-limit + offline handling; ETag caching for lists.
+- [x] 5.8 GitKraken parity from the owner's Phase 5 test: (a) WIP panel with Staged above Unstaged, each as a
+  directory tree; (b) clicking a file shows its diff in the center pane, toggled off by Esc or clicking the same file
+  again; (c) double-click on a branch chip checks it out.
+- [x] 5.9 GitKraken parity, round 2: (a) split diff with a fixed divider, independent scrollbars per side
+  (vertical scroll kept in sync) and a change-overview ruler at the right edge; (b) commit file list in tree mode
+  with per-folder modified/added/deleted counts, Expand/Collapse all, header summary ("N modified + M added").
+- [x] 5.10 GitKraken parity, round 3: (a) change ruler twice as thick, clearer viewport indicator, visible Wrap
+  toggle; (b) session restore: window state (maximized/size/position via tauri-plugin-window-state), right-pane
+  width, open repository tabs and the selected one (session.json next to recent.json); (c) a "+" tab at the right
+  of the repo tabs opens the welcome screen (Open / Clone / Clone from GitHub / recent).
 
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 
@@ -110,6 +120,10 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 - [ ] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
 - [ ] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).
 - [ ] 6.6 Telemetry: **none**. Local log file only.
+- [ ] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
+  the repo passed on its command line as a new tab.
+- [ ] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
+  (`git ls-remote --heads`) instead of a free-text field.
 
 ## Out of scope (explicitly)
 GitLab/Bitbucket/Azure, integrated terminal, AI features, cloud workspaces, issue trackers, LFS management UI, GPG key management (signing uses the user's existing git config).

@@ -29,15 +29,50 @@ describe("DiffView", () => {
     expect(screen.getByText("↵ No newline at end of file")).toBeInTheDocument();
   });
 
-  it("renders split pairs on one row", () => {
+  it("renders split pairs in two aligned panes", () => {
     render(<DiffView {...base} diff={sampleDiff()} view="split" />);
-    const rows = screen.getAllByRole("row");
+    const [left, right] = screen.getAllByRole("table");
+    expect(left).toHaveAttribute("aria-label", "Diff (old)");
+    const texts = (t: HTMLElement, i: number): (string | null)[] =>
+      within(within(t).getAllByRole("row")[i]!)
+        .getAllByRole("cell")
+        .map((c) => c.textContent);
     // hunk, context, del/add pair, nonl
-    expect(rows).toHaveLength(4);
-    const pair = within(rows[2]!)
-      .getAllByRole("cell")
-      .map((c) => c.textContent);
-    expect(pair).toEqual(["2", "const b = 2;", "2", "const b = 3;"]);
+    expect(within(left!).getAllByRole("row")).toHaveLength(4);
+    expect(texts(left!, 2)).toEqual(["2", "const b = 2;"]);
+    expect(texts(right!, 2)).toEqual(["2", "const b = 3;"]);
+  });
+
+  it("split has two scroll containers; scrolling one syncs the other vertically", () => {
+    const { container } = render(<DiffView {...base} diff={sampleDiff()} view="split" />);
+    const [left, right] = screen.getAllByRole("table").map((t) => t.parentElement!);
+    expect(left).not.toBe(right);
+    expect(container.querySelectorAll("[role=table]")).toHaveLength(2);
+    left!.scrollTop = 40;
+    fireEvent.scroll(left!);
+    expect(right!.scrollTop).toBe(40);
+    right!.scrollTop = 10;
+    fireEvent.scroll(right!);
+    expect(left!.scrollTop).toBe(10);
+    left!.scrollLeft = 25;
+    fireEvent.scroll(left!);
+    expect(right!.scrollLeft).toBe(25);
+  });
+
+  it("Wrap toggle defaults on and persists", () => {
+    localStorage.removeItem("gitbranch.diffWrap");
+    render(<DiffView {...base} diff={sampleDiff()} view="unified" />);
+    const btn = screen.getByRole("button", { name: "Wrap" });
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    expect(localStorage.getItem("gitbranch.diffWrap")).toBe("false");
+    localStorage.removeItem("gitbranch.diffWrap");
+  });
+
+  it("renders the change overview ruler", () => {
+    render(<DiffView {...base} diff={sampleDiff()} view="split" />);
+    expect(screen.getByTestId("diff-ruler")).toBeInTheDocument();
   });
 
   it("shows binary and empty states", () => {
@@ -186,11 +221,11 @@ describe("DiffView", () => {
         />,
       );
       const rows = screen.getAllByRole("row");
-      const cells = within(rows[2]!).getAllByRole("cell");
-      fireEvent.click(cells[0]!);
+      // left pane rows 0-3, right pane rows 4-7
+      fireEvent.click(within(rows[2]!).getAllByRole("cell")[0]!);
       fireEvent.click(screen.getByRole("button", { name: "Stage 1 line" }));
       expect((onHunkOp.mock.calls[0]![0] as HunkSelection).lines).toEqual([1]);
-      fireEvent.click(cells[2]!);
+      fireEvent.click(within(rows[6]!).getAllByRole("cell")[0]!);
       fireEvent.click(screen.getByRole("button", { name: "Stage 1 line" }));
       expect((onHunkOp.mock.calls[1]![0] as HunkSelection).lines).toEqual([2]);
     });
@@ -227,8 +262,8 @@ describe("DiffView", () => {
           onHunkOp={vi.fn()}
         />,
       );
-      const cells = within(screen.getAllByRole("row")[2]!).getAllByRole("cell");
-      fireEvent.keyDown(cells[2]!, { key: " " });
+      const cells = within(screen.getAllByRole("row")[6]!).getAllByRole("cell");
+      fireEvent.keyDown(cells[0]!, { key: " " });
       expect(screen.getByRole("button", { name: "Stage 1 line" })).toBeInTheDocument();
     });
 

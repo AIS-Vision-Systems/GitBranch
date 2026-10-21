@@ -131,6 +131,10 @@ pub struct FetchArgs {
     pub prune: bool,
     /// Also fetch all tags.
     pub tags: bool,
+    /// Refspecs to fetch, after the remote. Only used with `remote: Some`; with `None` they are
+    /// ignored (and trip a debug assertion).
+    #[serde(default)]
+    pub refspecs: Vec<String>,
 }
 
 /// The `git fetch` argv for `args`.
@@ -142,9 +146,12 @@ pub fn fetch_argv(args: &FetchArgs) -> Vec<String> {
     if args.tags {
         v.push("--tags".into());
     }
-    match &args.remote {
-        Some(remote) => v.extend(["--".into(), remote.clone()]),
-        None => v.push("--all".into()),
+    if let Some(remote) = &args.remote {
+        v.extend(["--".into(), remote.clone()]);
+        v.extend(args.refspecs.iter().cloned());
+    } else {
+        debug_assert!(args.refspecs.is_empty(), "refspecs need a remote");
+        v.push("--all".into());
     }
     v
 }
@@ -392,6 +399,7 @@ mod tests {
                     remote: remote.clone(),
                     prune: flag,
                     tags: flag,
+                    refspecs: vec![],
                 }));
                 for mode in [PullMode::Config, PullMode::FfOnly, PullMode::Rebase, PullMode::Merge]
                 {
@@ -424,10 +432,24 @@ mod tests {
     }
 
     #[test]
+    fn fetch_refspecs_follow_the_remote() {
+        let f = FetchArgs {
+            remote: Some("o".into()),
+            prune: false,
+            tags: false,
+            refspecs: vec!["+refs/pull/7/head:refs/remotes/o/pr/7".into()],
+        };
+        assert_eq!(
+            fetch_argv(&f),
+            ["fetch", "--progress", "--", "o", "+refs/pull/7/head:refs/remotes/o/pr/7"]
+        );
+    }
+
+    #[test]
     fn argv_shapes() {
-        let f = FetchArgs { remote: None, prune: true, tags: false };
+        let f = FetchArgs { remote: None, prune: true, tags: false, refspecs: vec![] };
         assert_eq!(fetch_argv(&f), ["fetch", "--progress", "--prune", "--all"]);
-        let f = FetchArgs { remote: Some("up".into()), prune: false, tags: true };
+        let f = FetchArgs { remote: Some("up".into()), prune: false, tags: true, refspecs: vec![] };
         assert_eq!(fetch_argv(&f), ["fetch", "--progress", "--tags", "--", "up"]);
         let p =
             PullArgs { remote: Some("o".into()), branch: Some("m".into()), mode: PullMode::Rebase };

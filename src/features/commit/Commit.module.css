@@ -7,8 +7,8 @@
 }
 
 .top {
-  flex: none;
-  max-height: 50%;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -354,4 +354,108 @@
 
 .state_conflict {
   color: var(--color-danger);
+}
+
+.dirRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dirRow:hover {
+  background: var(--color-bg);
+}
+
+.caret {
+  flex: none;
+  width: 1em;
+}
+
+.viewToggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-1) var(--space-3);
+}
+
+.muted {
+  color: var(--color-fg-muted);
+}
+
+.linkAction {
+  background: transparent;
+  border: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.linkAction:hover {
+  text-decoration: underline;
+}
+
+.dirName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.counts {
+  display: inline-flex;
+  gap: var(--space-2);
+  flex: none;
+  font-size: 0.85em;
+}
+
+.countItem {
+  white-space: nowrap;
+}
+
+.countModified {
+  color: var(--color-warning);
+}
+
+.countAdded {
+  color: var(--diff-add-fg);
+}
+
+.countDeleted {
+  color: var(--diff-del-fg);
+}
+
+.countMoved {
+  color: var(--color-accent);
+}
+
+.summary {
+  color: var(--color-fg-muted);
+  font-size: 0.8em;
+  font-weight: 400;
+  padding: 0 var(--space-3) var(--space-1);
+}
+
+.fileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.summaryText {
+  color: var(--color-fg-muted);
+  font-size: 0.85em;
 }

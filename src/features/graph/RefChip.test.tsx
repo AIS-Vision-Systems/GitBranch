@@ -1,7 +1,9 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ref } from "../../ipc/types";
 import { chipItems } from "./chips";
+import type { RepoId } from "../../ipc/types";
+import { useOpsStore } from "../../state/ops";
 import { RefChip } from "./RefChip";
 
 const local = (name: string, over: Partial<Ref> = {}): Ref => ({
@@ -22,6 +24,43 @@ const remote = (name: string): Ref => ({
   isHead: false,
 });
 const up = { name: "origin/main", ahead: 0, behind: 0, gone: false };
+
+const checkout = vi.fn().mockResolvedValue(true);
+beforeEach(() => {
+  checkout.mockClear();
+  useOpsStore.setState({ checkout } as never);
+});
+
+describe("RefChip double-click", () => {
+  const rid = "r1" as RepoId;
+  const tag: Ref = {
+    ...local("v1"),
+    fullName: "refs/tags/v1",
+    kind: { tag: { annotated: false } },
+  };
+
+  it("checks out a local branch", () => {
+    const { container } = render(<RefChip repoId={rid} gitRef={local("dev")} />);
+    const chip = container.firstElementChild as HTMLElement;
+    expect(chip.title).toContain("Double-click to checkout");
+    fireEvent.doubleClick(chip);
+    expect(checkout).toHaveBeenCalledWith(rid, "dev");
+  });
+
+  it("checks out a remote branch by its full name", () => {
+    const { container } = render(<RefChip repoId={rid} gitRef={remote("origin/dev")} />);
+    fireEvent.doubleClick(container.firstElementChild as HTMLElement);
+    expect(checkout).toHaveBeenCalledWith(rid, "origin/dev");
+  });
+
+  it("ignores tags and the current branch", () => {
+    const t = render(<RefChip repoId={rid} gitRef={tag} />);
+    fireEvent.doubleClick(t.container.firstElementChild as HTMLElement);
+    const h = render(<RefChip repoId={rid} gitRef={local("main", { isHead: true })} />);
+    fireEvent.doubleClick(h.container.firstElementChild as HTMLElement);
+    expect(checkout).not.toHaveBeenCalled();
+  });
+});
 
 describe("RefChip", () => {
   it("HEAD chip has the check icon, others do not", () => {
