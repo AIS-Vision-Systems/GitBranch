@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../ipc/updater";
 import { DEFAULT_SETTINGS, useSettingsStore } from "./settings";
-import { CHECK_INTERVAL_MS, LAST_CHECK_KEY, useUpdaterStore } from "./updater";
+import {
+  CHECK_INTERVAL_MS,
+  LAST_CHECK_KEY,
+  startUpdateScheduler,
+  TIMER_INTERVAL_MS,
+  useUpdaterStore,
+} from "./updater";
 
 vi.mock("../ipc/updater", () => ({
   checkForUpdate: vi.fn(),
@@ -123,6 +129,49 @@ describe("updater store", () => {
     useSettingsStore.setState({ loaded: false });
     await useUpdaterStore.getState().check();
     expect(m.checkForUpdate).not.toHaveBeenCalled();
+  });
+
+  it("scheduler runs the first check only after settings load, then hourly", async () => {
+    vi.useFakeTimers();
+    try {
+      m.checkForUpdate.mockResolvedValue(null);
+      useSettingsStore.setState({ loaded: false });
+      const stop = startUpdateScheduler();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(m.checkForUpdate).not.toHaveBeenCalled();
+      useSettingsStore.setState({ loaded: true });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(m.checkForUpdate).toHaveBeenCalledTimes(1);
+      localStorage.clear();
+      await vi.advanceTimersByTimeAsync(TIMER_INTERVAL_MS);
+      expect(m.checkForUpdate).toHaveBeenCalledTimes(2);
+      stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("an install error survives a scheduled tick", async () => {
+    const u = update();
+    vi.mocked(u.downloadAndInstall).mockRejectedValueOnce(new Error("net"));
+    m.checkForUpdate.mockResolvedValue(u);
+    await useUpdaterStore.getState().check();
+    await useUpdaterStore.getState().install();
+    localStorage.clear();
+    m.checkForUpdate.mockClear();
+    await useUpdaterStore.getState().check();
+    expect(m.checkForUpdate).not.toHaveBeenCalled();
+    expect(useUpdaterStore.getState().status).toBe("error");
+    expect(useUpdaterStore.getState().error).toBe("net");
+  });
+
+  it("a failed manual check keeps the error state with the message", async () => {
+    m.checkForUpdate.mockRejectedValue(new Error("offline"));
+    await useUpdaterStore.getState().check({ manual: true });
+    useUpdaterStore.getState().dismiss();
+    await useUpdaterStore.getState().check({ manual: true });
+    const s = useUpdaterStore.getState();
+    expect([s.status, s.error, s.dismissed]).toEqual(["error", "offline", false]);
   });
 
   it("treats a future last-check time as never checked", async () => {

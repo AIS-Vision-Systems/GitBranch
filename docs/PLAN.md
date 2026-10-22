@@ -136,7 +136,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
   the Path field instead of being wiped by the next keystroke.
 - [x] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
   longer fires inside text fields.
-- [ ] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
+- [x] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
   instead of a 5 s guess; a failed install is not overwritten by the hourly check.
 - [ ] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
   instead of re-running `git log` from commit 0 on every "load more".
