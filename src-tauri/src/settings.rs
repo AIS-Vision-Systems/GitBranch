@@ -41,6 +41,8 @@ pub struct Settings {
     pub editor: Option<String>,
     /// External diff tool command (`$LOCAL` / `$REMOTE` placeholders).
     pub difftool: Option<String>,
+    /// Check for a new release at startup.
+    pub auto_update_check: bool,
 }
 
 impl Default for Settings {
@@ -52,6 +54,7 @@ impl Default for Settings {
             diff_ignore_whitespace: false,
             editor: None,
             difftool: None,
+            auto_update_check: true,
         }
     }
 }
@@ -154,6 +157,17 @@ mod tests {
         assert_eq!(std::fs::read(d.path().join("settings.json.bad")).unwrap(), b"{nope");
         std::fs::write(&f, br#"{"diffContextLines": 4000000}"#).unwrap();
         assert_eq!(load(&f).diff_context_lines, MAX_CONTEXT_LINES);
+    }
+
+    #[test]
+    fn auto_update_check_defaults_on_and_round_trips() {
+        assert!(Settings::default().auto_update_check);
+        let old: Settings = serde_json::from_str(r#"{"diffContextLines": 5}"#).unwrap();
+        assert!(old.auto_update_check);
+        let off: Settings = serde_json::from_str(r#"{"autoUpdateCheck": false}"#).unwrap();
+        assert!(!off.auto_update_check);
+        let json = serde_json::to_string(&off).unwrap();
+        assert!(json.contains(r#""autoUpdateCheck":false"#));
     }
 
     #[test]

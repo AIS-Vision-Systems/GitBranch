@@ -6,6 +6,7 @@ import { useDetailsStore } from "../../state/details";
 import { useSettingsStore } from "../../state/settings";
 import { useUiStore, type Theme } from "../../state/ui";
 import { useReposStore } from "../../state/repos";
+import { useUpdaterStore } from "../../state/updater";
 import { FormDialog } from "./FormDialog";
 import styles from "./Form.module.css";
 
@@ -40,6 +41,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [ws, setWs] = useState(current.diffIgnoreWhitespace);
   const [editor, setEditor] = useState(current.editor ?? "");
   const [difftool, setDifftool] = useState(current.difftool ?? "");
+  const [auto, setAuto] = useState(current.autoUpdateCheck);
+  const upd = useUpdaterStore();
   const selectRef = useRef<HTMLSelectElement>(null);
   const ctxNum = Number(ctx);
   const valid = ctx.trim() !== "" && Number.isInteger(ctxNum) && ctxNum >= 0 && ctxNum <= 100;
@@ -53,6 +56,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       diffIgnoreWhitespace: ws,
       editor: orNull(editor),
       difftool: orNull(difftool),
+      autoUpdateCheck: auto,
     };
     const diffChanged =
       next.diffContextLines !== current.diffContextLines ||
@@ -150,6 +154,30 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           onChange={(e) => setDifftool(e.target.value)}
         />
       </label>
+      <strong>Updates</strong>
+      <label className={styles["check"]}>
+        <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+        <span>Check for updates automatically</span>
+      </label>
+      <div className={styles["field"]}>
+        <button
+          type="button"
+          disabled={upd.status === "checking" || upd.status === "downloading"}
+          onClick={() => void upd.check({ manual: true })}
+        >
+          Check now
+        </button>
+        {upd.status === "checking" && <span className={styles["hint"]}>Checking…</span>}
+        {upd.status !== "checking" && upd.upToDate && (
+          <span className={styles["hint"]}>You&apos;re up to date</span>
+        )}
+        {upd.status === "available" && (
+          <span className={styles["hint"]}>{`GitBranch ${upd.version ?? ""} is available`}</span>
+        )}
+        {upd.status === "error" && upd.error !== null && (
+          <span className={styles["hint"]} role="alert">{`Update check failed: ${upd.error}`}</span>
+        )}
+      </div>
       {error !== null && (
         <div className={styles["error"]} role="alert">
           {error}

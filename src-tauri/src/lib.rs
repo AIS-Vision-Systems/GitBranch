@@ -48,10 +48,15 @@ pub fn run() {
     let filter = tracing_subscriber::EnvFilter::try_from_env("GITBRANCH_LOG")
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(filter).with_target(true).init();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_window_state::Builder::default().build());
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+    builder
         .manage(commands::graph::GraphCache::default())
         .manage(commands::github::GithubState::default())
         .manage(watcher::Watchers::default())
@@ -68,6 +73,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::app_info,
+            commands::app::can_self_update,
             commands::app::load_session,
             commands::app::save_session,
             commands::settings::get_settings,

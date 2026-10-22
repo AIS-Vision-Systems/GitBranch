@@ -12,6 +12,7 @@ import { useOpsStore } from "../state/ops";
 import type { Command } from "../state/palette";
 import { remotesOf, useRemotesStore } from "../state/remotes";
 import { useReposStore } from "../state/repos";
+import { useUpdaterStore } from "../state/updater";
 
 const FETCH_ALL = { remote: null, prune: true, tags: false };
 
@@ -22,6 +23,11 @@ export function buildCommands(): Command[] {
     { id: "open", title: "Open repository", shortcut: "Ctrl+O", run: () => repos.openViaDialog() },
     { id: "clone", title: "Clone repository", shortcut: "Ctrl+Shift+C", run: () => openClone() },
     { id: "settings", title: "Open settings", shortcut: "Ctrl+,", run: () => openSettings() },
+    {
+      id: "check-updates",
+      title: "Check for updates",
+      run: () => useUpdaterStore.getState().check({ manual: true }),
+    },
     { id: "new-tab", title: "New tab", shortcut: "Ctrl+T", run: () => repos.newTab() },
   ];
   if (repos.open.length > 1) {

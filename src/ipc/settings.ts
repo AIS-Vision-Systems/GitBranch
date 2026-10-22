@@ -10,6 +10,7 @@ export interface Settings {
   diffIgnoreWhitespace: boolean;
   editor: string | null;
   difftool: string | null;
+  autoUpdateCheck: boolean;
 }
 
 export function getSettings(): Promise<Settings> {

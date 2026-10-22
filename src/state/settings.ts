@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   diffIgnoreWhitespace: false,
   editor: null,
   difftool: null,
+  autoUpdateCheck: true,
 };
 
 interface SettingsState {

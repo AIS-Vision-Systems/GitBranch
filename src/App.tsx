@@ -20,6 +20,8 @@ import { useDetailsWidth } from "./features/shell/detailsWidth";
 import { Splitter } from "./features/shell/Splitter";
 import { DialogHost } from "./features/shell/DialogHost";
 import { Toasts } from "./features/shell/Toasts";
+import { UpdateCard } from "./features/shell/UpdateCard";
+import { startUpdateScheduler } from "./state/updater";
 import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
@@ -119,6 +121,8 @@ export default function App() {
     void loadRecent();
     void useSettingsStore.getState().load();
   }, [loadRecent]);
+
+  useEffect(() => startUpdateScheduler(), []);
 
   const centerView = useUiStore((s) => s.centerView);
   useEffect(() => {
@@ -270,6 +274,7 @@ export default function App() {
       <WorktreeChoice />
       <DialogHost />
       <CommandPalette />
+      <UpdateCard />
       <Toasts />
     </div>
   );
