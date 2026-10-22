@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 2026-10-22: **Phase 6 demo.** (1) Ctrl+K opens the command palette; Ctrl+F filters the graph by author, message or path. (2) Right-click a file → Blame / File history / Open in difftool. (3) Settings (gear, Ctrl+,): git path, pull strategy, diff options, editor, difftool, update opt-out. (4) A second launch focuses the running window and opens its repo as a tab; logs live in a daily file, no telemetry. (5) Clone lists remote branches; per-user NSIS installer is 2.9 MiB; tag `vX.Y.Z` builds a signed draft release with `latest.json`.
 - 2026-10-22: Clone dialog lists the remote branches (default first) via `git ls-remote`; falls back to a text field when the lookup fails.
 - 2026-10-22: single instance (a second launch focuses the window and opens the repo path as a tab); local daily log file (`gitbranch.log`, 7 days, no telemetry) with Settings → Open log folder.
 - 2026-10-22: auto-update: startup + daily check, "Update and restart" card with progress, opt-out in Settings, palette "Check for updates"; tag `vX.Y.Z` triggers a draft release with signed bundles + latest.json.
