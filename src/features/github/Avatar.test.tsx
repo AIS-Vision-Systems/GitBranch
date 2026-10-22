@@ -1,0 +1,30 @@
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { githubAvatar } from "../../ipc/github";
+import { useGithubStore } from "../../state/github";
+import { Avatar } from "./Avatar";
+import { resetAvatarCache } from "./useAvatar";
+
+vi.mock("../../ipc/github", () => ({ githubAvatar: vi.fn() }));
+
+beforeEach(() => {
+  resetAvatarCache();
+  vi.mocked(githubAvatar).mockReset();
+  useGithubStore.setState({ account: null });
+});
+
+describe("Avatar", () => {
+  it("shows the GitHub photo for a noreply author", async () => {
+    vi.mocked(githubAvatar).mockResolvedValue("data:image/png;base64,AAAA");
+    render(<Avatar name="Alice Doe" email="1+alice@users.noreply.github.com" size={24} />);
+    const img = await screen.findByRole("img");
+    expect(img.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+    expect(githubAvatar).toHaveBeenCalledWith("alice");
+  });
+  it("falls back to initials for unknown authors", () => {
+    render(<Avatar name="Bob Smith" email="bob@example.com" size={24} />);
+    expect(screen.getByText("BS")).toBeTruthy();
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(githubAvatar).not.toHaveBeenCalled();
+  });
+});
