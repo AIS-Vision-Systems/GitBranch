@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { blame, type Blame } from "../../ipc/blame";
 import type { RepoId } from "../../ipc/types";
 import { formatAbsolute, formatRelative } from "../../lib/time";
@@ -8,6 +9,8 @@ import { buildBlameRows, isUncommitted, type BlameRow } from "./rows";
 import styles from "./BlameView.module.css";
 
 const SHORT_OID = 7;
+/** Estimate: 0.9em mono at ~14px base * line-height 1.5; real heights come from measureElement. */
+const ROW_H = 19;
 
 const BlameLine = memo(function BlameLine({
   row,
@@ -142,8 +145,49 @@ export function BlameView({ repoId }: { repoId: RepoId }) {
         ) : rows.length === 0 ? (
           <p className={styles["status"]}>Empty file</p>
         ) : (
-          rows.map((r) => <BlameLine key={r.line} row={r} now={now} onSelect={select} />)
+          <BlameRows rows={rows} now={now} onSelect={select} />
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Virtualised rows; `first` is precomputed per row, so hunk grouping survives windowing. */
+function BlameRows({
+  rows,
+  now,
+  onSelect,
+}: {
+  rows: BlameRow[];
+  now: number;
+  onSelect: (oid: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // TanStack Virtual returns unmemoizable functions; React Compiler skips this component, which is fine.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_H,
+    overscan: 20,
+  });
+  return (
+    <div ref={scrollRef} className={styles["scroll"]}>
+      <div className={styles["sizer"]} style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((v) => {
+          const r = rows[v.index]!;
+          return (
+            <div
+              key={r.line}
+              ref={virtualizer.measureElement}
+              data-index={v.index}
+              className={styles["virtualRow"]}
+              style={{ transform: `translateY(${v.start}px)` }}
+            >
+              <BlameLine row={r} now={now} onSelect={onSelect} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

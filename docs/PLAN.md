@@ -142,7 +142,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
   instead of re-running `git log` from commit 0 on every "load more".
 - [ ] 7.6 Difftool empty-tree fallback via `git hash-object -t tree --stdin` (SHA-256 safe); no `rev-parse` when
   `staged`.
-- [ ] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
+- [x] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
 - [ ] 7.8 Docs drift: ARCHITECTURE sections for settings, updater, log file, single instance, blame; CHANGELOG
   installer size; 6.8 wording ("any URL"); note that file history has no `--follow`.
 - [x] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
