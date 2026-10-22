@@ -145,7 +145,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
 - [ ] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
 - [ ] 7.8 Docs drift: ARCHITECTURE sections for settings, updater, log file, single instance, blame; CHANGELOG
   installer size; 6.8 wording ("any URL"); note that file history has no `--follow`.
-- [ ] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
+- [x] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
 
 Acceptance: check ladder green; `code` as editor opens a conflicted file on Windows; `meld` as difftool receives
 both files; "File history" with the bar already open shows the path.
