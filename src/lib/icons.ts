@@ -1,0 +1,26 @@
+// The only module that imports `lucide-react` (eslint `no-restricted-imports` enforces it).
+// Named re-exports keep the bundle tree-shaken and give the app one place to see which icons it uses.
+export {
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  CircleHelp,
+  CircleUser,
+  Cloud,
+  Download,
+  Ellipsis,
+  FolderGit2,
+  GitBranch,
+  GitBranchPlus,
+  GitFork,
+  Plus,
+  Redo2,
+  Search,
+  Settings,
+  SquareTerminal,
+  Undo2,
+  Upload,
+  X,
+  type LucideIcon,
+  type LucideProps,
+} from "lucide-react";

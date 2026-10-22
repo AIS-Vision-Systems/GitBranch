@@ -287,3 +287,14 @@ batch, so a filter matching more than one page shows one lane break at the page 
 (fetch the whole filtered set before painting page 1) costs a full history walk on path filters and was rejected.
 Consequences: `graph.out_of_order` when `skip > 0` arrives with a different filter (the UI never sends it: a filter
 change reloads from 0). A filter change waits for an in-flight remainder fetch on the per-repo lock.
+
+## D-032 · accepted · 2026-10-22 — Dual license metadata; icons re-exported from one module
+Context: D-030 (3) and (7) switch the license to PolyForm Noncommercial 1.0.0 + commercial and the icon set to
+`lucide-react` (item 8.0).
+Decision: `LICENSE.md` / `LICENSE-COMMERCIAL.md` follow the Quasidian texts (no CLA: GitBranch has no external
+contributors). Cargo uses `license-file = "LICENSE.md"` in `[workspace.package]` (the dual license has no SPDX id)
+and the crates inherit it; package.json says `SEE LICENSE IN LICENSE.md`; the bundle `license` string names both
+licenses and the bundle copyright is AIS Vision Systems, matching `LICENSE.md`. Icons: only `src/lib/icons.ts`
+imports `lucide-react` (named exports only); every other module imports from there, and deep imports
+(`lucide-react/*`) are banned everywhere by `no-restricted-imports`.
+Consequences: adding an icon = one line in `src/lib/icons.ts`. `pnpm lint` fails on any other `lucide-react` import.

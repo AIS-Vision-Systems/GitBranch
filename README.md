@@ -17,3 +17,10 @@ Tauri 2 + Rust + React/TypeScript. Uses the system `git`; no bundled git, no tel
 pnpm install
 pnpm tauri dev
 ```
+
+## License
+
+GitBranch is dual-licensed:
+
+- **Free for noncommercial use** under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+- **Commercial use** requires a [commercial license](LICENSE-COMMERCIAL.md) from AIS Vision Systems.

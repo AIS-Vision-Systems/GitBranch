@@ -154,7 +154,7 @@ both files; "File history" with the bar already open shows the path.
 Goal: the top of the window matches the owner's reference: a tab row with only tabs + help + settings + account,
 an action ribbon under it, a GitKraken-style account panel and a Quasidian-style help/credits window.
 
-- [ ] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
+- [x] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
   (PolyForm Noncommercial 1.0.0 + commercial, `LICENSE.md` / `LICENSE-COMMERCIAL.md`, metadata in package.json,
   Cargo.toml, tauri.conf.json, README).
 - [ ] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only

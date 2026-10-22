@@ -2,6 +2,7 @@
   "name": "gitbranch",
   "private": true,
   "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "packageManager": "pnpm@12.11.2",
   "scripts": {
@@ -24,6 +25,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.14.0",
+    "lucide-react": "^1.61.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.15"

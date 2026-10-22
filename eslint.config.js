@@ -59,6 +59,16 @@ export default tseslint.config(
               message:
                 "Components never listen to events directly; add a wrapper in src/ipc/events.ts.",
             },
+            {
+              name: "lucide-react",
+              message: "Import icons from src/lib/icons.ts (named re-exports only).",
+            },
+          ],
+          patterns: [
+            {
+              group: ["lucide-react/*"],
+              message: "No deep imports from lucide-react; use named imports in src/lib/icons.ts.",
+            },
           ],
         },
       ],
@@ -68,6 +78,18 @@ export default tseslint.config(
     // Only the IPC core talks to Tauri.
     files: ["src/ipc/core.ts", "src/ipc/events.ts"],
     rules: { "no-restricted-imports": "off" },
+  },
+  {
+    // The one place that imports lucide-react; everything else imports from here.
+    files: ["src/lib/icons.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [{ group: ["lucide-react/*"], message: "No deep imports from lucide-react." }],
+        },
+      ],
+    },
   },
   {
     files: ["src/**/*.test.{ts,tsx}", "src/test/**"],
