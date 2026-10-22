@@ -69,6 +69,10 @@ export interface GraphQuery {
   skip: number;
   limit: number;
   all: boolean;
+  /** Optional commit filters (substring, case-insensitive). */
+  author?: string;
+  message?: string;
+  path?: string;
 }
 export interface GraphPage {
   commits: Commit[];

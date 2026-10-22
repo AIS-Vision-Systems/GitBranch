@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- 2026-10-22: **Phase 6 demo.** (1) Ctrl+K opens the command palette; Ctrl+F filters the graph by author, message or path. (2) Right-click a file → Blame / File history / Open in difftool. (3) Settings (gear, Ctrl+,): git path, pull strategy, diff options, editor, difftool, update opt-out. (4) A second launch focuses the running window and opens its repo as a tab; logs live in a daily file, no telemetry. (5) Clone lists remote branches; per-user NSIS installer is 2.9 MiB; tag `vX.Y.Z` builds a signed draft release with `latest.json`.
+- 2026-10-22: Clone dialog lists the remote branches (default first) via `git ls-remote`; falls back to a text field when the lookup fails.
+- 2026-10-22: single instance (a second launch focuses the window and opens the repo path as a tab); local daily log file (`gitbranch.log`, 7 days, no telemetry) with Settings → Open log folder.
+- 2026-10-22: auto-update: startup + daily check, "Update and restart" card with progress, opt-out in Settings, palette "Check for updates"; tag `vX.Y.Z` triggers a draft release with signed bundles + latest.json.
+- 2026-10-22: installers: per-user NSIS (2.5 MiB), .deb depends on git, publisher/category/description metadata.
+- 2026-10-22: Settings dialog (gear, Ctrl+,): theme, git path (applies after restart), default pull strategy, diff context lines / ignore whitespace, external editor and difftool; "Open in difftool" in the file menu.
+- 2026-10-22: blame view (right-click a file → Blame, or the Blame button in the diff header) and file history (right-click → File history filters the graph by path).
+- 2026-10-22: command palette (Ctrl+K) and commit filter bar (Ctrl+F: author, message, path) on the graph.
 - 2026-10-21: GitKraken parity, round 3 (item 5.10): thicker change ruler with a clearer viewport indicator and
   an explicit Wrap button; the app restores its window (size, position, maximized), the right-pane width, the open
   repository tabs and the selected one on the next start (`session.json`); a "+" tab (Ctrl+T) opens the welcome

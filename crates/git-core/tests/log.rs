@@ -1,7 +1,7 @@
 #![allow(missing_docs, clippy::unwrap_used)]
 
 use git_core::fixtures::FixtureRepo;
-use git_core::parse::log::{LogPage, LogQuery, log_page, parse_log};
+use git_core::parse::log::{LogFilter, LogPage, LogQuery, log_page, parse_log};
 
 fn q(limit: usize, skip: usize, all: bool) -> LogQuery {
     LogQuery { limit, skip, all, ..LogQuery::default() }
@@ -110,4 +110,88 @@ async fn all_excludes_stash_commits() {
     let p = page(&r, &q(100, 0, true)).await;
     assert!(!p.commits.iter().any(|c| c.oid == stash), "stash commit listed in --all");
     assert!(!p.commits.is_empty());
+}
+
+fn filtered(f: LogFilter) -> LogQuery {
+    LogQuery { filter: f, ..LogQuery::default() }
+}
+
+fn subjects(p: &LogPage) -> Vec<&str> {
+    p.commits.iter().map(|c| c.subject.as_str()).collect()
+}
+
+#[tokio::test]
+async fn filters_author_message_path() {
+    let r = FixtureRepo::empty();
+    r.commit_file("a.txt", "1", "first Thing");
+    std::fs::write(r.path().join("dir.txt"), "x").unwrap();
+    r.git(&["add", "dir.txt"]);
+    r.git(&["commit", "-m", "uses a.b regex", "--author=Zed Other <zed@x.io>"]);
+    r.commit_file("c.txt", "3", "axb third");
+
+    let all = page(&r, &LogQuery::default()).await;
+    assert_eq!(all.commits.len(), 3);
+
+    let by_author =
+        page(&r, &filtered(LogFilter { author: Some("zed".into()), ..Default::default() })).await;
+    assert_eq!(subjects(&by_author), vec!["uses a.b regex"]);
+
+    // Case-insensitive and literal: `a.b` must not match "axb".
+    let by_msg =
+        page(&r, &filtered(LogFilter { message: Some("A.B".into()), ..Default::default() })).await;
+    assert_eq!(subjects(&by_msg), vec!["uses a.b regex"]);
+    let by_msg2 = page(
+        &r,
+        &filtered(LogFilter { message: Some("FIRST thing".into()), ..Default::default() }),
+    )
+    .await;
+    assert_eq!(subjects(&by_msg2), vec!["first Thing"]);
+
+    let by_path =
+        page(&r, &filtered(LogFilter { path: Some("c.txt".into()), ..Default::default() })).await;
+    assert_eq!(subjects(&by_path), vec!["axb third"]);
+
+    let combined = page(
+        &r,
+        &filtered(LogFilter {
+            author: Some("zed".into()),
+            message: Some("regex".into()),
+            path: Some("dir.txt".into()),
+        }),
+    )
+    .await;
+    assert_eq!(subjects(&combined), vec!["uses a.b regex"]);
+    let none = page(
+        &r,
+        &filtered(LogFilter {
+            author: Some("zed".into()),
+            path: Some("c.txt".into()),
+            ..Default::default()
+        }),
+    )
+    .await;
+    assert!(none.commits.is_empty());
+
+    // Pathspec magic characters are literal.
+    let star =
+        page(&r, &filtered(LogFilter { path: Some("*.txt".into()), ..Default::default() })).await;
+    assert!(star.commits.is_empty());
+
+    // Values are trimmed before use.
+    let trimmed =
+        page(&r, &filtered(LogFilter { author: Some("  zed ".into()), ..Default::default() }))
+            .await;
+    assert_eq!(subjects(&trimmed), vec!["uses a.b regex"]);
+
+    // Blank filters are ignored.
+    let blank = page(
+        &r,
+        &filtered(LogFilter {
+            author: Some("  ".into()),
+            message: Some(String::new()),
+            path: Some(" ".into()),
+        }),
+    )
+    .await;
+    assert_eq!(blank.commits.len(), 3);
 }

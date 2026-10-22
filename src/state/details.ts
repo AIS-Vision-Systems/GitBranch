@@ -58,7 +58,8 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   loadDetails: async (repoId, oid) => {
     const gen = ++detailsGen;
     ++diffGen;
-    useUiStore.getState().showGraph();
+    // Selecting a commit from the blame view keeps the blame open.
+    if (useUiStore.getState().centerView !== "blame") useUiStore.getState().showGraph();
     set({
       details: null,
       loadingDetails: true,

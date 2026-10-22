@@ -32,7 +32,25 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "Rosepetal",
+    "copyright": "Copyright (c) 2026 Xavi Anguera",
+    "license": "MIT",
+    "category": "DeveloperTool",
+    "shortDescription": "Lightweight Git client with a commit graph",
+    "longDescription": "GitBranch is a lightweight Git desktop client: commit graph first, worktrees and GitHub pull requests. It drives the system git; git must be installed.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "startMenuFolder": "GitBranch"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["git"],
+        "section": "devel"
+      }
+    }
   },
   "plugins": {
     "updater": {

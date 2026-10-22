@@ -114,15 +114,15 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 
 ### Phase 6 — Polish and distribution
-- [ ] 6.1 Multi-repo tabs, command palette (Ctrl+K), commit search/filter (author, message, path).
-- [ ] 6.2 Blame view (`git blame --porcelain`), file history.
-- [ ] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
-- [ ] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
-- [ ] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).
-- [ ] 6.6 Telemetry: **none**. Local log file only.
-- [ ] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
+- [x] 6.1 Multi-repo tabs, command palette (Ctrl+K), commit search/filter (author, message, path).
+- [x] 6.2 Blame view (`git blame --porcelain`), file history.
+- [x] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
+- [x] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
+- [x] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).
+- [x] 6.6 Telemetry: **none**. Local log file only.
+- [x] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
   the repo passed on its command line as a new tab.
-- [ ] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
+- [x] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
   (`git ls-remote --heads`) instead of a free-text field.
 
 ## Out of scope (explicitly)

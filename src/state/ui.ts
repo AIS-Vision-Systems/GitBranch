@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { isIpcError } from "../ipc/core";
+import type { RepoId } from "../ipc/types";
 
 export type Theme = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
@@ -42,13 +43,22 @@ function saveTheme(theme: Theme): void {
   }
 }
 
+export interface BlameTarget {
+  repoId: RepoId;
+  path: string;
+  rev?: string;
+}
+
 interface UiState {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
   /** Recompute resolvedTheme (e.g. when the OS preference changes). */
   refreshTheme: () => void;
-  centerView: "graph" | "diff";
+  centerView: "graph" | "diff" | "blame";
+  /** File shown by the blame view (`rev` undefined = working tree). */
+  blameTarget: BlameTarget | null;
+  showBlame: (repoId: RepoId, path: string, rev?: string) => void;
   showDiff: () => void;
   showGraph: () => void;
   toasts: Toast[];
@@ -68,8 +78,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
   refreshTheme: () => set({ resolvedTheme: resolveTheme(get().theme) }),
   centerView: "graph",
+  blameTarget: null,
+  showBlame: (repoId, path, rev) =>
+    set({
+      centerView: "blame",
+      blameTarget: { repoId, path, ...(rev !== undefined ? { rev } : {}) },
+    }),
   showDiff: () => set({ centerView: "diff" }),
-  showGraph: () => set({ centerView: "graph" }),
+  showGraph: () => set({ centerView: "graph", blameTarget: null }),
   toasts: [],
   pushToast: (t) => {
     const id = `toast-${nextId++}`;

@@ -1,8 +1,10 @@
 import type { CommitDetails as Details } from "../../ipc/commit";
+import type { RepoId } from "../../ipc/types";
 import { formatAbsolute } from "../../lib/time";
 import { reportError, useUiStore } from "../../state/ui";
 import { countStatuses, statusOf, summaryText } from "../../lib/fileTree";
 import { useMemo } from "react";
+import { useFileMenu } from "./fileMenu";
 import { FileList, type FileListItem } from "./FileList";
 import { ExpandLink, FileTree, TreeModeToggle } from "./FileTree";
 import { useExpanded, useTreeMode } from "./treeState";
@@ -42,6 +44,7 @@ async function copyOid(oid: string): Promise<void> {
 }
 
 export interface CommitDetailsProps {
+  repoId: RepoId;
   details: Details;
   files: FileListItem[];
   selectedKey: string | null;
@@ -50,12 +53,14 @@ export interface CommitDetailsProps {
 }
 
 export function CommitDetails({
+  repoId,
   details: d,
   files,
   selectedKey,
   onSelectFile,
   onSelectParent,
 }: CommitDetailsProps) {
+  const { onItemMenu, menu } = useFileMenu(repoId);
   const [tree, chooseTree] = useTreeMode();
   const [expanded, setExpanded] = useExpanded();
   const summary = useMemo(() => summaryText(countStatuses(files, statusOf)), [files]);
@@ -118,13 +123,20 @@ export function CommitDetails({
           files={files}
           selectedKey={selectedKey}
           onSelect={onSelectFile}
+          onItemMenu={onItemMenu}
           ariaLabel="Changed files"
           expanded={expanded}
           onExpandedChange={setExpanded}
         />
       ) : (
-        <FileList files={files} selectedKey={selectedKey} onSelect={onSelectFile} />
+        <FileList
+          files={files}
+          selectedKey={selectedKey}
+          onSelect={onSelectFile}
+          onItemMenu={onItemMenu}
+        />
       )}
+      {menu}
     </div>
   );
 }

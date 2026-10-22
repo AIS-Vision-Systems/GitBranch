@@ -71,7 +71,7 @@ export function RepoPickerDialog({ onClose }: RepoPickerDialogProps) {
   const choose = (repo: GithubRepo | undefined): void => {
     if (!repo) return;
     onClose();
-    openClone({ url: repo.cloneUrl });
+    openClone({ url: repo.cloneUrl, defaultBranch: repo.defaultBranch });
   };
 
   const signIn = (): void => {

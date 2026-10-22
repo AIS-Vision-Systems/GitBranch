@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use git_core::ops::clone::{self, CloneArgs, dest_is_free};
+use git_core::ops::clone::{self, CloneArgs, RemoteHeads, dest_is_free};
 use git_core::ops::remote::valid_branch_arg;
 use git_core::refname::has_embedded_password;
 use serde::Serialize;
@@ -61,4 +61,25 @@ pub async fn clone(
     let res = clone::clone(&state.runner, &args, &ctx).await;
     let path = res?;
     Ok(CloneResult { path: path.to_string_lossy().into_owned() })
+}
+
+/// Lists the branches of the remote at `url` for the clone dialog (default branch first).
+/// Cancellable with `cancel_op(op_id)`.
+#[tauri::command]
+pub async fn list_remote_heads(
+    state: State<'_, AppState>,
+    url: String,
+    op_id: String,
+) -> Result<RemoteHeads, AppError> {
+    check_op_id(&op_id)?;
+    if url.is_empty() || url.starts_with('-') || url.chars().any(char::is_control) {
+        return Err(invalid_arg("clone url"));
+    }
+    if has_embedded_password(&url) {
+        return Err(invalid_arg(
+            "clone url (embedded credentials are not allowed; the token lives in the keyring)",
+        ));
+    }
+    let guard = state.register_op(&op_id)?;
+    Ok(clone::list_remote_heads(&state.runner, &url, &guard.token()).await?)
 }

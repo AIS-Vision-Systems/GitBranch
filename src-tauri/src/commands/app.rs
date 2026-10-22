@@ -34,6 +34,46 @@ pub async fn app_info() -> Result<AppInfo, AppError> {
     })
 }
 
+/// Whether this install can replace itself: Windows (NSIS) and Linux AppImage only.
+/// A `.deb` install is notify-only because the package manager owns the files.
+fn self_update_possible(windows: bool, linux: bool, appimage: bool) -> bool {
+    windows || (linux && appimage)
+}
+
+/// Tells the UI whether it may offer "download and install" (otherwise only notify).
+#[tauri::command]
+pub async fn can_self_update() -> bool {
+    self_update_possible(
+        cfg!(windows),
+        cfg!(target_os = "linux"),
+        std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty()),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::self_update_possible;
+
+    #[test]
+    fn self_update_rules() {
+        assert!(self_update_possible(true, false, false));
+        assert!(self_update_possible(false, true, true));
+        assert!(!self_update_possible(false, true, false));
+        assert!(!self_update_possible(false, false, true));
+    }
+}
+
+/// Reveals the folder holding the local log files in the OS file manager.
+#[tauri::command]
+pub async fn open_log_dir(app: tauri::AppHandle) -> Result<(), AppError> {
+    use tauri::Manager;
+    use tauri_plugin_opener::OpenerExt;
+    let failed = |e: String| AppError::new("io.log_dir", format!("Could not open log folder: {e}"));
+    let dir = app.path().app_log_dir().map_err(|e| failed(e.to_string()))?;
+    std::fs::create_dir_all(&dir).map_err(|e| failed(e.to_string()))?;
+    app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| failed(e.to_string()))
+}
+
 /// Maximum number of repositories remembered in the session.
 const MAX_SESSION_OPEN: usize = 32;
 /// Longest accepted repository path in a session entry.

@@ -3,6 +3,7 @@
 //! Each submodule exposes the data types, a pure `parse_*` function over bytes (unit-testable without
 //! git) and an `async fn` that runs the corresponding git command through [`crate::GitRunner`].
 
+pub mod blame;
 pub mod diff;
 pub mod log;
 pub mod progress;

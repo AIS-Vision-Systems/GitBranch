@@ -54,11 +54,46 @@ pub struct LogQuery {
     pub limit: usize,
     /// `--all` when true, otherwise `HEAD` only.
     pub all: bool,
+    /// Optional author / message / path filters.
+    #[serde(default)]
+    pub filter: LogFilter,
+}
+
+/// Optional filters narrowing the log. Blank strings are ignored.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogFilter {
+    /// Case-insensitive author name/email substring (`--author`).
+    pub author: Option<String>,
+    /// Case-insensitive literal substring of the commit message (`--grep`).
+    pub message: Option<String>,
+    /// Pathspec limiting history to commits touching it.
+    pub path: Option<String>,
+}
+
+impl LogFilter {
+    /// True when at least one filter is non-blank.
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        [&self.author, &self.message, &self.path]
+            .iter()
+            .any(|o| o.as_deref().is_some_and(|s| !s.trim().is_empty()))
+    }
+}
+
+fn non_blank(o: Option<&String>) -> Option<&str> {
+    o.map(|s| s.trim()).filter(|s| !s.is_empty())
 }
 
 impl Default for LogQuery {
     fn default() -> Self {
-        Self { order: LogOrder::Date, skip: 0, limit: FIRST_PAGE, all: true }
+        Self {
+            order: LogOrder::Date,
+            skip: 0,
+            limit: FIRST_PAGE,
+            all: true,
+            filter: LogFilter::default(),
+        }
     }
 }
 
@@ -155,7 +190,26 @@ pub async fn log_page(
     args.push(format!("--skip={}", query.skip));
     args.push(format!("--max-count={}", query.limit.saturating_add(1)));
     args.push("--format=%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%ct%x1f%s".into());
+    let f = &query.filter;
+    let (author, message) = (non_blank(f.author.as_ref()), non_blank(f.message.as_ref()));
+    let path = non_blank(f.path.as_ref());
+    if author.is_some() || message.is_some() {
+        // Both apply to --author and --grep: case-insensitive literal matching.
+        args.push("--regexp-ignore-case".into());
+        args.push("--fixed-strings".into());
+    }
+    if let Some(a) = author {
+        args.push(format!("--author={a}"));
+    }
+    if let Some(m) = message {
+        args.push(format!("--grep={m}"));
+    }
     args.push("--".into());
+    if let Some(p) = path {
+        // Global option: must precede the subcommand.
+        args.insert(0, "--literal-pathspecs".into());
+        args.push(p.to_owned());
+    }
     match runner.run(repo, &args, RunOpts::default()).await {
         Ok(o) => {
             let mut commits = parse_log(&o.stdout)?;

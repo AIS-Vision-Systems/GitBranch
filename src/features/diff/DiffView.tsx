@@ -20,7 +20,7 @@ import type { DiffViewMode } from "../../state/details";
 import { highlight, langFor, type Lang } from "./highlight";
 import { buildRows, hunkPatch, type DiffRow } from "./buildRows";
 import { overviewMarks } from "./overview";
-import { loadWrap, WRAP_BELOW, WRAP_KEY } from "./wrap";
+import { loadWrap, pairHeights, WRAP_BELOW, WRAP_KEY } from "./wrap";
 import styles from "./Diff.module.css";
 
 /** Keep in sync with `--diff-line-h`. */
@@ -389,12 +389,25 @@ function alignPanes(left: HTMLElement, right: HTMLElement): void {
     l[i]!.style.minHeight = "";
     r[i]!.style.minHeight = "";
   }
-  const heights: number[] = [];
-  for (let i = 0; i < n; i++) heights.push(Math.max(l[i]!.offsetHeight, r[i]!.offsetHeight));
+  const heights = pairHeights(
+    true,
+    Array.from(l, (e) => e.offsetHeight),
+    Array.from(r, (e) => e.offsetHeight),
+  );
+  if (heights === null) return;
   for (let i = 0; i < n; i++) {
     const h = `${heights[i]}px`;
     l[i]!.style.minHeight = h;
     r[i]!.style.minHeight = h;
+  }
+}
+
+/** Drop the forced heights so rows return to their natural (single-line) height. */
+function clearAlign(left: HTMLElement, right: HTMLElement): void {
+  for (const pane of [left, right]) {
+    pane
+      .querySelectorAll<HTMLElement>("[role=table] > [role=row]")
+      .forEach((e) => (e.style.minHeight = ""));
   }
 }
 
@@ -495,11 +508,14 @@ function Rows({
     const r = rightRef.current;
     if (!aligned || l === null || r === null) return;
     alignPanes(l, r);
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined") return () => clearAlign(l, r);
     const ro = new ResizeObserver(() => alignPanes(l, r));
     ro.observe(l);
     ro.observe(r);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      clearAlign(l, r);
+    };
   }, [aligned, rows]);
 
   const cls = [

@@ -412,14 +412,47 @@ pub async fn file_diff(
     repo: &Path,
     target: &DiffTarget,
 ) -> Result<FileDiff, DiffError> {
-    let common = [
+    file_diff_with(runner, repo, target, &DiffOptions::default()).await
+}
+
+/// How a diff is produced (user settings).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiffOptions {
+    /// Context lines around each hunk (`-U<n>`).
+    pub context: u32,
+    /// Ignore all whitespace when comparing lines (`-w`).
+    pub ignore_whitespace: bool,
+}
+
+impl Default for DiffOptions {
+    fn default() -> Self {
+        Self { context: 3, ignore_whitespace: false }
+    }
+}
+
+/// Like [`file_diff`] with explicit [`DiffOptions`]. Untracked files are always shown whole.
+///
+/// # Errors
+/// Same as [`file_diff`].
+pub async fn file_diff_with(
+    runner: &GitRunner,
+    repo: &Path,
+    target: &DiffTarget,
+    options: &DiffOptions,
+) -> Result<FileDiff, DiffError> {
+    let ctx = format!("-U{}", options.context);
+    let mut common = vec![
         "-p",
         "--no-color",
         "--no-ext-diff",
         "--no-textconv",
         "--src-prefix=a/",
         "--dst-prefix=b/",
+        &ctx,
     ];
+    if options.ignore_whitespace {
+        common.push("-w");
+    }
     let mut args: Vec<&str> = Vec::new();
     let parent;
     match target {
@@ -431,22 +464,22 @@ pub async fn file_diff(
                 .is_ok();
             if has_parent {
                 args.push("diff-tree");
-                args.extend(common);
-                args.extend(["-M", "-U3", &parent, oid, "--", path]);
+                args.extend(common.iter().copied());
+                args.extend(["-M", &parent, oid, "--", path]);
             } else {
                 args.extend(["diff-tree", "--root"]);
-                args.extend(common);
-                args.extend(["-M", "-U3", "--no-commit-id", oid, "--", path]);
+                args.extend(common.iter().copied());
+                args.extend(["-M", "--no-commit-id", oid, "--", path]);
             }
         }
         DiffTarget::Staged { path } => {
             args.extend(["diff", "--cached"]);
-            args.extend(common);
+            args.extend(common.iter().copied());
             args.extend(["-M", "--", path]);
         }
         DiffTarget::Unstaged { path } => {
             args.push("diff");
-            args.extend(common);
+            args.extend(common.iter().copied());
             args.extend(["--", path]);
         }
         DiffTarget::Untracked { path } => return Ok(untracked_diff(repo, path)?),

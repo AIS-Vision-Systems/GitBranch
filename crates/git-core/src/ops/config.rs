@@ -61,15 +61,20 @@ pub fn split_words(s: &str) -> Option<Vec<String>> {
     Some(words)
 }
 
-/// The user's editor as an argv: `core.editor`, else `$VISUAL`, else `$EDITOR`. `None` when none
-/// is set (or the value is blank or malformed).
+/// The user's editor as an argv: `override_cmd` (the app setting) when non-blank, else
+/// `core.editor`, else `$VISUAL`, else `$EDITOR`. `None` when none is set (or the value is blank
+/// or malformed).
 ///
 /// # Errors
 /// [`GitError`] if reading the config fails for a reason other than "unset".
 pub async fn editor_command(
     runner: &GitRunner,
     repo: &Path,
+    override_cmd: Option<&str>,
 ) -> Result<Option<Vec<String>>, GitError> {
+    if let Some(words) = override_cmd.and_then(split_words).filter(|w| !w.is_empty()) {
+        return Ok(Some(words));
+    }
     let configured =
         match runner.run(repo, &["config", "--get", "core.editor"], RunOpts::default()).await {
             Ok(o) => Some(o.stdout_str()),

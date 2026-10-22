@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::AppError;
 use crate::commands::invalid_arg;
+use crate::settings::{self, Settings};
 use git_core::GitRunner;
 use git_core::repo::RepoInfo;
 use serde::{Deserialize, Serialize};
@@ -55,6 +56,8 @@ pub struct AppState {
     recent: Mutex<Vec<RecentRepo>>,
     recent_file: PathBuf,
     session_file: PathBuf,
+    settings: RwLock<Settings>,
+    settings_file: PathBuf,
     /// Running cancellable operations by UI-chosen op id.
     ops: Arc<OpMap>,
     op_serial: AtomicU64,
@@ -110,15 +113,39 @@ impl AppState {
             .ok()
             .and_then(|b| serde_json::from_slice::<Vec<RecentRepo>>(&b).ok())
             .unwrap_or_default();
+        let settings_file = recent_file.with_file_name("settings.json");
         Self {
             runner,
             repos: Mutex::new(HashMap::new()),
             recent: Mutex::new(recent),
             session_file: recent_file.with_file_name("session.json"),
+            settings: RwLock::new(settings::load(&settings_file)),
+            settings_file,
             recent_file,
             ops: Arc::new(Mutex::new(HashMap::new())),
             op_serial: AtomicU64::new(0),
         }
+    }
+
+    /// A copy of the current settings.
+    pub fn settings(&self) -> Settings {
+        self.settings.read().map(|s| s.clone()).unwrap_or_default()
+    }
+
+    /// Validates, persists and installs new settings; returns the normalised copy.
+    pub fn update_settings(&self, new: Settings) -> Result<Settings, AppError> {
+        let new = new.validated()?;
+        // The write lock spans the save, so concurrent updates are serialised end to end.
+        let mut guard = self
+            .settings
+            .write()
+            .map_err(|_| AppError::new("settings.save_failed", "Settings are unavailable"))?;
+        save_atomic(&self.settings_file, &new).map_err(|e| {
+            AppError::new("settings.save_failed", "Could not save settings")
+                .with_detail(e.to_string())
+        })?;
+        *guard = new.clone();
+        Ok(new)
     }
 
     /// Loads the saved session; a missing or corrupt file gives the empty session.
@@ -286,6 +313,25 @@ mod tests {
         assert_eq!(state(d.path()).load_session(), sess);
         std::fs::write(d.path().join("cfg").join("session.json"), b"{not json").unwrap();
         assert_eq!(s.load_session(), Session::default());
+    }
+
+    #[test]
+    fn settings_persist_and_reload() {
+        let d = tempfile::tempdir().unwrap();
+        let s = state(d.path());
+        assert_eq!(s.settings(), Settings::default());
+        let saved = s
+            .update_settings(Settings {
+                editor: Some("code --wait".into()),
+                diff_context_lines: 9,
+                ..Settings::default()
+            })
+            .unwrap();
+        assert_eq!(s.settings(), saved);
+        assert_eq!(state(d.path()).settings(), saved);
+        let bad = Settings { git_path: Some("/no/such/git".into()), ..Settings::default() };
+        assert!(s.update_settings(bad).is_err());
+        assert_eq!(s.settings(), saved);
     }
 
     #[test]

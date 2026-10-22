@@ -1,11 +1,13 @@
 //! `#[tauri::command]` functions, one module per area. No git logic lives here.
 
 pub mod app;
+pub mod blame;
 pub mod branch;
 pub mod clone;
 pub mod commit;
 pub mod commit_ops;
 pub mod conflict;
+pub mod difftool;
 pub mod github;
 pub mod graph;
 pub mod history;
@@ -13,6 +15,7 @@ pub mod merge;
 pub mod reflog;
 pub mod remote;
 pub mod repo;
+pub mod settings;
 pub mod stage;
 pub mod stash;
 pub mod submodule;

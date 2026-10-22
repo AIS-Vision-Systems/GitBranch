@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { appInfo, loadSession } from "./ipc/app";
+import { appInfo, loadSession, takeLaunchPath } from "./ipc/app";
+import { drainLaunchPaths } from "./lib/launchPath";
 import type { AppInfo } from "./ipc/types";
 import { registerPhase2Dialogs } from "./features/dialogs";
 import { OpBanner } from "./features/shell/OpBanner";
@@ -7,10 +8,11 @@ import { RepoTabs } from "./features/shell/RepoTabs";
 import { Toolbar } from "./features/shell/Toolbar";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
+import { BlameView } from "./features/blame/BlameView";
 import { CenterDiff } from "./features/diff/CenterDiff";
 import { useDetailsStore } from "./state/details";
 import { DetailsPane } from "./features/commit/DetailsPane";
-import { onRepoChanged } from "./ipc/events";
+import { onOpenRepoRequest, onRepoChanged } from "./ipc/events";
 import { onOpProgress } from "./ipc/progress";
 import { useProgressStore } from "./state/progress";
 import { ProgressBar } from "./features/shell/ProgressBar";
@@ -19,6 +21,8 @@ import { useDetailsWidth } from "./features/shell/detailsWidth";
 import { Splitter } from "./features/shell/Splitter";
 import { DialogHost } from "./features/shell/DialogHost";
 import { Toasts } from "./features/shell/Toasts";
+import { UpdateCard } from "./features/shell/UpdateCard";
+import { startUpdateScheduler } from "./state/updater";
 import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
@@ -26,6 +30,10 @@ import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
+import { CommandPalette } from "./features/shell/CommandPalette";
+import { openSettings } from "./features/dialogs/open";
+import { useSettingsStore } from "./state/settings";
+import { usePaletteStore } from "./state/palette";
 import { useReposStore } from "./state/repos";
 import { startSessionSync } from "./state/session";
 import { reportError, useUiStore, type Theme } from "./state/ui";
@@ -51,7 +59,17 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     let stopSync: (() => void) | null = null;
+    let stopOpenRequests: (() => void) | null = null;
     void (async () => {
+      try {
+        const stop = await onOpenRepoRequest((e) => {
+          void useReposStore.getState().openPath(e.path);
+        });
+        if (cancelled) stop();
+        else stopOpenRequests = stop;
+      } catch (e) {
+        reportError(e, "Could not subscribe to open-repository requests");
+      }
       let startup: string | null = null;
       try {
         const i = await appInfo();
@@ -69,10 +87,16 @@ export default function App() {
       if (cancelled) return;
       stopSync = startSessionSync();
       if (startup !== null) await useReposStore.getState().openPath(startup);
+      try {
+        await drainLaunchPaths(takeLaunchPath, (p) => useReposStore.getState().openPath(p));
+      } catch (e) {
+        reportError(e, "Could not open the repository passed on launch");
+      }
     })();
     return () => {
       cancelled = true;
       stopSync?.();
+      stopOpenRequests?.();
     };
   }, []);
 
@@ -112,7 +136,10 @@ export default function App() {
 
   useEffect(() => {
     void loadRecent();
+    void useSettingsStore.getState().load();
   }, [loadRecent]);
+
+  useEffect(() => startUpdateScheduler(), []);
 
   const centerView = useUiStore((s) => s.centerView);
   useEffect(() => {
@@ -130,6 +157,8 @@ export default function App() {
               t.closest('[role="menu"]') !== null));
         if (!blocked && useUiStore.getState().centerView === "diff") {
           useDetailsStore.getState().clear();
+        } else if (!blocked && useUiStore.getState().centerView === "blame") {
+          useUiStore.getState().showGraph();
         }
         return;
       }
@@ -140,6 +169,32 @@ export default function App() {
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      if (mod && !e.shiftKey && !e.altKey && e.key === ",") {
+        e.preventDefault();
+        if (!e.repeat && useDialogsStore.getState().current === null) openSettings();
+        return;
+      }
+      if (mod && !e.shiftKey && !e.altKey && k === "k") {
+        e.preventDefault();
+        if (!e.repeat && useDialogsStore.getState().current === null) {
+          usePaletteStore.getState().toggle();
+        }
+        return;
+      }
+      if (
+        mod &&
+        !e.shiftKey &&
+        !e.altKey &&
+        k === "f" &&
+        current !== null &&
+        useUiStore.getState().centerView === "graph" &&
+        useDialogsStore.getState().current === null &&
+        !usePaletteStore.getState().open
+      ) {
+        e.preventDefault();
+        useGraphStore.getState().openFilterBar(current.repoId);
+        return;
+      }
       if (
         mod &&
         !e.shiftKey &&
@@ -178,7 +233,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openViaDialog, close, currentId]);
+  }, [openViaDialog, close, currentId, current]);
 
   return (
     <div className={styles["app"]}>
@@ -213,6 +268,8 @@ export default function App() {
             <div className={styles["graphPane"]}>
               {centerView === "diff" ? (
                 <CenterDiff key={current.repoId} repoId={current.repoId} />
+              ) : centerView === "blame" ? (
+                <BlameView key={current.repoId} repoId={current.repoId} />
               ) : (
                 <GraphView key={current.repoId} repoId={current.repoId} />
               )}
@@ -233,6 +290,8 @@ export default function App() {
       </main>
       <WorktreeChoice />
       <DialogHost />
+      <CommandPalette />
+      <UpdateCard />
       <Toasts />
     </div>
   );

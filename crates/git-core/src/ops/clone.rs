@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 
 use crate::ops::remote::{OpCtx, valid_branch_arg};
 use crate::parse::progress::parse_progress_line;
@@ -140,6 +141,128 @@ pub async fn clone(r: &GitRunner, args: &CloneArgs, ctx: &OpCtx) -> Result<PathB
     }
 }
 
+/// Timeout for listing remote branches (interactive: the clone dialog waits for it).
+pub const LS_REMOTE_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// Branches of a remote, for the clone dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteHeads {
+    /// Branch `HEAD` points to on the remote, when advertised.
+    pub default_branch: Option<String>,
+    /// All branch names, sorted, with the default branch first.
+    pub branches: Vec<String>,
+}
+
+/// Parses `git ls-remote --symref <url> HEAD refs/heads/*` output.
+///
+/// Branch names that are not valid UTF-8 are decoded lossily.
+pub fn parse_ls_remote(bytes: &[u8]) -> RemoteHeads {
+    let text = String::from_utf8_lossy(bytes);
+    let mut default_branch = None;
+    let mut branches: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("ref: refs/heads/") {
+            if let Some((name, target)) = rest.split_once('\t') {
+                if target == "HEAD" {
+                    default_branch = Some(name.to_string());
+                }
+            }
+        } else if let Some((_oid, name)) = line.split_once('\t') {
+            if let Some(b) = name.strip_prefix("refs/heads/") {
+                branches.push(b.to_string());
+            }
+        }
+    }
+    branches.sort();
+    branches.dedup();
+    if let Some(d) = &default_branch {
+        if let Some(pos) = branches.iter().position(|b| b == d) {
+            let first = branches.remove(pos);
+            branches.insert(0, first);
+        }
+    }
+    RemoteHeads { default_branch, branches }
+}
+
+/// Whether `url` is a remote spec `list_remote_heads` accepts: `scheme://...`, `ext::...` (left
+/// to git, which refuses it), scp-like `[user@]host:path`, or an absolute local path. Bare words
+/// and relative paths are rejected so they cannot resolve against the working directory or a
+/// `remote.<name>` entry of the global configuration.
+fn valid_remote_spec(url: &str) -> bool {
+    if Path::new(url).is_absolute() || url.contains("://") || url.starts_with("ext::") {
+        return true;
+    }
+    match url.split_once(':') {
+        // A one-letter host is a Windows drive (`C:foo`), not a host.
+        Some((host, path)) => {
+            let host = host.rsplit('@').next().unwrap_or(host);
+            host.len() > 1
+                && !host.contains('/')
+                && !host.contains('\\')
+                && !path.is_empty()
+                && !path.starts_with(':')
+        }
+        None => false,
+    }
+}
+
+/// Lists the branches of the remote at `url` (`git ls-remote --symref`).
+///
+/// Uses the same URL checks and askpass bridge as [`clone`], so private GitHub repositories
+/// work, but never prompts (Git Credential Manager is told to stay non-interactive); the `ext::`
+/// transport is refused. `cancel` kills git and fails with [`GitErrorKind::Cancelled`].
+///
+/// # Errors
+/// [`GitError`] on an invalid URL or any git failure (unreachable, auth, timeout, cancelled).
+pub async fn list_remote_heads(
+    r: &GitRunner,
+    url: &str,
+    cancel: &CancellationToken,
+) -> Result<RemoteHeads, GitError> {
+    if url.is_empty() || url.starts_with('-') || url.chars().any(char::is_control) {
+        return Err(invalid("url"));
+    }
+    if has_http_userinfo(url) {
+        return Err(GitError {
+            kind: GitErrorKind::ExitCode(129),
+            stderr: "credentials in URL are not allowed; the token lives in the keyring".into(),
+            args: Vec::new(),
+        });
+    }
+    if !valid_remote_spec(url) {
+        return Err(invalid("url (expected scheme://..., user@host:path or an absolute path)"));
+    }
+    let argv = [
+        "-c",
+        "protocol.ext.allow=never",
+        "-c",
+        "credential.interactive=false",
+        "ls-remote",
+        "--symref",
+        "--",
+        url,
+        "HEAD",
+        "refs/heads/*",
+    ];
+    let cwd = std::env::temp_dir();
+    let mut opts = RunOpts::network(LS_REMOTE_TIMEOUT);
+    opts.env.push(("GCM_INTERACTIVE".into(), "never".into()));
+    opts.env.push(("GIT_CEILING_DIRECTORIES".into(), cwd.to_string_lossy().into_owned()));
+    // Dropping the run future kills the child.
+    let out = tokio::select! {
+        res = r.run(&cwd, &argv, opts) => res?,
+        () = cancel.cancelled() => {
+            return Err(GitError {
+                kind: GitErrorKind::Cancelled,
+                stderr: "cancelled".into(),
+                args: Vec::new(),
+            });
+        }
+    };
+    Ok(parse_ls_remote(&out.stdout))
+}
+
 /// Removes the partial clone (the directory if `created`, else only its contents), retrying
 /// because on Windows `index-pack` may still hold files right after the kill. Returns success.
 async fn cleanup(dest: &Path, created: bool) -> bool {
@@ -174,6 +297,20 @@ fn empty_dir(dir: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_ls_remote() {
+        let out = b"ref: refs/heads/main\tHEAD\n1111\trefs/heads/zeta\n2222\trefs/heads/main\n3333\trefs/heads/dev/x\n";
+        let h = parse_ls_remote(out);
+        assert_eq!(h.default_branch.as_deref(), Some("main"));
+        assert_eq!(h.branches, ["main", "dev/x", "zeta"]);
+        let empty = parse_ls_remote(b"");
+        assert_eq!(empty, RemoteHeads { default_branch: None, branches: vec![] });
+        // HEAD line (non --heads) and tags are ignored.
+        let h = parse_ls_remote(b"aaaa\tHEAD\nbbbb\trefs/tags/v1\ncccc\trefs/heads/a\n");
+        assert_eq!(h.default_branch, None);
+        assert_eq!(h.branches, ["a"]);
+    }
 
     #[test]
     fn argv_shape_and_no_credentials() {

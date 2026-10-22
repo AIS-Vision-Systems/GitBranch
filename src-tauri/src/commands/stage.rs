@@ -115,8 +115,15 @@ pub async fn apply_hunk(
         return Err(invalid_arg("path"));
     }
     let repo = state.get(&repo_id).ok_or_else(not_open)?;
-    git_core::ops::patch::apply_selection(&state.runner, &repo.info.work_tree, &selection, op)
-        .await?;
+    let opts = state.settings().diff_options();
+    git_core::ops::patch::apply_selection_with(
+        &state.runner,
+        &repo.info.work_tree,
+        &selection,
+        op,
+        &opts,
+    )
+    .await?;
     let what: &[Change] = if op == PatchOp::Discard {
         &[Change::Index, Change::WorkingTree]
     } else {

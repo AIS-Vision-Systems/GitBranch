@@ -56,7 +56,7 @@ pub async fn conflicted_files(
     Ok(conflict::conflicted_files(&state.runner, &repo.info.work_tree).await?)
 }
 
-/// Opens a work-tree file in the configured editor (`core.editor`, `$VISUAL`, `$EDITOR`); without
+/// Opens a work-tree file in the editor (the editor setting, else `core.editor`, `$VISUAL`, `$EDITOR`); without
 /// one, reveals the file in the file manager. Never opens a file with its default handler, so a
 /// tracked executable or script cannot be run from here.
 #[tauri::command]
@@ -84,7 +84,8 @@ pub async fn open_in_editor(
     if !canon_full.is_file() {
         return Err(failed(format!("{path} is not a file")));
     }
-    match editor_command(&state.runner, work).await? {
+    let override_cmd = state.settings().editor;
+    match editor_command(&state.runner, work, override_cmd.as_deref()).await? {
         Some(argv) => {
             let child = std::process::Command::new(&argv[0])
                 .args(&argv[1..])

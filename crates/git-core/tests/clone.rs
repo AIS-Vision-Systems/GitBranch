@@ -204,3 +204,74 @@ async fn recurse_submodules_checks_out_the_submodule() {
     let has_file = std::fs::read_dir(&lib).unwrap().any(|e| e.unwrap().file_name() != ".git");
     assert!(has_file, "submodule not checked out");
 }
+
+fn path_str(p: &std::path::Path) -> String {
+    p.to_string_lossy().into_owned()
+}
+
+#[tokio::test]
+async fn lists_remote_heads_default_first() {
+    use git_core::ops::clone::list_remote_heads;
+    let fx = FixtureRepo::with_remote();
+    let cur = fx.git(&["branch", "--show-current"]);
+    fx.git(&["push", "origin", "HEAD:refs/heads/zeta", "HEAD:refs/heads/alpha"]);
+    fx.git(&["push", "origin", "HEAD:refs/heads/feature/x"]);
+    git_in(fx.remote_path(), &["symbolic-ref", "HEAD", &format!("refs/heads/{}", cur.trim())]);
+    let url = path_str(fx.remote_path());
+    let heads = list_remote_heads(&fx.runner(), &url, &CancellationToken::new()).await.unwrap();
+    assert_eq!(heads.default_branch.as_deref(), Some(cur.trim()));
+    assert_eq!(heads.branches.first().map(String::as_str), Some(cur.trim()));
+    for b in ["alpha", "zeta", "feature/x"] {
+        assert!(heads.branches.iter().any(|x| x == b), "missing {b}");
+    }
+}
+
+#[tokio::test]
+async fn list_remote_heads_empty_and_detached() {
+    use git_core::ops::clone::list_remote_heads;
+    let fx = FixtureRepo::with_remote();
+    let tmp = tempfile::tempdir().unwrap();
+    let empty = tmp.path().join("empty.git");
+    std::fs::create_dir(&empty).unwrap();
+    git_in(&empty, &["init", "--bare", "-q"]);
+    let heads = list_remote_heads(&fx.runner(), &path_str(&empty), &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(heads.default_branch, None);
+    assert!(heads.branches.is_empty());
+
+    let oid = fx.rev_parse("HEAD");
+    fx.git(&["push", "origin", "HEAD:refs/heads/side"]);
+    git_in(fx.remote_path(), &["update-ref", "--no-deref", "HEAD", &oid]);
+    let url = path_str(fx.remote_path());
+    let heads = list_remote_heads(&fx.runner(), &url, &CancellationToken::new()).await.unwrap();
+    assert_eq!(heads.default_branch, None);
+    assert!(heads.branches.iter().any(|b| b == "side"));
+}
+
+#[tokio::test]
+async fn list_remote_heads_errors() {
+    use git_core::ops::clone::list_remote_heads;
+    let fx = FixtureRepo::with_remote();
+    let tok = CancellationToken::new();
+    let tmp = tempfile::tempdir().unwrap();
+    let missing = path_str(&tmp.path().join("nope"));
+    assert!(list_remote_heads(&fx.runner(), &missing, &tok).await.is_err());
+    for bad in ["--upload-pack=x", "origin", "relative/path", "", "C:foo"] {
+        let e = list_remote_heads(&fx.runner(), bad, &tok).await.unwrap_err();
+        assert!(e.stderr.contains("invalid clone argument"), "{bad}: {}", e.stderr);
+    }
+    let e = list_remote_heads(&fx.runner(), "ext::sh -c id", &tok).await.unwrap_err();
+    assert!(e.stderr.contains("not allowed"), "{}", e.stderr);
+}
+
+#[tokio::test]
+async fn list_remote_heads_cancelled() {
+    use git_core::ops::clone::list_remote_heads;
+    let fx = FixtureRepo::with_remote();
+    let tok = CancellationToken::new();
+    tok.cancel();
+    let url = path_str(fx.remote_path());
+    let e = list_remote_heads(&fx.runner(), &url, &tok).await.unwrap_err();
+    assert_eq!(e.kind, GitErrorKind::Cancelled);
+}

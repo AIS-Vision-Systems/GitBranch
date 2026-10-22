@@ -9,6 +9,7 @@ import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
 import { LoginDialog, type LoginDialogProps } from "../github/LoginDialog";
 import { RepoPickerDialog, type RepoPickerDialogProps } from "../github/RepoPickerDialog";
 import { CreatePullDialog, type CreatePullDialogProps } from "../github/CreatePullDialog";
+import { SettingsDialog, type SettingsDialogProps } from "./SettingsDialog";
 import { DIALOG } from "./ids";
 import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
 import { PullDialog, type PullDialogProps } from "./PullDialog";
@@ -66,6 +67,9 @@ export function registerPhase2Dialogs(): void {
       ...(p as unknown as Props<BranchDropDialogProps>),
       onClose,
     }),
+  );
+  registerDialog(DIALOG.settings, (p, onClose) =>
+    createElement(SettingsDialog, { ...(p as unknown as Props<SettingsDialogProps>), onClose }),
   );
   registerDialog(DIALOG.pull, (p, onClose) =>
     createElement(PullDialog, { ...(p as unknown as Props<PullDialogProps>), onClose }),

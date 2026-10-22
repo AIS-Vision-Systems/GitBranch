@@ -69,6 +69,7 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
   } else {
     top = (
       <CommitDetails
+        repoId={repoId}
         details={details}
         files={commitFiles}
         selectedKey={selectedKey}
