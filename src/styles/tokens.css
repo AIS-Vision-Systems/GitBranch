@@ -31,6 +31,8 @@
   --font-mono:
     ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
+  --tabrow-h: 44px;
+  --tabrow-font: 15px;
   --graph-row-h: 36px;
   --graph-lane-w: 22px;
   --graph-header-h: 28px;

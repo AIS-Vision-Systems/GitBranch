@@ -69,7 +69,16 @@ describe("RepoTabs", () => {
     expect(screen.getAllByRole("tab")[0]?.getAttribute("aria-selected")).toBe("true");
     const w = screen.getAllByRole("tab")[1]!;
     expect(w.title).toBe("Worktree of /p/proj");
-    expect(w.textContent).toContain("⧉");
+    expect(w.querySelector("svg.lucide-git-fork")).not.toBeNull();
+    expect(screen.getAllByRole("tab")[0]?.querySelector("svg.lucide-folder-git-2")).not.toBeNull();
+  });
+
+  it("renders a close button per tab and the + tab with icons", () => {
+    render(<RepoTabs />);
+    for (const n of ["proj", "wt", "other"]) {
+      expect(screen.getByLabelText(`Close ${n}`).querySelector("svg")).not.toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "New tab" }).querySelector("svg")).not.toBeNull();
   });
 
   it("click selects and Enter selects", () => {

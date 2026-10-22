@@ -157,7 +157,7 @@ an action ribbon under it, a GitKraken-style account panel and a Quasidian-style
 - [x] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
   (PolyForm Noncommercial 1.0.0 + commercial, `LICENSE.md` / `LICENSE-COMMERCIAL.md`, metadata in package.json,
   Cargo.toml, tauri.conf.json, README).
-- [ ] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only
+- [x] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only
   on hover/active, "+" tab; right side = help, settings gear, account. Theme button removed (selector already in
   Settings); Sidebar button removed, state in `useUiStore` (Ctrl+B, palette, ribbon overflow, sidebar chevron).
 - [ ] 8.2 About dialog (help button, palette): logo, name, version, "Idea and original development: Xavi Anguera",

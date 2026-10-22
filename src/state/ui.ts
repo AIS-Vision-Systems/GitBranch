@@ -43,6 +43,25 @@ function saveTheme(theme: Theme): void {
   }
 }
 
+export const SIDEBAR_KEY = "gitbranch.sidebar";
+
+/** Persisted sidebar visibility, defaulting to open. */
+export function loadSidebarOpen(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) !== "closed";
+  } catch {
+    return true;
+  }
+}
+
+function saveSidebarOpen(open: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, open ? "open" : "closed");
+  } catch {
+    /* ignore */
+  }
+}
+
 export interface BlameTarget {
   repoId: RepoId;
   path: string;
@@ -55,6 +74,12 @@ interface UiState {
   setTheme: (theme: Theme) => void;
   /** Recompute resolvedTheme (e.g. when the OS preference changes). */
   refreshTheme: () => void;
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+  /** Whether the About dialog is requested (the dialog itself lands with item 8.2). */
+  aboutOpen: boolean;
+  setAboutOpen: (open: boolean) => void;
   centerView: "graph" | "diff" | "blame";
   /** File shown by the blame view (`rev` undefined = working tree). */
   blameTarget: BlameTarget | null;
@@ -77,6 +102,14 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ theme, resolvedTheme: resolveTheme(theme) });
   },
   refreshTheme: () => set({ resolvedTheme: resolveTheme(get().theme) }),
+  sidebarOpen: loadSidebarOpen(),
+  toggleSidebar: () => get().setSidebarOpen(!get().sidebarOpen),
+  setSidebarOpen: (open) => {
+    saveSidebarOpen(open);
+    set({ sidebarOpen: open });
+  },
+  aboutOpen: false,
+  setAboutOpen: (open) => set({ aboutOpen: open }),
   centerView: "graph",
   blameTarget: null,
   showBlame: (repoId, path, rev) =>

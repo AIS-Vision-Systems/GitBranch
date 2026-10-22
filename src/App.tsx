@@ -30,23 +30,19 @@ import { useOpsStore } from "./state/ops";
 import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
-import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { openSettings } from "./features/dialogs/open";
 import { useSettingsStore } from "./state/settings";
 import { usePaletteStore } from "./state/palette";
 import { useReposStore } from "./state/repos";
 import { startSessionSync } from "./state/session";
-import { reportError, useUiStore, type Theme } from "./state/ui";
+import { reportError, useUiStore } from "./state/ui";
+import { CircleHelp, Settings } from "./lib/icons";
 import styles from "./App.module.css";
 
 registerPhase2Dialogs();
 
-const NEXT_THEME: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
-
 export default function App() {
-  const theme = useUiStore((s) => s.theme);
-  const setTheme = useUiStore((s) => s.setTheme);
   const current = useReposStore((s) => s.open.find((r) => r.repoId === s.currentId) ?? null);
   const hasTabs = useReposStore((s) => s.open.length > 0);
   const loadRecent = useReposStore((s) => s.loadRecent);
@@ -54,7 +50,7 @@ export default function App() {
   const close = useReposStore((s) => s.close);
   const [detailsWidth, setDetailsWidth] = useDetailsWidth();
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const [sidebarOpen, toggleSidebar] = useSidebarOpen();
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const currentId = current?.repoId ?? null;
 
   useEffect(() => {
@@ -171,6 +167,13 @@ export default function App() {
         if (!e.repeat && useDialogsStore.getState().current === null) openSettings();
         return;
       }
+      if (mod && !e.shiftKey && !e.altKey && k === "b") {
+        e.preventDefault();
+        if (!e.repeat && useDialogsStore.getState().current === null) {
+          useUiStore.getState().toggleSidebar();
+        }
+        return;
+      }
       if (mod && !e.shiftKey && !e.altKey && k === "k") {
         e.preventDefault();
         if (!e.repeat && useDialogsStore.getState().current === null) {
@@ -234,26 +237,33 @@ export default function App() {
     <div className={styles["app"]}>
       <header className={styles["header"]}>
         {hasTabs ? <RepoTabs /> : <span className={styles["name"]}>GitBranch</span>}
-        {current !== null && <Toolbar repoId={current.repoId} />}
-        {current !== null && (
+        <div className={styles["headerActions"]}>
           <button
             type="button"
-            className={styles["themeButton"]}
-            aria-pressed={sidebarOpen}
-            onClick={toggleSidebar}
+            className={styles["iconButton"]}
+            aria-label="Help"
+            title="Help"
+            onClick={() => useUiStore.getState().setAboutOpen(true)}
           >
-            Sidebar
+            <CircleHelp size={18} aria-hidden="true" />
           </button>
-        )}
-        <button
-          type="button"
-          className={styles["themeButton"]}
-          onClick={() => setTheme(NEXT_THEME[theme])}
-        >
-          Theme: {theme}
-        </button>
-        <AccountMenu />
+          <button
+            type="button"
+            className={styles["iconButton"]}
+            aria-label="Settings"
+            title="Settings (Ctrl+,)"
+            onClick={() => openSettings()}
+          >
+            <Settings size={18} aria-hidden="true" />
+          </button>
+          <AccountMenu />
+        </div>
       </header>
+      {current !== null && (
+        <div className={styles["toolbarRow"]}>
+          <Toolbar repoId={current.repoId} />
+        </div>
+      )}
       <ProgressBar />
       {current !== null && <OpBanner repoId={current.repoId} />}
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>

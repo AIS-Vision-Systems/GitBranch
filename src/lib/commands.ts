@@ -8,7 +8,7 @@ import {
   openStashPush,
 } from "../features/dialogs/open";
 import { openLogDir } from "../ipc/app";
-import { reportError } from "../state/ui";
+import { reportError, useUiStore } from "../state/ui";
 import { useGraphStore } from "../state/graph";
 import { useOpsStore } from "../state/ops";
 import type { Command } from "../state/palette";
@@ -35,6 +35,12 @@ export function buildCommands(): Command[] {
       title: "Open log folder",
       run: () =>
         openLogDir().catch((e: unknown) => reportError(e, "Could not open the log folder")),
+    },
+    {
+      id: "toggle-sidebar",
+      title: "Toggle sidebar",
+      shortcut: "Ctrl+B",
+      run: () => useUiStore.getState().toggleSidebar(),
     },
     { id: "new-tab", title: "New tab", shortcut: "Ctrl+T", run: () => repos.newTab() },
   ];

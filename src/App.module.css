@@ -8,15 +8,50 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 40px;
+  height: var(--tabrow-h);
   flex: none;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-2) 0 0;
+  font-size: var(--tabrow-font);
   background: var(--color-header-bg);
   border-bottom: 1px solid var(--color-border);
 }
 
 .name {
   font-weight: 700;
+  padding-left: var(--space-4);
+}
+
+.headerActions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-fg-muted);
+  border: 0;
+  border-radius: var(--radius-1);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-row-hover);
+  color: var(--color-fg);
+}
+
+.toolbarRow {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: var(--space-1) var(--space-4);
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .themeButton {
