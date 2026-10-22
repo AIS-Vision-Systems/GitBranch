@@ -138,7 +138,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
   longer fires inside text fields.
 - [x] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
   instead of a 5 s guess; a failed install is not overwritten by the hourly check.
-- [ ] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
+- [x] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
   instead of re-running `git log` from commit 0 on every "load more".
 - [ ] 7.6 Difftool empty-tree fallback via `git hash-object -t tree --stdin` (SHA-256 safe); no `rev-parse` when
   `staged`.
