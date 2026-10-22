@@ -189,12 +189,12 @@ header stays put while the file tree scrolls.
 - [x] 9.2 Author avatars (amends D-023): GitHub photo for known authors only (the signed-in user's commits and
   `@users.noreply.github.com` emails → login → `github.com/<login>.png`, backend fetch + disk cache, negative
   cache); initials for everyone else; graph nodes stay initials.
-- [ ] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
+- [x] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
   of the pane; 40 px avatar, name, "authored <date>", parents at the right; "Co-authors:" avatar chips; summary +
   Path/Tree toggle + Expand all); the file tree below scrolls independently, rows ~22 px, 10 px indent per level.
 - [x] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
   remotes grouped per remote.
-- [ ] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
+- [~] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
   (one sub-tree per remote, "Add remote…" header action), WORKTREES, PULL REQUESTS; branch rows with a check on
   HEAD and ↑↓ badges; click selects the commit, hover highlights it, double-click checks out, right-click opens the
   existing ref context menu.

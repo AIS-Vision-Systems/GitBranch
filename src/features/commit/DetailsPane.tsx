@@ -60,6 +60,7 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
   }
 
   let top;
+  let fixed = false;
   if (selectedOid === null) {
     top = <p className={styles["placeholder"]}>Select a commit</p>;
   } else if (selectedOid === WIP_OID) {
@@ -67,6 +68,7 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
   } else if (details === null) {
     top = <p className={styles["placeholder"]}>{loadingDetails ? "Loading…" : "No details"}</p>;
   } else {
+    fixed = true;
     top = (
       <CommitDetails
         repoId={repoId}
@@ -81,7 +83,7 @@ export function DetailsPane({ repoId }: { repoId: RepoId }) {
 
   return (
     <div className={styles["pane"]}>
-      <div className={styles["top"]}>{top}</div>
+      <div className={fixed ? `${styles["top"]} ${styles["topFixed"]}` : styles["top"]}>{top}</div>
     </div>
   );
 }

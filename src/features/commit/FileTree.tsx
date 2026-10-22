@@ -136,7 +136,7 @@ export function FileTree({
           <button
             type="button"
             className={styles["dirRow"]}
-            style={{ paddingLeft: `calc(var(--space-3) + ${depth} * var(--space-3))` }}
+            style={{ paddingLeft: `calc(var(--space-2) + ${depth} * 10px)` }}
             aria-expanded={open}
             title={n.path}
             onClick={() => toggle(n.path)}
