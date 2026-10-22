@@ -41,6 +41,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [ctx, setCtx] = useState(String(current.diffContextLines));
   const [ws, setWs] = useState(current.diffIgnoreWhitespace);
   const [editor, setEditor] = useState(current.editor ?? "");
+  const [terminal, setTerminal] = useState(current.terminal ?? "");
   const [difftool, setDifftool] = useState(current.difftool ?? "");
   const [auto, setAuto] = useState(current.autoUpdateCheck);
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -55,6 +56,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       diffContextLines: clampContext(ctxNum),
       diffIgnoreWhitespace: ws,
       editor: orNull(editor),
+      terminal: orNull(terminal),
       difftool: orNull(difftool),
       autoUpdateCheck: auto,
     };
@@ -145,6 +147,19 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           onChange={(e) => setEditor(e.target.value)}
         />
         <span className={styles["hint"]}>Bare names are resolved on PATH</span>
+      </label>
+      <label className={styles["field"]}>
+        <span className={styles["label"]}>Terminal</span>
+        <input
+          className={styles["input"]}
+          value={terminal}
+          placeholder="wt"
+          onChange={(e) => setTerminal(e.target.value)}
+        />
+        <span className={styles["hint"]}>
+          Command for the Terminal button (default: Windows Terminal or cmd.exe; $TERMINAL /
+          x-terminal-emulator / gnome-terminal / konsole / xterm on Linux)
+        </span>
       </label>
       <label className={styles["field"]}>
         <span className={styles["label"]}>Difftool command</span>

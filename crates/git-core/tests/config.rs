@@ -111,3 +111,44 @@ mod program {
         assert_eq!(difftool_cmd_with("'/a b/m' -d", res), "'/a b/m' -d \"$LOCAL\" \"$REMOTE\"");
     }
 }
+
+mod identity {
+    use git_core::fixtures::FixtureRepo;
+    use git_core::ops::config::{ConfigError, ConfigScope, identity, set_identity};
+
+    #[tokio::test]
+    async fn local_identity_roundtrip() {
+        let r = FixtureRepo::linear(1);
+        set_identity(&r.runner(), r.path(), ConfigScope::Local, " Ada ", "ada@example.org")
+            .await
+            .unwrap();
+        let id = identity(&r.runner(), r.path()).await.unwrap();
+        let (n, e) = (id.name.unwrap(), id.email.unwrap());
+        assert_eq!((n.value.as_str(), n.scope.as_str()), ("Ada", "local"));
+        assert_eq!((e.value.as_str(), e.scope.as_str()), ("ada@example.org", "local"));
+    }
+
+    #[tokio::test]
+    async fn global_identity_is_reported_when_local_is_unset() {
+        let r = FixtureRepo::linear(1);
+        r.git(&["config", "--unset", "user.name"]);
+        r.git(&["config", "--unset", "user.email"]);
+        let none = identity(&r.runner(), r.path()).await.unwrap();
+        assert_eq!((none.name, none.email), (None, None));
+        set_identity(&r.runner(), r.path(), ConfigScope::Global, "Glob", "g@example.org")
+            .await
+            .unwrap();
+        let id = identity(&r.runner(), r.path()).await.unwrap();
+        assert_eq!(id.name.unwrap().scope, "global");
+        assert_eq!(id.email.unwrap().value, "g@example.org");
+    }
+
+    #[tokio::test]
+    async fn invalid_values_are_rejected() {
+        let r = FixtureRepo::linear(1);
+        for (n, e) in [("", "a@b"), ("A", " "), ("A\nB", "a@b"), ("A", "a\0b")] {
+            let err = set_identity(&r.runner(), r.path(), ConfigScope::Local, n, e).await;
+            assert!(matches!(err, Err(ConfigError::Invalid(_))));
+        }
+    }
+}

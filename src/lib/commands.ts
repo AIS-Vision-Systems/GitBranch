@@ -5,10 +5,12 @@ import {
   openCreateTag,
   openPull,
   openPush,
+  openRemotes,
   openSettings,
   openStashPush,
 } from "../features/dialogs/open";
 import { openLogDir } from "../ipc/app";
+import { openTerminal } from "../ipc/conflict";
 import { reportError, useUiStore } from "../state/ui";
 import { useGraphStore } from "../state/graph";
 import { useOpsStore } from "../state/ops";
@@ -17,7 +19,7 @@ import { remotesOf, useRemotesStore } from "../state/remotes";
 import { useReposStore } from "../state/repos";
 import { useUpdaterStore } from "../state/updater";
 
-const FETCH_ALL = { remote: null, prune: true, tags: false };
+const FETCH_ALL = { remote: null, prune: false, tags: false };
 
 /** Build the palette entries for the current app state. Commands needing a repo are omitted without one. */
 export function buildCommands(): Command[] {
@@ -87,6 +89,30 @@ export function buildCommands(): Command[] {
   if ((g?.status?.entries.length ?? 0) > 0) {
     cmds.push({ id: "stash", title: "Stash changes", run: () => openStashPush(repoId) });
   }
+  cmds.push(
+    { id: "remotes", title: "Manage remotes", run: () => openRemotes(repoId) },
+    {
+      id: "undo",
+      title: "Undo last operation",
+      shortcut: "Ctrl+Z",
+      run: () => {
+        const undo = g?.undo ?? null;
+        if (undo !== null) void ops.undoLast(repoId, undo);
+      },
+    },
+    {
+      id: "redo",
+      title: "Redo",
+      shortcut: "Ctrl+Y",
+      run: () => void ops.redoLast(repoId),
+    },
+    {
+      id: "terminal",
+      title: "Open terminal",
+      run: () =>
+        openTerminal(repoId).catch((e: unknown) => reportError(e, "Could not open the terminal")),
+    },
+  );
   cmds.push({
     id: "filter",
     title: "Focus commit filter",

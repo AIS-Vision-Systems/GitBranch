@@ -27,7 +27,11 @@ vi.mock("../ipc/conflict", () => ({
   markResolved: vi.fn(),
   openInEditor: vi.fn(),
 }));
-vi.mock("../ipc/reflog", () => ({ undoLast: vi.fn(), undoPreview: vi.fn() }));
+vi.mock("../ipc/reflog", () => ({
+  undoLast: vi.fn(),
+  undoPreview: vi.fn(),
+  applyAction: vi.fn(),
+}));
 vi.mock("../ipc/tag", () => ({ createTag: vi.fn(), deleteTag: vi.fn() }));
 vi.mock("./dialogs", () => ({ confirm: vi.fn() }));
 
@@ -55,7 +59,7 @@ const entry = { index: 0, oid: "o0", branch: null, message: "m", time: 0 };
 
 beforeEach(() => {
   vi.resetAllMocks();
-  useOpsStore.setState({ busy: false });
+  useOpsStore.setState({ busy: false, redo: {} });
   useUiStore.setState({ toasts: [] });
   // Behave like the real dialog: run onConfirm, resolve true.
   vi.mocked(confirm).mockImplementation(async (spec: ConfirmSpec) => {
@@ -204,8 +208,10 @@ describe("merge, rebase and undo", () => {
 
   it("undoLast always confirms and shows the command", async () => {
     vi.mocked(reflog.undoLast).mockResolvedValue({
-      label: "commit: x",
-      action: { kind: "resetSoft", target: "a".repeat(40) },
+      info: { label: "commit: x", action: { kind: "resetSoft", target: "a".repeat(40) } },
+      redo: { kind: "resetSoft", target: "c".repeat(40) },
+      head: "b".repeat(40),
+      branch: "main",
     });
     const info = {
       label: "commit: x",
@@ -221,6 +227,44 @@ describe("merge, rebase and undo", () => {
     vi.mocked(reflog.undoPreview).mockResolvedValue(co);
     await ops().undoLast(id, co);
     expect(vi.mocked(confirm).mock.calls[1]![0].command).toBe("git switch main");
+  });
+
+  it("undoLast stores a redo target, a head move clears it, redoLast applies and clears", async () => {
+    const info = {
+      label: "commit: x",
+      action: { kind: "resetSoft" as const, target: "a".repeat(40) },
+    };
+    const redo = { kind: "resetSoft" as const, target: "c".repeat(40) };
+    const head = "b".repeat(40);
+    vi.mocked(reflog.undoLast).mockResolvedValue({ info, redo, head, branch: "main" });
+    vi.mocked(reflog.undoPreview).mockResolvedValue(info);
+    const withHead = (oid: string, branch: string | null = "main"): void =>
+      useGraphStore.setState({
+        byRepo: {
+          [id]: {
+            ...EMPTY_GRAPH,
+            refs: { head: { oid, branch, detached: branch === null }, refs: [] },
+          },
+        },
+      });
+    withHead("a".repeat(40));
+    expect(await ops().undoLast(id, info)).toBe(true);
+    expect(ops().redo[id]).toEqual({ action: redo, head, branch: "main" });
+    withHead(head);
+    expect(ops().redo[id]).toBeDefined();
+    withHead("d".repeat(40));
+    expect(ops().redo[id]).toBeUndefined();
+
+    // Same commit, different branch: also cleared.
+    useOpsStore.setState({ redo: { [id]: { action: redo, head, branch: "main" } } });
+    withHead(head, "other");
+    expect(ops().redo[id]).toBeUndefined();
+
+    useOpsStore.setState({ redo: { [id]: { action: redo, head, branch: "main" } } });
+    expect(await ops().redoLast(id)).toBe(true);
+    expect(reflog.applyAction).toHaveBeenCalledWith(id, redo);
+    expect(ops().redo[id]).toBeUndefined();
+    expect(await ops().redoLast(id)).toBe(false);
   });
 
   it("undoLast re-checks the target and refuses when it changed", async () => {

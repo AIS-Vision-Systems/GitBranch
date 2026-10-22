@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   diffContextLines: 3,
   diffIgnoreWhitespace: false,
   editor: null,
+  terminal: null,
   difftool: null,
   autoUpdateCheck: true,
 };

@@ -164,14 +164,14 @@ an action ribbon under it, a GitKraken-style account panel and a Quasidian-style
   license line (opens LICENSE), "Check for updates" (shared `UpdateCheck` with Settings), AIS Vision Systems logo
   (white/blue per theme) + "An app by AIS Vision Systems", scrollable user guide from `src/help/guide.en.md`
   rendered by a small in-house markdown subset renderer (`src/lib/markdown.ts`, no innerHTML).
-- [ ] 8.3 Ribbon (replaces the toolbar): left = repository dropdown › branch dropdown (ahead/behind, checkout);
+- [x] 8.3 Ribbon (replaces the toolbar): left = repository dropdown › branch dropdown (ahead/behind, checkout);
   centre = Undo, Redo, Fetch (caret: fetch all / pull ff / pull rebase / pull merge / prune), Push, Branch, Stash,
   Pop, Terminal; right = Actions overflow (Clone, Remotes, Stashes popover, Toggle sidebar, Settings) and Search.
   Redo = re-apply the HEAD recorded before the last Undo (git-core `apply_action`, cleared when HEAD moves).
   Terminal = `open_terminal` command spawning an external terminal at the work tree (settings override, then
   `wt.exe` / `cmd.exe` on Windows, `$TERMINAL` / `x-terminal-emulator` / gnome-terminal / konsole / xterm on
   Linux), argv only, modelled on `open_in_editor`.
-- [ ] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
+- [~] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
   signature" = effective `user.name`/`user.email` for the current repo, editable globally or per repo
   (`git-core::ops::config::{identity,set_identity}`); "Account" = name, email, scopes, rate limit; Manage account,
   Re-authorize, Sign out, Revoke.

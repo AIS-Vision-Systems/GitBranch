@@ -8,6 +8,7 @@
 
 pub mod askpass;
 pub mod auth;
+pub mod avatar;
 pub mod checks;
 pub mod client;
 pub mod error;

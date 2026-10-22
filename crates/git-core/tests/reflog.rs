@@ -3,7 +3,7 @@
 
 use git_core::fixtures::FixtureRepo;
 use git_core::ops::merge::{MergeArgs, MergeMode, merge};
-use git_core::ops::reflog::{UndoAction, undo_last, undo_preview};
+use git_core::ops::reflog::{UndoAction, apply_action, undo_last, undo_preview};
 use git_core::ops::stash::{StashPushArgs, stash_push};
 use git_core::parse::reflog::head_reflog;
 
@@ -77,6 +77,39 @@ async fn undo_after_merge_returns_to_pre_merge_tip() {
 }
 
 #[tokio::test]
+async fn redo_after_undoing_a_merge_restores_the_merge_commit() {
+    let r = FixtureRepo::linear(2);
+    r.git(&["switch", "-c", "feat"]);
+    r.commit_file("feat1.txt", "feat\n", "feat1");
+    r.git(&["switch", "main"]);
+    r.commit_file("main1.txt", "main\n", "main1");
+    let a = MergeArgs { source: "feat".into(), mode: MergeMode::Default, message: None };
+    merge(&r.runner(), r.path(), &a).await.unwrap();
+    let merged = r.rev_parse("HEAD");
+    let out = undo_last(&r.runner(), r.path()).await.unwrap();
+    assert_ne!(r.rev_parse("HEAD"), merged);
+    assert_eq!(out.redo, UndoAction::ResetKeep { target: merged.clone() });
+    assert_eq!(out.head, r.rev_parse("HEAD"));
+    assert_eq!(out.branch.as_deref(), Some("main"));
+    apply_action(&r.runner(), r.path(), &out.redo).await.unwrap();
+    assert_eq!(r.rev_parse("HEAD"), merged);
+    assert_eq!(r.git(&["branch", "--show-current"]), "main");
+}
+
+#[tokio::test]
+async fn apply_action_rejects_option_like_targets() {
+    let r = FixtureRepo::linear(2);
+    for action in [
+        UndoAction::ResetSoft { target: "--hard".into() },
+        UndoAction::ResetKeep { target: "HEAD~1".into() },
+        UndoAction::Checkout { target: "-c".into(), detach: false },
+        UndoAction::Checkout { target: "main".into(), detach: true },
+    ] {
+        assert!(apply_action(&r.runner(), r.path(), &action).await.is_err(), "{action:?}");
+    }
+}
+
+#[tokio::test]
 async fn nothing_to_undo_on_a_single_entry() {
     let r = FixtureRepo::linear(1);
     assert_eq!(undo_preview(&r.runner(), r.path()).await.unwrap(), None);
@@ -136,4 +169,48 @@ async fn nothing_to_undo_after_a_stash() {
     stash_push(&r.runner(), r.path(), &args).await.unwrap();
     // HEAD@{0} is "reset: moving to HEAD" written by stash; the branch did not move.
     assert_eq!(undo_preview(&r.runner(), r.path()).await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn redo_after_undoing_a_commit_restores_the_tip() {
+    let r = FixtureRepo::linear(2);
+    r.commit_file(
+        "x.txt", "x
+", "extra",
+    );
+    let tip = r.rev_parse("HEAD");
+    let out = undo_last(&r.runner(), r.path()).await.unwrap();
+    assert_eq!(out.head, r.rev_parse("HEAD"));
+    assert_ne!(out.head, tip);
+    assert_eq!(out.redo, UndoAction::ResetSoft { target: tip.clone() });
+    apply_action(&r.runner(), r.path(), &out.redo).await.unwrap();
+    assert_eq!(r.rev_parse("HEAD"), tip);
+    assert_eq!(r.git(&["branch", "--show-current"]), "main");
+}
+
+#[tokio::test]
+async fn redo_after_undoing_a_checkout_returns_to_the_branch() {
+    let r = FixtureRepo::linear(2);
+    r.git(&["switch", "-c", "feat"]);
+    let out = undo_last(&r.runner(), r.path()).await.unwrap();
+    assert_eq!(r.git(&["branch", "--show-current"]), "main");
+    assert_eq!(out.redo, UndoAction::Checkout { target: "feat".into(), detach: false });
+    apply_action(&r.runner(), r.path(), &out.redo).await.unwrap();
+    assert_eq!(r.git(&["branch", "--show-current"]), "feat");
+}
+
+#[tokio::test]
+async fn redo_on_detached_head_returns_to_the_detached_oid() {
+    let r = FixtureRepo::linear(3);
+    r.git(&["switch", "--detach", "HEAD~1"]);
+    let detached = r.rev_parse("HEAD");
+    r.git(&["switch", "--detach", "HEAD~1"]);
+    let lower = r.rev_parse("HEAD");
+    let out = undo_last(&r.runner(), r.path()).await.unwrap();
+    assert_eq!(r.rev_parse("HEAD"), detached);
+    assert_eq!(r.git(&["branch", "--show-current"]), "");
+    assert_eq!(out.redo, UndoAction::Checkout { target: lower.clone(), detach: true });
+    apply_action(&r.runner(), r.path(), &out.redo).await.unwrap();
+    assert_eq!(r.rev_parse("HEAD"), lower);
+    assert_eq!(r.git(&["branch", "--show-current"]), "");
 }

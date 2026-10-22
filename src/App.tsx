@@ -5,7 +5,7 @@ import type { AppInfo } from "./ipc/types";
 import { registerPhase2Dialogs } from "./features/dialogs";
 import { OpBanner } from "./features/shell/OpBanner";
 import { RepoTabs } from "./features/shell/RepoTabs";
-import { Toolbar } from "./features/shell/Toolbar";
+import { Ribbon } from "./features/shell/Ribbon";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
 import { BlameView } from "./features/blame/BlameView";
@@ -259,11 +259,7 @@ export default function App() {
           <AccountMenu />
         </div>
       </header>
-      {current !== null && (
-        <div className={styles["toolbarRow"]}>
-          <Toolbar repoId={current.repoId} />
-        </div>
-      )}
+      {current !== null && <Ribbon repoId={current.repoId} />}
       <ProgressBar />
       {current !== null && <OpBanner repoId={current.repoId} />}
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>

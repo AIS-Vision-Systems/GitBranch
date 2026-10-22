@@ -4,6 +4,7 @@ export {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  ChevronRight,
   CircleHelp,
   CircleUser,
   Cloud,

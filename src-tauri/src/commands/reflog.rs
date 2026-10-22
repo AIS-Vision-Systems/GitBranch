@@ -1,6 +1,6 @@
 //! Reflog-based undo commands (Phase 2).
 
-use git_core::ops::reflog::{self, UndoInfo};
+use git_core::ops::reflog::{self, UndoAction, UndoInfo, UndoOutcome};
 use git_core::parse::reflog::ReflogError;
 use tauri::State;
 
@@ -34,9 +34,23 @@ pub async fn undo_last(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     repo_id: String,
-) -> Result<UndoInfo, AppError> {
+) -> Result<UndoOutcome, AppError> {
     let repo = state.get(&repo_id).ok_or_else(not_open)?;
-    let info = reflog::undo_last(&state.runner, &repo.info.work_tree).await?;
+    let out = reflog::undo_last(&state.runner, &repo.info.work_tree).await?;
     emit_changed(&app, &repo_id, &[Change::Head, Change::Refs, Change::Index, Change::WorkingTree]);
-    Ok(info)
+    Ok(out)
+}
+
+/// Performs an undo/redo action (the redo returned by `undo_last`).
+#[tauri::command]
+pub async fn apply_action(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    repo_id: String,
+    action: UndoAction,
+) -> Result<(), AppError> {
+    let repo = state.get(&repo_id).ok_or_else(not_open)?;
+    let res = reflog::apply_action(&state.runner, &repo.info.work_tree, &action).await;
+    emit_changed(&app, &repo_id, &[Change::Head, Change::Refs, Change::Index, Change::WorkingTree]);
+    Ok(res?)
 }

@@ -14,7 +14,7 @@ import type { MergeMode, MergeOutcome, OpKind, TodoItem } from "../ipc/merge";
 import * as remoteIpc from "../ipc/remote";
 import type { FetchArgs, PullArgs, PushArgs, PushResult } from "../ipc/remote";
 import * as reflogIpc from "../ipc/reflog";
-import type { UndoInfo } from "../ipc/reflog";
+import type { UndoAction, UndoInfo } from "../ipc/reflog";
 import * as stashIpc from "../ipc/stash";
 import type { StashEntry, StashPushArgs } from "../ipc/stash";
 import * as tagIpc from "../ipc/tag";
@@ -90,8 +90,19 @@ function toast(title: string): void {
   useUiStore.getState().pushToast({ kind: "success", title });
 }
 
+/** What "Redo" would apply, valid only while HEAD is still at `head`. */
+export interface RedoState {
+  action: UndoAction;
+  head: string;
+  /** Branch HEAD was on after the undo; null when detached. */
+  branch: string | null;
+}
+
 interface OpsState {
   busy: boolean;
+  /** Per-repo redo target, set by `undoLast` and cleared when HEAD moves away from `head`. */
+  redo: Record<string, RedoState | undefined>;
+  redoLast: (repoId: RepoId) => Promise<boolean>;
   createBranch: (
     repoId: RepoId,
     name: string,
@@ -167,6 +178,9 @@ function cancelledAs(title: string, next?: (e: unknown) => boolean): (e: unknown
 }
 
 export const useOpsStore = create<OpsState>((set, get) => {
+  const setRedo = (repoId: string, redo: RedoState | undefined): void =>
+    set((s) => ({ redo: { ...s.redo, [repoId]: redo } }));
+
   /**
    * Run one backend call: busy flag, error reporting, conflict toast.
    * "conflict" means the operation started and stopped on conflicts (the banner takes over).
@@ -272,6 +286,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
 
   return {
     busy: false,
+    redo: {},
 
     clone: async (args) => {
       const name = cloneNameFromUrl(args.dest);
@@ -624,9 +639,42 @@ export const useOpsStore = create<OpsState>((set, get) => {
           confirmLabel: "Undo",
         },
         "Undo failed",
-        () => reflogIpc.undoLast(repoId),
+        async () => {
+          const outcome = await reflogIpc.undoLast(repoId);
+          setRedo(repoId, {
+            action: outcome.redo,
+            head: outcome.head,
+            branch: outcome.branch,
+          });
+        },
         "Undone",
       );
     },
+
+    redoLast: async (repoId) => {
+      const redo = get().redo[repoId];
+      if (redo === undefined) return false;
+      const ok = await run(
+        "Redo failed",
+        () => reflogIpc.applyAction(repoId, redo.action),
+        "Redone",
+      );
+      if (ok) setRedo(repoId, undefined);
+      return ok;
+    },
   };
+});
+
+// Redo is only valid while HEAD still sits where the undo left it: any other move clears it.
+useGraphStore.subscribe((state) => {
+  const redo = useOpsStore.getState().redo;
+  for (const id of Object.keys(redo)) {
+    const r = redo[id];
+    if (r === undefined) continue;
+    const head = state.byRepo[id]?.refs?.head;
+    if (head === undefined) continue;
+    if ((head.oid !== null && head.oid !== r.head) || head.branch !== r.branch) {
+      useOpsStore.setState((s) => ({ redo: { ...s.redo, [id]: undefined } }));
+    }
+  }
 });
