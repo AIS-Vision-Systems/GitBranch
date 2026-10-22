@@ -22,26 +22,33 @@ GitBranch/
   src/                         # frontend
     main.tsx  App.tsx
     ipc/                       # ONE typed wrapper per Tauri command (invoke + zod-free TS types)
-    state/                     # zustand stores: repos, graph, selection, ui
+    state/                     # zustand stores: repos, graph, selection, ui, settings, updater, session, ...
     features/
       graph/                   # GraphView, GraphRow, LaneStrip (SVG), RefChip
-      commit/                  # CommitDetails, FileList
+      commit/                  # CommitDetails, FileList, file context menu (Blame / File history / difftool)
       diff/                    # DiffView, Hunk, line staging
+      blame/                   # BlameView (virtualised rows), rows.ts
       sidebar/                 # Branches, Remotes, Tags, Stashes, Worktrees, PullRequests
-      dialogs/                 # one folder per dialog (NewBranch, Clone, CreatePr, ...)
+      dialogs/                 # one folder per dialog (NewBranch, Clone, CreatePr, Settings, ...)
       github/                  # LoginDialog, AccountMenu, RepoPickerDialog, PullDetailView, CreatePullDialog, PrBadge
+      shell/                   # Toolbar, tabs, command palette, UpdateCard
+      welcome/  stash/
     styles/tokens.css
   src-tauri/
     Cargo.toml                 # the Tauri binary crate (member of the root workspace)
     src/
-      main.rs                  # tauri::Builder; askpass mode (GITBRANCH_ASKPASS=1 + prompt arg)
+      main.rs                  # entry; askpass mode (GITBRANCH_ASKPASS=1 + prompt arg)
+      lib.rs                   # tauri::Builder, plugins, logging init
+      launch.rs                # repo path from argv, single-instance forwarding
+      settings.rs              # Settings struct, load/validate
       commands/                # #[tauri::command] fns, THIN: parse args -> git-core -> serialize
       watcher.rs               # notify-based repo watcher -> emits "repo-changed" events
-      state.rs                 # open repos registry
+      state.rs                 # open repos registry, recent list, settings and session persistence
+      error.rs                 # AppError
   crates/
     git-core/                  # pure Rust, no Tauri. Everything testable with real git in temp dirs
       src/runner.rs            # spawn, env, timeout, cancellation, GitError
-      src/parse/{refs,log,status,diff,worktree,stash}.rs
+      src/parse/{refs,log,status,diff,worktree,stash,blame,...}.rs
       src/graph/{layout,color}.rs
       src/ops/{branch,stash,merge,rebase,remote,worktree,...}.rs
       src/fixtures.rs          # FixtureRepo builders (feature `fixtures`, dev-dep enables it for tests)
@@ -139,15 +146,94 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   `AppError { code: string, message: string, detail?: string }` is what the UI shows.
 - Events from Rust → UI: `repo-changed { repo_id, what: Refs|Index|WorkingTree|Head }`, `op-progress { op_id, pct, msg }`.
 
+## Blame
+
+- `ops::blame::blame(runner, repo, path, rev)` runs `git blame --porcelain [<rev>] -- <path>`; `rev = None` blames
+  the working tree (uncommitted lines carry the author "Not Committed Yet"). A revision that is empty, starts with
+  `-` or contains whitespace/control characters is refused before spawning (`BlameError::InvalidRevision`).
+- `parse::blame::parse_blame` folds consecutive lines of one commit into `BlameHunk { oid, author, author_time,
+  summary, start_line, line_count, boundary, path }` (`path` is the name in that commit, so a rename shows through)
+  and returns `Blame { hunks, lines }`: the file content travels with the hunks, so the UI never re-reads the file.
+- IPC: `blame(repo_id, path, rev?)` (`src-tauri/src/commands/blame.rs` ↔ `src/ipc/blame.ts`).
+- `src/features/blame/BlameView.tsx` replaces the graph in the center pane. It flattens the hunks into one
+  `BlameRow` per line (`first` marks the first row of a hunk and is precomputed, so hunk grouping survives
+  windowing) and renders them through `@tanstack/react-virtual` (`useVirtualizer`, 19 px estimate + `measureElement`,
+  overscan 20) — the same pattern as the graph, so a large file costs only its visible rows. The short-oid button
+  of a hunk selects that commit in the graph store.
+- File history is not blame: "File history" sets the graph path filter (`LogFilter.path` → `git log
+  --literal-pathspecs ... -- <path>`), without `--follow`, so renames are not followed.
+
 ## Performance rules
 
 - Never load the whole log for UIs that need the tip only (sidebar uses `for-each-ref`).
 - Log is paged: 2,000 rows first paint, then the whole remainder in ONE `git log` call (a `--skip` walk re-reads
   history every page: 10k chunks cost ~680 ms each on git/git vs ~880 ms for all 83k at once) served to the UI in 10k
   slices from the Rust cache; graph layout is incremental-safe because
-  lanes state is carried across chunks.
+  lanes state is carried across chunks. Filtered logs (author/message/path) use the same single-slot per-repo cache,
+  keyed by `(order, all, filter)`; a filtered batch prunes parents that are not in the batch, so a filter matching
+  more than the first page shows one lane break at the page boundary (D-031).
 - Diffs are computed per selected file, never for the whole commit up front.
 - Watcher debounces 150 ms, coalesces by category, and refetches only the affected slice (refs vs status vs log).
+
+## Settings
+
+- `settings.json` in the Tauri app config dir, next to `recent.json` and `session.json`; pretty JSON, camelCase
+  (`src-tauri/src/settings.rs`). Fields: `gitPath` (absolute path or null = `GITBRANCH_GIT` / `git` on PATH),
+  `pullStrategy` (`config` | `merge` | `rebase` | `ffOnly`), `diffContextLines` (0..=100), `diffIgnoreWhitespace`,
+  `editor` (overrides `core.editor` / `$VISUAL` / `$EDITOR`), `difftool` (command with `$LOCAL` / `$REMOTE`),
+  `autoUpdateCheck` (default true). Missing fields take their defaults; a corrupt file is copied to
+  `settings.json.bad` and the defaults are used.
+- `gitPath` is read once at startup to build the `GitRunner`, so a change applies after a restart; a configured path
+  that no longer exists falls back to the default git with a warning.
+- Commands `get_settings` / `set_settings`: `set_settings` validates (`Settings::validated`: blanks become null, context
+  lines are clamped, the git path must be an existing absolute file), writes atomically (`.json.tmp` + rename, under
+  the settings write lock), installs the copy in `AppState` and returns the normalised settings.
+- UI: `useSettingsStore` (`src/state/settings.ts`) starts from `DEFAULT_SETTINGS` with `loaded = false`; `App` calls
+  `load()` once on mount, which flips `loaded`; `save(partial)` merges and persists. Anything that must not act on
+  the defaults (the update scheduler) waits for `loaded`.
+
+## Updater
+
+- `tauri-plugin-updater`; endpoint `https://github.com/AIS-Vision-Systems/GitBranch/releases/latest/download/latest.json`
+  and the minisign public key in `src-tauri/tauri.conf.json` (`plugins.updater`). The private key and its password
+  exist only as the repository secrets `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- Release (`.github/workflows/release.yml`): pushing a `v*` tag runs windows-latest and ubuntu-22.04 one at a time;
+  the tag must equal the version in `tauri.conf.json`, `package.json` and `Cargo.toml`; `tauri-action` builds with
+  `bundle.createUpdaterArtifacts` and creates a DRAFT release with the installers, their `.sig` files and
+  `latest.json`. The owner publishes it; actions are pinned to commit SHAs.
+- UI (`src/state/updater.ts` over `src/ipc/updater.ts`, which wraps `@tauri-apps/plugin-updater` `check()` and
+  `@tauri-apps/plugin-process` `relaunch()`): the scheduler starts once settings are `loaded` (not after a fixed
+  delay), checks at once and then on an hourly timer; an automatic check actually runs only when `autoUpdateCheck`
+  is on and the last check (`localStorage` key `gitbranch.updateLastCheck`) is older than 24 h. The palette's
+  "Check for updates" bypasses both. Status: `idle → checking → available → downloading → ready` (then relaunch),
+  or `error`.
+- Failures: an automatic check that fails goes back to `idle` silently (`console.debug`); a manual check that fails
+  keeps the card with the error and a Retry button. A failed install keeps its error and the pending update until a
+  manual retry — the hourly check never overwrites it. `can_self_update` is false for `.deb` installs (the package
+  manager owns the files): the card only notifies.
+
+## Log file
+
+- `tracing` with two layers (`src-tauri/src/lib.rs::init_logging`, installed in `setup` because the log dir needs
+  the app handle): stderr, and a daily-rolling file `gitbranch.YYYY-MM-DD.log` (`tracing_appender`, 7 files kept) in
+  the Tauri app log dir (`app_log_dir()`; Settings → Open log folder calls `open_log_dir`). The file writer is
+  non-blocking; its guard is dropped on `RunEvent::Exit` so the last lines flush.
+- Level from `GITBRANCH_LOG` (`EnvFilter`, e.g. `debug` or `git=debug,gitbranch=info`), default `info`.
+- An unusable log dir only warns on stderr; logging never blocks startup.
+- Local only, never uploaded (D-007). Tokens, the askpass argv and file contents are never logged; URL credentials
+  go through `runner::redact_credentials` before a git error reaches a log line.
+
+## Single instance
+
+- `tauri-plugin-single-instance`, registered before every other plugin (desktop only). A second launch gets no
+  window: the plugin hands its argv and cwd to the running process (`launch::on_second_instance`), which
+  unminimises, shows and focuses the main window.
+- The repository path is the first argument after `argv[0]` that is an existing directory (relative ones resolve
+  against the second process's cwd, `-flags` are skipped), resolved on a blocking thread because `is_dir` on a dead
+  UNC share can hang. It is stored in `LaunchPath` and emitted as `open-repo-request { path }`; the UI also drains
+  `LaunchPath` through `take_launch_path` on start-up in case the listener was not ready. Opening an already-open
+  repository just activates its tab, so seeing the same path on both routes is harmless.
+- The first instance's own `gitbranch <path>` argument goes through the same `LaunchPath`.
 
 ## Security
 
