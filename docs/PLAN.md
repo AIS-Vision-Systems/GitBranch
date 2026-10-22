@@ -175,7 +175,7 @@ an action ribbon under it, a GitKraken-style account panel and a Quasidian-style
   signature" = effective `user.name`/`user.email` for the current repo, editable globally or per repo
   (`git-core::ops::config::{identity,set_identity}`); "Account" = name, email, scopes, rate limit; Manage account,
   Re-authorize, Sign out, Revoke.
-- [ ] 8.5 Docs: ARCHITECTURE (shell layout, ribbon, about, terminal, avatar cache), CHANGELOG demo note.
+- [x] 8.5 Docs: ARCHITECTURE (shell layout, ribbon, about, terminal, avatar cache), CHANGELOG demo note.
 
 Acceptance: the top row shows only tabs + help + gear + account; every former toolbar action is reachable from
 the ribbon or its overflow; Terminal opens at the work tree on Windows; installer still < 25 MB.

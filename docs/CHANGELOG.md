@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 2026-10-22: **Phase 8 demo.** (1) The top row is only tabs (repo/worktree icons, close on hover, `+`) plus Help,
+  Settings and the account avatar. (2) The ribbon under it: repository › branch dropdowns, Undo / Redo (checkout
+  `feat` → Undo → `main` → Redo → `feat`, verified with git), Fetch caret menu, Push, Branch, Stash, Pop, Terminal
+  (Windows Terminal opened at the smoke repo's work tree), More and Search. (3) Help opens the About dialog with
+  version, credits, license, Check for updates, AIS branding and the scrollable guide. (4) The account panel shows
+  the real avatar, the commit signature (edit → `git config --show-scope` reports the new local value, global
+  untouched), account details and the four account actions. Installer 3.02 MiB, 421 cargo + 567 vitest tests.
 - 2026-10-22: Account panel (item 8.4): the account button shows the real GitHub avatar (downloaded by the backend
   without the token, cached on disk for a week). The panel shows the **commit signature** (effective `user.name` /
   `user.email` for the current repository with their scope) editable for this repository or globally, the account
