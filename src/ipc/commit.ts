@@ -11,6 +11,11 @@ export interface ChangedFile {
   similarity: number | null;
 }
 
+export interface CoAuthor {
+  name: string;
+  email: string;
+}
+
 export interface CommitDetails {
   oid: string;
   parents: string[];
@@ -22,6 +27,7 @@ export interface CommitDetails {
   committerTime: number;
   subject: string;
   body: string;
+  coAuthors: CoAuthor[];
   files: ChangedFile[];
 }
 

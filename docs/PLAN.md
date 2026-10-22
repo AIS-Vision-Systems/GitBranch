@@ -184,7 +184,7 @@ the ribbon or its overflow; Terminal opens at the work tree on Windows; installe
 Goal: a GitKraken-style left sidebar (LOCAL / REMOTE / WORKTREES / PULL REQUESTS) and a details pane whose
 header stays put while the file tree scrolls.
 
-- [~] 9.1 Co-authors in git-core: `Co-authored-by:` trailers parsed from `git show` (`%(trailers:...)`), exposed
+- [x] 9.1 Co-authors in git-core: `Co-authored-by:` trailers parsed from `git show` (`%(trailers:...)`), exposed
   as `coAuthors` on the commit details, stripped from the displayed body. Needs git >= 2.22 (version probe note).
 - [x] 9.2 Author avatars (amends D-023): GitHub photo for known authors only (the signed-in user's commits and
   `@users.noreply.github.com` emails → login → `github.com/<login>.png`, backend fetch + disk cache, negative

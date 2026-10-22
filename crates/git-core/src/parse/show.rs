@@ -47,6 +47,16 @@ pub struct ChangedFile {
     pub similarity: Option<u8>,
 }
 
+/// One `Co-authored-by:` trailer entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CoAuthor {
+    /// Display name.
+    pub name: String,
+    /// Email address (empty when the trailer had none).
+    pub email: String,
+}
+
 /// Metadata and changed files of one commit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +81,8 @@ pub struct CommitDetails {
     pub subject: String,
     /// Message body without the subject, trailing newlines trimmed.
     pub body: String,
+    /// `Co-authored-by:` trailers, in order; the lines are removed from `body`.
+    pub co_authors: Vec<CoAuthor>,
     /// Files changed (against the first parent for merges).
     pub files: Vec<ChangedFile>,
 }
@@ -130,12 +142,74 @@ pub fn parse_name_status(stdout: &[u8]) -> Result<Vec<ChangedFile>, ParseError> 
     Ok(out)
 }
 
+/// Parse the value of a `Co-authored-by:` trailer (`Name <email>`).
+fn parse_co_author(s: &str) -> CoAuthor {
+    let s = s.trim();
+    match s.split_once('<') {
+        Some((name, rest)) => {
+            let rest = rest.trim();
+            let email = rest.strip_suffix('>').or_else(|| rest.split_once('>').map(|x| x.0));
+            CoAuthor {
+                name: name.trim().to_string(),
+                email: email.unwrap_or(rest).trim().to_string(),
+            }
+        }
+        None => CoAuthor { name: s.to_string(), email: String::new() },
+    }
+}
+
+/// Does `line` look like a `Co-authored-by:` trailer line (git's rule: no leading whitespace,
+/// ASCII-case-insensitive token, optional whitespace before the colon)?
+fn is_co_author_line(line: &str) -> bool {
+    const KEY: &str = "co-authored-by";
+    line.len() > KEY.len()
+        && line.is_char_boundary(KEY.len())
+        && line[..KEY.len()].eq_ignore_ascii_case(KEY)
+        && line[KEY.len()..].trim_start_matches([' ', '\t']).starts_with(':')
+}
+
+/// Remove up to `max` `Co-authored-by:` lines (plus their folded continuation lines) from the
+/// last paragraph (the trailer block) of `body`. Original line endings are preserved.
+fn strip_co_author_lines(body: &str, max: usize) -> String {
+    if max == 0 {
+        return body.to_string();
+    }
+    let lines: Vec<&str> = body.split('\n').collect();
+    let start = lines.iter().rposition(|l| l.trim().is_empty()).map_or(0, |i| i + 1);
+    let mut kept: Vec<&str> = lines[..start].to_vec();
+    let (mut removed, mut skipping, mut para_kept) = (0, false, false);
+    for l in &lines[start..] {
+        if removed < max && is_co_author_line(l) {
+            removed += 1;
+            skipping = true;
+        } else if skipping && l.starts_with([' ', '\t']) {
+            // folded continuation of a stripped trailer
+        } else {
+            skipping = false;
+            para_kept = true;
+            kept.push(l);
+        }
+    }
+    if !para_kept {
+        kept.truncate(start);
+        while kept.last().is_some_and(|l| l.trim().is_empty()) {
+            kept.pop();
+        }
+    }
+    kept.join("\n").trim_end_matches(['\n', '\r']).to_string()
+}
 fn parse_meta(stdout: &[u8]) -> Result<CommitDetails, ParseError> {
     let rec = stdout.strip_suffix(&[0]).unwrap_or(stdout);
-    let f: Vec<&[u8]> = rec.splitn(10, |b| *b == 0x1f).collect();
-    if f.len() < 10 {
-        return Err(ParseError("show record has fewer than ten fields".into()));
+    let f: Vec<&[u8]> = rec.splitn(11, |b| *b == 0x1f).collect();
+    if f.len() < 11 {
+        return Err(ParseError("show record has fewer than eleven fields".into()));
     }
+    let co_authors: Vec<CoAuthor> = f[9]
+        .split(|b| *b == 0x1e)
+        .map(text)
+        .filter(|e| !e.trim().is_empty())
+        .map(|e| parse_co_author(&e))
+        .collect();
     Ok(CommitDetails {
         oid: text(f[0]),
         parents: f[1].split(|b| *b == b' ').filter(|p| !p.is_empty()).map(text).collect(),
@@ -146,12 +220,16 @@ fn parse_meta(stdout: &[u8]) -> Result<CommitDetails, ParseError> {
         committer_email: text(f[6]),
         committer_time: num(f[7], "committer time")?,
         subject: text(f[8]),
-        body: text(f[9]).trim_end_matches(['\n', '\r']).to_string(),
+        body: strip_co_author_lines(text(f[10]).trim_end_matches(['\n', '\r']), co_authors.len()),
+        co_authors,
         files: Vec::new(),
     })
 }
 
 /// Load metadata and the changed-file list of commit `oid`.
+///
+/// `%(trailers:...)` needs git >= 2.22, already covered by `MIN_GIT_VERSION` (2.31) in
+/// `runner.rs`, so there is no per-op version probe.
 ///
 /// # Errors
 /// [`ShowError::Git`] if git fails (e.g. unknown object), [`ShowError::Parse`] on malformed output.
@@ -168,7 +246,7 @@ pub async fn commit_details(
                 "-s",
                 "--no-show-signature",
                 "-z",
-                "--format=%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%cn%x1f%ce%x1f%ct%x1f%s%x1f%b",
+                "--format=%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%cn%x1f%ce%x1f%ct%x1f%s%x1f%(trailers:key=Co-authored-by,valueonly,unfold,separator=%x1e)%x1f%b",
                 oid,
                 "--",
             ],
@@ -187,4 +265,54 @@ pub async fn commit_details(
     let files = runner.run(repo, &args, RunOpts::default()).await?;
     details.files = parse_name_status(&files.stdout)?;
     Ok(details)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn co_author_parsing() {
+        let a = parse_co_author("  Ann   Lee  <ann@example.com> ");
+        assert_eq!((a.name.as_str(), a.email.as_str()), ("Ann   Lee", "ann@example.com"));
+        let b = parse_co_author("Bob");
+        assert_eq!((b.name.as_str(), b.email.as_str()), ("Bob", ""));
+        let c = parse_co_author("<c@d>");
+        assert_eq!((c.name.as_str(), c.email.as_str()), ("", "c@d"));
+    }
+
+    #[test]
+    fn strips_only_co_author_lines() {
+        let body =
+            "Text\n\nSigned-off-by: X <x@y>\nCo-authored-by: A <a@b>\nco-AUTHORED-by: C <c@d>";
+        assert_eq!(strip_co_author_lines(body, 2), "Text\n\nSigned-off-by: X <x@y>");
+        assert_eq!(strip_co_author_lines("Just text\nmore", 1), "Just text\nmore");
+        assert_eq!(strip_co_author_lines("Body text\n\nCo-authored-by: A <a@b>", 1), "Body text");
+    }
+
+    #[test]
+    fn strip_respects_count_and_prose() {
+        let prose = "Subject line\nCo-authored-by: mentioned in prose";
+        assert_eq!(strip_co_author_lines(prose, 0), prose);
+        let body = "T\n\nCo-authored-by: A <a@b>\nCo-authored-by: B <b@c>";
+        assert_eq!(strip_co_author_lines(body, 1), "T\n\nCo-authored-by: B <b@c>");
+    }
+
+    #[test]
+    fn strip_handles_crlf_and_blank_whitespace() {
+        let body = "T\r\n\r\nSigned-off-by: X <x@y>\r\nCo-authored-by: A <a@b>";
+        assert_eq!(strip_co_author_lines(body, 1), "T\r\n\r\nSigned-off-by: X <x@y>");
+        let ws = "T\n  \nCo-authored-by: A <a@b>";
+        assert_eq!(strip_co_author_lines(ws, 1), "T");
+    }
+
+    #[test]
+    fn strip_matches_like_git() {
+        assert!(is_co_author_line("Co-authored-by : A <a@b>"));
+        assert!(is_co_author_line("CO-AUTHORED-BY: A"));
+        assert!(!is_co_author_line(" Co-authored-by: A"));
+        assert!(!is_co_author_line("Co-authored-by A"));
+        let body = "T\n\nCo-authored-by: A <a@b>\n  folded\n\tmore\nSigned-off-by: X";
+        assert_eq!(strip_co_author_lines(body, 1), "T\n\nSigned-off-by: X");
+    }
 }
