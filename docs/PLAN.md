@@ -122,7 +122,7 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 - [x] 6.6 Telemetry: **none**. Local log file only.
 - [x] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
   the repo passed on its command line as a new tab.
-- [ ] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
+- [x] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
   (`git ls-remote --heads`) instead of a free-text field.
 
 ## Out of scope (explicitly)

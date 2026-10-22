@@ -186,6 +186,7 @@ pub fn run() {
             commands::remote::push,
             commands::remote::cancel_op,
             commands::clone::clone,
+            commands::clone::list_remote_heads,
             commands::submodule::list_submodules,
             commands::worktree::list_worktrees,
             commands::worktree::add_worktree,

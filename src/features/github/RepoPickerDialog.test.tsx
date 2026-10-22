@@ -87,13 +87,19 @@ describe("RepoPickerDialog", () => {
     fireEvent.keyDown(search, { key: "ArrowDown" });
     fireEvent.keyDown(search, { key: "Enter" });
     expect(onClose).toHaveBeenCalled();
-    expect(openClone).toHaveBeenCalledWith({ url: "https://github.com/acme/beta.git" });
+    expect(openClone).toHaveBeenCalledWith({
+      url: "https://github.com/acme/beta.git",
+      defaultBranch: "main",
+    });
   });
 
   it("Clone button opens the clone dialog for the clicked row", () => {
     render(<RepoPickerDialog onClose={vi.fn()} />);
     fireEvent.click(screen.getByText("beta"));
     fireEvent.click(screen.getByRole("button", { name: "Clone" }));
-    expect(openClone).toHaveBeenCalledWith({ url: "https://github.com/acme/beta.git" });
+    expect(openClone).toHaveBeenCalledWith({
+      url: "https://github.com/acme/beta.git",
+      defaultBranch: "main",
+    });
   });
 });
