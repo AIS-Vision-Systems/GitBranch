@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 2026-10-22: installers: per-user NSIS (2.5 MiB), .deb depends on git, publisher/category/description metadata.
 - 2026-10-22: Settings dialog (gear, Ctrl+,): theme, git path (applies after restart), default pull strategy, diff context lines / ignore whitespace, external editor and difftool; "Open in difftool" in the file menu.
 - 2026-10-22: blame view (right-click a file → Blame, or the Blame button in the diff header) and file history (right-click → File history filters the graph by path).
 - 2026-10-22: command palette (Ctrl+K) and commit filter bar (Ctrl+F: author, message, path) on the graph.
