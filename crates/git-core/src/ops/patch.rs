@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parse::diff::{DiffError, DiffTarget, FileDiff, LineKind, file_diff};
+use crate::parse::diff::{DiffError, DiffOptions, DiffTarget, FileDiff, LineKind, file_diff_with};
 use crate::{GitError, GitRunner, RunOpts};
 
 /// A hunk (or some of its lines) picked in the UI.
@@ -172,6 +172,21 @@ pub async fn apply_selection(
     sel: &HunkSelection,
     op: PatchOp,
 ) -> Result<(), PatchError> {
+    apply_selection_with(runner, repo, sel, op, &DiffOptions::default()).await
+}
+
+/// Like [`apply_selection`], re-reading the diff with the same [`DiffOptions`] the UI displayed so
+/// hunk indices and headers match.
+///
+/// # Errors
+/// Same as [`apply_selection`].
+pub async fn apply_selection_with(
+    runner: &GitRunner,
+    repo: &Path,
+    sel: &HunkSelection,
+    op: PatchOp,
+    options: &DiffOptions,
+) -> Result<(), PatchError> {
     let ok = matches!(
         (&sel.target, op),
         (DiffTarget::Unstaged { .. }, PatchOp::Stage | PatchOp::Discard)
@@ -180,7 +195,12 @@ pub async fn apply_selection(
     if !ok {
         return Err(PatchError::Invalid("target does not match the operation".into()));
     }
-    let diff = file_diff(runner, repo, &sel.target).await?;
+    if options.ignore_whitespace {
+        return Err(PatchError::Invalid(
+            "hunk and line operations are unavailable while 'ignore whitespace' is on".into(),
+        ));
+    }
+    let diff = file_diff_with(runner, repo, &sel.target, options).await?;
     match diff.hunks.get(sel.hunk_index) {
         Some(h) if h.header == sel.hunk_header => {}
         None if diff.binary || diff.combined || diff.too_large => {}
@@ -195,6 +215,10 @@ pub async fn apply_selection(
         PatchOp::Discard => args.push("-R"),
     }
     args.extend(["--recount", "--whitespace=nowarn"]);
+    if options.context == 0 {
+        // Zero-context hunks have no anchoring context lines.
+        args.push("--unidiff-zero");
+    }
     let opts = RunOpts {
         stdin: Some(patch.into_bytes()),
         env: vec![("GIT_LITERAL_PATHSPECS".into(), "1".into())],

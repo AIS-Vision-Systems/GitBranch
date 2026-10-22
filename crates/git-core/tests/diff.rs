@@ -240,3 +240,29 @@ fn unquote_c_escapes() {
     let d = parse_unified(sample.as_bytes()).unwrap();
     assert_eq!(d.old_path.as_deref(), Some("x\u{7}\u{8}\u{c}\r\u{b}\\\"\u{e9}8.txt"));
 }
+
+#[tokio::test]
+async fn context_and_whitespace_options() {
+    use git_core::parse::diff::{DiffOptions, file_diff_with};
+    let repo = FixtureRepo::linear(1);
+    let base = (1..=20).map(|i| format!("line{i}")).collect::<Vec<_>>().join("\n") + "\n";
+    repo.commit_file("c.txt", &base, "base");
+    let edited = base.replace("line10\n", "line10  \n").replace("line15\n", "LINE15\n");
+    std::fs::write(repo.path().join("c.txt"), edited).unwrap();
+    let t = DiffTarget::Unstaged { path: "c.txt".into() };
+    let r = repo.runner();
+    let ctx =
+        |d: &git_core::parse::diff::FileDiff| d.hunks.iter().map(|h| h.lines.len()).sum::<usize>();
+    let d3 = file_diff_with(&r, repo.path(), &t, &DiffOptions::default()).await.unwrap();
+    let d0 = file_diff_with(&r, repo.path(), &t, &DiffOptions { context: 0, ..Default::default() })
+        .await
+        .unwrap();
+    assert_eq!(ctx(&d0), 4); // line10 -/+ and line15 -/+, no context
+    assert!(ctx(&d3) > ctx(&d0));
+    let w =
+        file_diff_with(&r, repo.path(), &t, &DiffOptions { context: 0, ignore_whitespace: true })
+            .await
+            .unwrap();
+    assert_eq!(ctx(&w), 2); // the trailing-space-only change on line10 disappears
+    assert_eq!(file_diff(&r, repo.path(), &t).await.unwrap(), d3);
+}

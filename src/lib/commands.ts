@@ -4,6 +4,7 @@ import {
   openCreateTag,
   openPull,
   openPush,
+  openSettings,
   openStashPush,
 } from "../features/dialogs/open";
 import { useGraphStore } from "../state/graph";
@@ -20,6 +21,7 @@ export function buildCommands(): Command[] {
   const cmds: Command[] = [
     { id: "open", title: "Open repository", shortcut: "Ctrl+O", run: () => repos.openViaDialog() },
     { id: "clone", title: "Clone repository", shortcut: "Ctrl+Shift+C", run: () => openClone() },
+    { id: "settings", title: "Open settings", shortcut: "Ctrl+,", run: () => openSettings() },
     { id: "new-tab", title: "New tab", shortcut: "Ctrl+T", run: () => repos.newTab() },
   ];
   if (repos.open.length > 1) {

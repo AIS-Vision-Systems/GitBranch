@@ -226,3 +226,42 @@ async fn discard_single_line_keeps_the_other_change() {
     let now = std::fs::read_to_string(r.path().join("big.txt")).unwrap();
     assert!(now.contains("L8\n") && !now.contains("L5\n"), "{now}");
 }
+
+#[tokio::test]
+async fn zero_context_mid_file_hunk_stages() {
+    use git_core::ops::patch::apply_selection_with;
+    use git_core::parse::diff::{DiffOptions, file_diff_with};
+    let r = two_change_fixture();
+    let run = r.runner();
+    let o = DiffOptions { context: 0, ignore_whitespace: false };
+    let d = file_diff_with(&run, r.path(), &unstaged("big.txt"), &o).await.unwrap();
+    assert_eq!(d.hunks.len(), 2);
+    let sel = HunkSelection {
+        target: unstaged("big.txt"),
+        hunk_index: 1,
+        hunk_header: d.hunks[1].header.clone(),
+        lines: None,
+    };
+    apply_selection_with(&run, r.path(), &sel, PatchOp::Stage, &o).await.unwrap();
+    let cached = r.git(&["diff", "--cached"]);
+    assert!(cached.contains("+L8") && !cached.contains("+L5"));
+}
+
+#[tokio::test]
+async fn hunk_ops_refused_when_ignoring_whitespace() {
+    use git_core::ops::patch::apply_selection_with;
+    use git_core::parse::diff::DiffOptions;
+    let r = two_change_fixture();
+    let o = DiffOptions { context: 3, ignore_whitespace: true };
+    let sel = HunkSelection {
+        target: unstaged("big.txt"),
+        hunk_index: 0,
+        hunk_header: String::new(),
+        lines: None,
+    };
+    let e = apply_selection_with(&r.runner(), r.path(), &sel, PatchOp::Stage, &o).await;
+    assert!(matches!(e, Err(PatchError::Invalid(_))));
+    // Whole-file staging is unaffected.
+    stage(&r.runner(), r.path(), &s("big.txt")).await.unwrap();
+    assert!(r.git(&["diff", "--cached"]).contains("+L8"));
+}

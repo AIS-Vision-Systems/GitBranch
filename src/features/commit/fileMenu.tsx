@@ -1,7 +1,9 @@
 import { useCallback, type MouseEvent, type ReactNode } from "react";
 import type { RepoId } from "../../ipc/types";
 import { NO_FILTER, useGraphStore } from "../../state/graph";
-import { useUiStore } from "../../state/ui";
+import { openDifftool } from "../../ipc/settings";
+import { useSettingsStore } from "../../state/settings";
+import { reportError, useUiStore } from "../../state/ui";
 import { ContextMenu, type MenuItem } from "../shell/ContextMenu";
 import { useContextMenu } from "../shell/useContextMenu";
 import type { FileListItem } from "./FileList";
@@ -38,6 +40,16 @@ export function fileMenuItems(repoId: RepoId, item: FileListItem): MenuItem[] {
       label: "File history",
       disabled: untracked,
       onSelect: () => showFileHistory(repoId, item.path),
+    },
+    {
+      kind: "item",
+      id: "difftool",
+      label: "Open in difftool",
+      disabled: untracked || useSettingsStore.getState().settings.difftool === null,
+      onSelect: () =>
+        void openDifftool(repoId, item.path, item.target.kind === "staged", rev).catch((e) =>
+          reportError(e, "Could not open difftool"),
+        ),
     },
   ];
 }

@@ -44,5 +44,7 @@ pub async fn file_diff(
         }
     }
     let repo = state.get(&repo_id).ok_or_else(not_open)?;
-    Ok(git_core::parse::diff::file_diff(&state.runner, &repo.info.work_tree, &target).await?)
+    let opts = state.settings().diff_options();
+    Ok(git_core::parse::diff::file_diff_with(&state.runner, &repo.info.work_tree, &target, &opts)
+        .await?)
 }

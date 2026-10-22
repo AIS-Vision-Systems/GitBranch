@@ -28,6 +28,8 @@ import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
 import { CommandPalette } from "./features/shell/CommandPalette";
+import { openSettings } from "./features/dialogs/open";
+import { useSettingsStore } from "./state/settings";
 import { usePaletteStore } from "./state/palette";
 import { useReposStore } from "./state/repos";
 import { startSessionSync } from "./state/session";
@@ -115,6 +117,7 @@ export default function App() {
 
   useEffect(() => {
     void loadRecent();
+    void useSettingsStore.getState().load();
   }, [loadRecent]);
 
   const centerView = useUiStore((s) => s.centerView);
@@ -145,6 +148,11 @@ export default function App() {
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      if (mod && !e.shiftKey && !e.altKey && e.key === ",") {
+        e.preventDefault();
+        if (!e.repeat && useDialogsStore.getState().current === null) openSettings();
+        return;
+      }
       if (mod && !e.shiftKey && !e.altKey && k === "k") {
         e.preventDefault();
         if (!e.repeat && useDialogsStore.getState().current === null) {

@@ -17,5 +17,6 @@ export const DIALOG = {
   lockWorktree: "worktree.lock",
   githubLogin: "github.login",
   githubRepoPicker: "github.repoPicker",
+  settings: "app.settings",
   githubCreatePull: "github.createPull",
 } as const;

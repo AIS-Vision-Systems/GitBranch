@@ -2,6 +2,7 @@ import type { HunkSelection, PatchOp } from "../../ipc/stage";
 import type { DiffTarget } from "../../ipc/commit";
 import type { RepoId } from "../../ipc/types";
 import { sameTarget, useDetailsStore } from "../../state/details";
+import { useSettingsStore } from "../../state/settings";
 import { useUiStore } from "../../state/ui";
 import { useWipStore } from "../../state/wip";
 import { DiffView } from "./DiffView";
@@ -31,6 +32,7 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
   const setView = useDetailsStore((s) => s.setView);
   const reloadFile = useDetailsStore((s) => s.reloadFile);
   const clear = useDetailsStore((s) => s.clear);
+  const ignoreWs = useSettingsStore((s) => s.settings.diffIgnoreWhitespace);
 
   if (selectedFile === null) return null;
 
@@ -49,6 +51,9 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
     }
   };
 
+  const hunkTarget =
+    selectedFile.target.kind === "staged" || selectedFile.target.kind === "unstaged";
+
   return (
     <div className={styles["center"]}>
       <div className={styles["centerHeader"]}>
@@ -56,6 +61,11 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
           {selectedFile.label}
         </span>
         <span className={styles["centerKind"]}>{kindLabel(selectedFile.target)}</span>
+        {ignoreWs && hunkTarget && (
+          <span className={styles["centerKind"]}>
+            Hunk actions are off while ignoring whitespace
+          </span>
+        )}
         {canBlame && (
           <button
             type="button"
@@ -85,7 +95,7 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
         view={view}
         onViewChange={setView}
         target={selectedFile.target}
-        onHunkOp={onHunkOp}
+        {...(ignoreWs ? {} : { onHunkOp })}
       />
     </div>
   );

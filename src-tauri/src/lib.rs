@@ -4,6 +4,7 @@
 
 mod commands;
 mod error;
+mod settings;
 mod state;
 mod watcher;
 
@@ -59,7 +60,9 @@ pub fn run() {
             let exe = std::env::current_exe()
                 .inspect_err(|e| tracing::warn!("cannot resolve own exe, askpass disabled: {e}"))
                 .ok();
-            let runner = GitRunner::from_env().with_askpass(exe);
+            // A configured git path applies from the next start; an invalid one falls back.
+            let git = settings::load(&dir.join("settings.json")).usable_git_path();
+            let runner = git.map_or_else(GitRunner::from_env, GitRunner::new).with_askpass(exe);
             app.manage(AppState::new(runner, dir.join("recent.json")));
             Ok(())
         })
@@ -67,6 +70,9 @@ pub fn run() {
             commands::app::app_info,
             commands::app::load_session,
             commands::app::save_session,
+            commands::settings::get_settings,
+            commands::settings::set_settings,
+            commands::difftool::open_difftool,
             commands::repo::pick_repo_dir,
             commands::repo::open_repo,
             commands::repo::list_recent,

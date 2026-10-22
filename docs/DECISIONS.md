@@ -244,3 +244,16 @@ Tauri commands; the checks summary type is shared with the graph decorations of 
 Amendment 2026-10-19: the fork PR head is fetched to `refs/pull/<remote>/N` (not `refs/remotes/<remote>/pr/N`), so
 `fetch --prune` cannot delete it and a real remote branch `pr/N` cannot collide; local `pr/N` is created from it.
 Checkout never relies on `branch.autoSetupMerge`: same-repo uses `switch --track`, forks `switch --no-track`.
+
+## D-029 · accepted · 2026-10-22 — Settings: `settings.json`, git path applies on restart, trusted IPC
+Context: Phase 6.3 needs persisted user settings (git path, pull strategy, diff options, editor, difftool).
+Decision: (1) `settings.json` lives next to `recent.json`/`session.json` (atomic save, `RwLock<Settings>` in `AppState`);
+a corrupt file is copied to `settings.json.bad` and defaults are used. (2) `gitPath` must be an absolute existing file
+and is applied when the runner is built at startup, so a change needs a restart (the runner stays a plain field).
+(3) Diff context lines and ignore-whitespace are read by the Tauri diff commands, not sent by the UI. Hunk/line
+stage/unstage/discard are rejected while ignore-whitespace is on (a `-w` patch may not apply); context 0 uses
+`--unidiff-zero`. (4) `editor` overrides `core.editor`/`$VISUAL`/`$EDITOR`; `difftool` runs through
+`git -c difftool.gbtool.cmd=... difftool` (git's shell), comparing a commit with its first parent. (5) `set_settings`
+is reachable by any script in the webview and can set commands that run code; this is accepted because the values are
+user-chosen and the webview only loads bundled content. Keep the CSP strict and never load remote content.
+Consequences: `get_settings`, `set_settings`, `open_difftool` commands; `pullStrategy` seeds the Pull dialog default.

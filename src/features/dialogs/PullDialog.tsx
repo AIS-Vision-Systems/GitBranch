@@ -4,6 +4,7 @@ import type { RepoId } from "../../ipc/types";
 import { preferredRemote, upstreamBranch, upstreamRemote } from "../../lib/pushTarget";
 import { useGraphStore } from "../../state/graph";
 import { useOpsStore } from "../../state/ops";
+import { useSettingsStore } from "../../state/settings";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
 import { FormDialog } from "./FormDialog";
 import styles from "./Form.module.css";
@@ -34,7 +35,7 @@ export function PullDialog({ repoId, onClose }: PullDialogProps) {
     branchSel ??
     (upstreamRemote(live, remotes) === remote ? upstreamBranch(live, remotes) : null) ??
     "";
-  const [mode, setMode] = useState<PullMode>("config");
+  const [mode, setMode] = useState<PullMode>(useSettingsStore.getState().settings.pullStrategy);
   const [resolved, setResolved] = useState<Exclude<PullMode, "config"> | null>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
 

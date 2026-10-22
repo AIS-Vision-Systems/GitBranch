@@ -9,6 +9,7 @@ import {
   openCreateBranch,
   openPull,
   openPush,
+  openSettings,
   openRemotes,
   openStashPush,
 } from "../dialogs/open";
@@ -182,6 +183,15 @@ ${undoCommand(undo)}
       </button>
       <button type="button" className={styles["button"]} onClick={() => openRemotes(repoId)}>
         Remotes…
+      </button>
+      <button
+        type="button"
+        className={styles["button"]}
+        aria-label="Settings"
+        title="Settings (Ctrl+,)"
+        onClick={() => openSettings()}
+      >
+        ⚙
       </button>
       <div ref={wrapRef} className={styles["popoverHost"]}>
         <button
