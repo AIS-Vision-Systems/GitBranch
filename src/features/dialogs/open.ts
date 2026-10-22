@@ -70,3 +70,5 @@ export const openGithubRepoPicker = (): void => open(DIALOG.githubRepoPicker, {}
 export const openCreatePull = (repoId: RepoId): void => open(DIALOG.githubCreatePull, { repoId });
 
 export const openSettings = (): void => open(DIALOG.settings, {});
+
+export const openAbout = (): void => open(DIALOG.about, {});

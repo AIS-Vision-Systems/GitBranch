@@ -78,8 +78,6 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   /** Whether the About dialog is requested (the dialog itself lands with item 8.2). */
-  aboutOpen: boolean;
-  setAboutOpen: (open: boolean) => void;
   centerView: "graph" | "diff" | "blame";
   /** File shown by the blame view (`rev` undefined = working tree). */
   blameTarget: BlameTarget | null;
@@ -108,8 +106,6 @@ export const useUiStore = create<UiState>((set, get) => ({
     saveSidebarOpen(open);
     set({ sidebarOpen: open });
   },
-  aboutOpen: false,
-  setAboutOpen: (open) => set({ aboutOpen: open }),
   centerView: "graph",
   blameTarget: null,
   showBlame: (repoId, path, rev) =>

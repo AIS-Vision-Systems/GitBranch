@@ -31,7 +31,7 @@ import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { CommandPalette } from "./features/shell/CommandPalette";
-import { openSettings } from "./features/dialogs/open";
+import { openAbout, openSettings } from "./features/dialogs/open";
 import { useSettingsStore } from "./state/settings";
 import { usePaletteStore } from "./state/palette";
 import { useReposStore } from "./state/repos";
@@ -243,7 +243,7 @@ export default function App() {
             className={styles["iconButton"]}
             aria-label="Help"
             title="Help"
-            onClick={() => useUiStore.getState().setAboutOpen(true)}
+            onClick={() => openAbout()}
           >
             <CircleHelp size={18} aria-hidden="true" />
           </button>

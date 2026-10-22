@@ -7,6 +7,10 @@ export interface DialogProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: "sm" | "md" | "lg";
+  /** Extra class for the panel (layout overrides). */
+  panelClassName?: string | undefined;
+  /** Extra class for the body (e.g. a flex column whose child scrolls). */
+  bodyClassName?: string | undefined;
   initialFocusRef?: RefObject<HTMLElement | null>;
 }
 
@@ -19,6 +23,8 @@ export function Dialog({
   children,
   footer,
   width = "md",
+  panelClassName,
+  bodyClassName,
   initialFocusRef,
 }: DialogProps) {
   const titleId = useId();
@@ -78,7 +84,7 @@ export function Dialog({
     >
       <div
         ref={panelRef}
-        className={`${styles["panel"]} ${styles[width]}`}
+        className={`${styles["panel"]} ${styles[width]}${panelClassName !== undefined ? ` ${panelClassName}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -87,7 +93,11 @@ export function Dialog({
         <h2 id={titleId} className={styles["title"]}>
           {title}
         </h2>
-        <div className={styles["body"]}>{children}</div>
+        <div
+          className={`${styles["body"]}${bodyClassName !== undefined ? ` ${bodyClassName}` : ""}`}
+        >
+          {children}
+        </div>
         {footer !== undefined && <div className={styles["footer"]}>{footer}</div>}
       </div>
     </div>

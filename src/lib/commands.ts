@@ -1,4 +1,5 @@
 import {
+  openAbout,
   openClone,
   openCreateBranch,
   openCreateTag,
@@ -30,6 +31,7 @@ export function buildCommands(): Command[] {
       title: "Check for updates",
       run: () => useUpdaterStore.getState().check({ manual: true }),
     },
+    { id: "about", title: "About GitBranch", run: () => openAbout() },
     {
       id: "open-log-dir",
       title: "Open log folder",

@@ -10,4 +10,8 @@ describe("buildCommands", () => {
     void cmd?.run();
     expect(useUiStore.getState().sidebarOpen).toBe(!before);
   });
+
+  it("includes About GitBranch", () => {
+    expect(buildCommands().some((c) => c.title === "About GitBranch")).toBe(true);
+  });
 });
