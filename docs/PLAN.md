@@ -192,7 +192,7 @@ header stays put while the file tree scrolls.
 - [ ] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
   of the pane; 40 px avatar, name, "authored <date>", parents at the right; "Co-authors:" avatar chips; summary +
   Path/Tree toggle + Expand all); the file tree below scrolls independently, rows ~22 px, 10 px indent per level.
-- [ ] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
+- [x] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
   remotes grouped per remote.
 - [ ] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
   (one sub-tree per remote, "Add remote…" header action), WORKTREES, PULL REQUESTS; branch rows with a check on
