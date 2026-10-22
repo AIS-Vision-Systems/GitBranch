@@ -102,9 +102,7 @@ pub async fn open_in_editor(
                 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
                 cmd.creation_flags(CREATE_NO_WINDOW);
             }
-            let child = cmd
-                .spawn()
-                .map_err(|e| failed(e.to_string()))?;
+            let child = cmd.spawn().map_err(|e| failed(e.to_string()))?;
             drop(child);
             Ok(())
         }
