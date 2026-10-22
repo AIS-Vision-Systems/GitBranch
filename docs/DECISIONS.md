@@ -276,3 +276,14 @@ only). (8) An external terminal launcher (argv only, cwd = work tree, no shell s
 terminal stays out of scope.
 Consequences: implementation ADRs (markdown subset renderer, redo semantics, terminal candidates, identity writes)
 are logged when their items land. `docs/PLAN.md` Phases 7–9 carry the items.
+
+## D-031 · accepted · 2026-10-22 — Filtered log pages share the graph cache; parents pruned per batch
+Context: "load more" on a filtered graph re-ran `git log` from commit 0 with a growing limit and re-laid out the
+whole prefix every page (item 7.5).
+Decision: the filtered log goes through the same per-repo single-slot cache as the unfiltered one, keyed by
+`(order, all, author, message, path)`; page 1 is fetched with the requested limit, the next request fetches the
+whole remainder in one call and later chunks come from memory. Parents absent from a filtered batch are pruned per
+batch, so a filter matching more than one page shows one lane break at the page boundary. The exact alternative
+(fetch the whole filtered set before painting page 1) costs a full history walk on path filters and was rejected.
+Consequences: `graph.out_of_order` when `skip > 0` arrives with a different filter (the UI never sends it: a filter
+change reloads from 0). A filter change waits for an in-flight remainder fetch on the per-repo lock.

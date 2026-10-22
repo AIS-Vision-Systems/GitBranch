@@ -47,9 +47,28 @@
 .body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-mono);
   font-size: 0.9em;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sizer {
+  position: relative;
+  min-width: 100%;
+}
+
+.virtualRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 100%;
 }
 
 .status {

@@ -10,7 +10,6 @@ export const LAST_CHECK_KEY = "gitbranch.updateLastCheck";
 export const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** The timer polls hourly; the 24 h throttle decides whether a check actually runs. */
 export const TIMER_INTERVAL_MS = 60 * 60 * 1000;
-export const FIRST_CHECK_DELAY_MS = 5000;
 
 function lastCheck(): number {
   try {
@@ -70,6 +69,8 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       const s = useSettingsStore.getState();
       if (!s.loaded || !s.settings.autoUpdateCheck) return;
       if (status === "available") return;
+      // A failed install keeps its error (and pending update) until a manual retry.
+      if (status === "error" && pending !== null) return;
       if (Date.now() - lastCheck() < CHECK_INTERVAL_MS) return;
     }
     set({ status: "checking", error: null, upToDate: false });
@@ -98,8 +99,9 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       });
     } catch (e) {
       pending = null;
-      if (manual) set({ status: "error", error: message(e), version: null, notes: null });
-      else {
+      if (manual) {
+        set({ status: "error", error: message(e), version: null, notes: null, dismissed: false });
+      } else {
         console.debug("automatic update check failed", e);
         set({ status: "idle", version: null, notes: null });
       }
@@ -121,13 +123,27 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
   dismiss: () => set({ dismissed: true }),
 }));
 
-/** First check shortly after startup, then daily while running. Returns a stop function. */
+/** First check once settings are loaded, then hourly (24 h throttle applies). Returns a stop function. */
 export function startUpdateScheduler(): () => void {
   const run = (): void => void useUpdaterStore.getState().check();
-  const first = setTimeout(run, FIRST_CHECK_DELAY_MS);
-  const every = setInterval(run, TIMER_INTERVAL_MS);
+  let every: ReturnType<typeof setInterval> | null = null;
+  const begin = (): void => {
+    if (every !== null) return;
+    every = setInterval(run, TIMER_INTERVAL_MS);
+    run();
+  };
+  let unsub: (() => void) | null = null;
+  if (useSettingsStore.getState().loaded) begin();
+  else {
+    unsub = useSettingsStore.subscribe((s) => {
+      if (!s.loaded) return;
+      unsub?.();
+      unsub = null;
+      begin();
+    });
+  }
   return () => {
-    clearTimeout(first);
-    clearInterval(every);
+    unsub?.();
+    if (every !== null) clearInterval(every);
   };
 }

@@ -23,6 +23,7 @@ import { DialogHost } from "./features/shell/DialogHost";
 import { Toasts } from "./features/shell/Toasts";
 import { UpdateCard } from "./features/shell/UpdateCard";
 import { startUpdateScheduler } from "./state/updater";
+import { isEditableTarget } from "./lib/keys";
 import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
@@ -148,13 +149,9 @@ export default function App() {
         const t = e.target;
         const blocked =
           useDialogsStore.getState().current !== null ||
-          t instanceof HTMLInputElement ||
-          t instanceof HTMLTextAreaElement ||
-          t instanceof HTMLSelectElement ||
+          isEditableTarget(t) ||
           (t instanceof HTMLElement &&
-            (t.isContentEditable ||
-              t.closest('[aria-modal="true"]') !== null ||
-              t.closest('[role="menu"]') !== null));
+            (t.closest('[aria-modal="true"]') !== null || t.closest('[role="menu"]') !== null));
         if (!blocked && useUiStore.getState().centerView === "diff") {
           useDetailsStore.getState().clear();
         } else if (!blocked && useUiStore.getState().centerView === "blame") {
@@ -186,6 +183,7 @@ export default function App() {
         !e.shiftKey &&
         !e.altKey &&
         k === "f" &&
+        !isEditableTarget(e.target) &&
         current !== null &&
         useUiStore.getState().centerView === "graph" &&
         useDialogsStore.getState().current === null &&
@@ -217,11 +215,8 @@ export default function App() {
       if (!tabKey && useOpsStore.getState().busy) return;
       const t = e.target;
       if (
-        t instanceof HTMLInputElement ||
-        t instanceof HTMLTextAreaElement ||
-        t instanceof HTMLSelectElement ||
-        (t instanceof HTMLElement &&
-          (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
+        isEditableTarget(t) ||
+        (t instanceof HTMLElement && t.closest('[aria-modal="true"]') !== null)
       ) {
         return;
       }

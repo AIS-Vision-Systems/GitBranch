@@ -25,8 +25,28 @@ export function FilterBar({ repoId }: Props) {
     first.current?.select();
   }, [tick]);
 
+  // Last filter this component pushed to the store; differences from it come from outside.
+  const lastPushed = useRef<GraphFilter>(applied ?? NO_FILTER);
+
   useEffect(() => {
-    const t = setTimeout(() => void setFilter(repoId, draft), DEBOUNCE_MS);
+    const store = applied ?? NO_FILTER;
+    const prev = lastPushed.current;
+    if (
+      store.author === prev.author &&
+      store.message === prev.message &&
+      store.path === prev.path
+    ) {
+      return;
+    }
+    lastPushed.current = store;
+    setDraft(store);
+  }, [applied]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      lastPushed.current = draft;
+      void setFilter(repoId, draft);
+    }, DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [draft, repoId, setFilter]);
 

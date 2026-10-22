@@ -142,18 +142,23 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <input
           className={styles["input"]}
           value={editor}
-          placeholder="e.g. code"
+          placeholder="code"
           onChange={(e) => setEditor(e.target.value)}
         />
+        <span className={styles["hint"]}>Bare names are resolved on PATH</span>
       </label>
       <label className={styles["field"]}>
         <span className={styles["label"]}>Difftool command</span>
         <input
           className={styles["input"]}
           value={difftool}
-          placeholder="e.g. meld"
+          placeholder="meld"
           onChange={(e) => setDifftool(e.target.value)}
         />
+        <span className={styles["hint"]}>
+          Program or command; $LOCAL and $REMOTE are appended when absent (e.g. code --wait --diff
+          $LOCAL $REMOTE)
+        </span>
       </label>
       <strong>Updates</strong>
       <label className={styles["check"]}>

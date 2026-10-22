@@ -58,6 +58,8 @@ pub struct GraphPage {
 pub struct Entry {
     order: LogOrder,
     all: bool,
+    /// Normalised filter (blank is `None`); part of the cache key with `order` and `all`.
+    filter: LogFilter,
     /// False until the first page of the current `(order, all)` has been applied.
     init: bool,
     layout: LayoutState,
@@ -73,9 +75,14 @@ pub struct Entry {
 
 impl Entry {
     fn new(order: LogOrder, all: bool) -> Self {
+        Self::with_filter(order, all, LogFilter::default())
+    }
+
+    fn with_filter(order: LogOrder, all: bool, filter: LogFilter) -> Self {
         Self {
             order,
             all,
+            filter,
             init: false,
             layout: LayoutState::new(),
             commits: Vec::new(),
@@ -126,6 +133,14 @@ impl GraphCache {
     }
 }
 
+/// The request's filter with blank fields normalised to `None`.
+fn filter_of(q: &GraphQuery) -> LogFilter {
+    let norm = |o: &Option<String>| {
+        o.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned)
+    };
+    LogFilter { author: norm(&q.author), message: norm(&q.message), path: norm(&q.path) }
+}
+
 /// What a request needs before it can be served.
 #[derive(Debug, PartialEq, Eq)]
 enum Need {
@@ -142,10 +157,15 @@ fn out_of_order() -> AppError {
 /// Validates the request and decides whether git must be asked for more commits.
 fn plan(e: &mut Entry, q: &GraphQuery) -> Result<Need, AppError> {
     if q.skip == 0 {
-        *e = Entry::new(q.order, q.all);
+        *e = Entry::with_filter(q.order, q.all, filter_of(q));
         return Ok(Need::Fetch { skip: 0, limit: q.limit });
     }
-    if !e.init || e.order != q.order || e.all != q.all || q.skip > e.served {
+    if !e.init
+        || e.order != q.order
+        || e.all != q.all
+        || e.filter != filter_of(q)
+        || q.skip > e.served
+    {
         return Err(out_of_order());
     }
     if e.dropped() && q.skip < e.served {
@@ -159,7 +179,12 @@ fn plan(e: &mut Entry, q: &GraphQuery) -> Result<Need, AppError> {
 
 /// Applies the fetched page (if any) and serves the requested slice from the buffers.
 fn finish(e: &mut Entry, q: &GraphQuery, page: Option<LogPage>) -> GraphPage {
-    if let Some(p) = page {
+    if let Some(mut p) = page {
+        if e.filter.is_active() {
+            // Git keeps the true parents, so those outside the filtered set are pruned,
+            // otherwise every match would open a dangling lane.
+            prune_parents(&mut p.commits);
+        }
         let rows = e.layout.push_all(&p.commits);
         e.rows.extend(rows);
         e.commits.extend(p.commits);
@@ -207,6 +232,7 @@ fn serve(
 }
 
 /// Drops parent ids that are not themselves in `commits` (filtered logs keep the true parents).
+/// Applied per fetched batch, so a parent that only appears in a later batch is also pruned.
 fn prune_parents(commits: &mut [Commit]) {
     let known: std::collections::HashSet<String> = commits.iter().map(|c| c.oid.clone()).collect();
     for c in commits {
@@ -228,34 +254,6 @@ pub async fn load_graph(
 ) -> Result<GraphPage, AppError> {
     let started = std::time::Instant::now();
     let repo = open(&state, &repo_id)?;
-    let filter = LogFilter {
-        author: query.author.clone(),
-        message: query.message.clone(),
-        path: query.path.clone(),
-    };
-    if filter.is_active() {
-        // Stateless: never touches the unfiltered cache. Re-fetches from 0 and lays out the
-        // whole prefix so lanes stay consistent. Git keeps the true parents, so those outside
-        // the filtered set are pruned first, otherwise every match would open a dangling lane.
-        let q = LogQuery {
-            order: query.order,
-            skip: 0,
-            limit: query.skip.saturating_add(query.limit),
-            all: query.all,
-            filter,
-        };
-        let p = log_page(&state.runner, &repo.info.work_tree, &q).await?;
-        let mut p = p;
-        prune_parents(&mut p.commits);
-        let rows = LayoutState::new().push_all(&p.commits);
-        let start = query.skip.min(p.commits.len());
-        return Ok(GraphPage {
-            commits: p.commits[start..].to_vec(),
-            rows: rows[start..].to_vec(),
-            has_more: p.has_more,
-            next_skip: p.commits.len(),
-        });
-    }
     let entry = cache.entry(&repo_id)?;
     let mut e = entry.lock().await;
     let page = match plan(&mut e, &query)? {
@@ -266,7 +264,7 @@ pub async fn load_graph(
                 skip,
                 limit,
                 all: query.all,
-                filter: LogFilter::default(),
+                filter: e.filter.clone(),
             };
             Some(log_page(&state.runner, &repo.info.work_tree, &q).await?)
         }
@@ -378,6 +376,29 @@ mod tests {
         assert_eq!(*calls.borrow(), vec![(0, 2), (2, REMAINDER_LIMIT)]);
         let rows: Vec<Row> = [a.rows, b.rows, c.rows, d.rows].concat();
         assert_eq!(rows, layout(&all));
+    }
+
+    #[test]
+    fn filtered_paging_continues_from_cache() {
+        let all = commits();
+        let calls = RefCell::new(Vec::new());
+        let mut f = fake(&all, &calls);
+        let by =
+            |skip, limit| GraphQuery { author: Some("a".into()), ..q(LogOrder::Date, skip, limit) };
+        let mut e = Entry::new(LogOrder::Date, true);
+        let a = serve(&mut e, &by(0, 2), &mut f).unwrap();
+        let b = serve(&mut e, &by(2, 2), &mut f).unwrap();
+        let c = serve(&mut e, &by(4, 2), &mut f).unwrap();
+        let oids: Vec<String> =
+            [a.commits, b.commits, c.commits].concat().into_iter().map(|c| c.oid).collect();
+        let want: Vec<String> = all.iter().map(|c| c.oid.clone()).collect();
+        assert_eq!(oids, want);
+        assert_eq!(*calls.borrow(), vec![(0, 2), (2, REMAINDER_LIMIT)]);
+        // A different filter without skip 0 is out of order; with skip 0 it restarts.
+        let mut e = Entry::new(LogOrder::Date, true);
+        serve(&mut e, &by(0, 2), &mut f).unwrap();
+        let err = serve(&mut e, &q(LogOrder::Date, 2, 2), &mut f).unwrap_err();
+        assert_eq!(err.code, "graph.out_of_order");
     }
 
     #[test]

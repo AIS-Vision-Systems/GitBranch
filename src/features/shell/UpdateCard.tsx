@@ -16,8 +16,26 @@ export function UpdateCard() {
   const dismiss = useUpdaterStore((s) => s.dismiss);
 
   const busy = status === "downloading" || status === "ready";
-  const showError = status === "error" && version !== null && !dismissed;
+  const check = useUpdaterStore((s) => s.check);
+  const showError = status === "error" && !dismissed;
+  const checkFailed = showError && version === null;
   if (!busy && !showError && !(status === "available" && !dismissed)) return null;
+
+  if (checkFailed) {
+    return (
+      <div className={styles["card"]} role="status" aria-live="polite">
+        <span role="alert">{`Update check failed: ${error ?? "unknown error"}`}</span>
+        <div className={styles["actions"]}>
+          <button type="button" onClick={dismiss}>
+            Later
+          </button>
+          <button type="button" onClick={() => void check({ manual: true })}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles["card"]} role="status" aria-live="polite">

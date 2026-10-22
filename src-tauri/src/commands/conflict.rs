@@ -87,15 +87,22 @@ pub async fn open_in_editor(
     let override_cmd = state.settings().editor;
     match editor_command(&state.runner, work, override_cmd.as_deref()).await? {
         Some(argv) => {
-            let child = std::process::Command::new(&argv[0])
-                .args(&argv[1..])
+            let program = git_core::ops::config::resolve_program(&argv[0])
+                .unwrap_or_else(|| std::path::PathBuf::from(&argv[0]));
+            let mut cmd = std::process::Command::new(program);
+            cmd.args(&argv[1..])
                 .arg(&full)
                 .current_dir(work)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-                .map_err(|e| failed(e.to_string()))?;
+                .stderr(std::process::Stdio::null());
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            let child = cmd.spawn().map_err(|e| failed(e.to_string()))?;
             drop(child);
             Ok(())
         }

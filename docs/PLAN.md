@@ -129,23 +129,23 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 Goal: close the findings of the 2026-10-22 read-only review of `phase-5..phase-6` (all checks were green, two
 real bugs). Owner decisions for Phases 7–9 are in D-030.
 
-- [ ] 7.1 Difftool/editor commands: append `"$LOCAL" "$REMOTE"` to the difftool setting when absent and fix the
+- [x] 7.1 Difftool/editor commands: append `"$LOCAL" "$REMOTE"` to the difftool setting when absent and fix the
   Settings placeholder; new pure `resolve_program()` in `git-core::ops::config` (Windows `PATHEXT` lookup) so
   `code` resolves to `code.cmd` in `open_in_editor` and the difftool path.
-- [ ] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
+- [x] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
   the Path field instead of being wiped by the next keystroke.
-- [ ] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
+- [x] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
   longer fires inside text fields.
-- [ ] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
+- [x] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
   instead of a 5 s guess; a failed install is not overwritten by the hourly check.
-- [ ] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
+- [x] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
   instead of re-running `git log` from commit 0 on every "load more".
-- [ ] 7.6 Difftool empty-tree fallback via `git hash-object -t tree --stdin` (SHA-256 safe); no `rev-parse` when
+- [x] 7.6 Difftool empty-tree fallback via `git hash-object -t tree --stdin` (SHA-256 safe); no `rev-parse` when
   `staged`.
-- [ ] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
-- [ ] 7.8 Docs drift: ARCHITECTURE sections for settings, updater, log file, single instance, blame; CHANGELOG
+- [x] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
+- [x] 7.8 Docs drift: ARCHITECTURE sections for settings, updater, log file, single instance, blame; CHANGELOG
   installer size; 6.8 wording ("any URL"); note that file history has no `--follow`.
-- [ ] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
+- [x] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
 
 Acceptance: check ladder green; `code` as editor opens a conflicted file on Windows; `meld` as difftool receives
 both files; "File history" with the bar already open shows the path.
