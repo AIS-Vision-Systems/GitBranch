@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 2026-10-22: single instance (a second launch focuses the window and opens the repo path as a tab); local daily log file (`gitbranch.log`, 7 days, no telemetry) with Settings → Open log folder.
 - 2026-10-22: auto-update: startup + daily check, "Update and restart" card with progress, opt-out in Settings, palette "Check for updates"; tag `vX.Y.Z` triggers a draft release with signed bundles + latest.json.
 - 2026-10-22: installers: per-user NSIS (2.5 MiB), .deb depends on git, publisher/category/description metadata.
 - 2026-10-22: Settings dialog (gear, Ctrl+,): theme, git path (applies after restart), default pull strategy, diff context lines / ignore whitespace, external editor and difftool; "Open in difftool" in the file menu.

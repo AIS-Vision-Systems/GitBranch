@@ -119,8 +119,8 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 - [x] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
 - [x] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
 - [x] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).
-- [ ] 6.6 Telemetry: **none**. Local log file only.
-- [ ] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
+- [x] 6.6 Telemetry: **none**. Local log file only.
+- [x] 6.7 Single instance (`tauri-plugin-single-instance`): a second launch focuses the running window and opens
   the repo passed on its command line as a new tab.
 - [ ] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
   (`git ls-remote --heads`) instead of a free-text field.

@@ -25,3 +25,12 @@ export interface OpProgress {
 export function onOpProgress(cb: (e: OpProgress) => void): Promise<() => void> {
   return listen<OpProgress>("op-progress", (ev) => cb(ev.payload));
 }
+
+export interface OpenRepoRequest {
+  /** Absolute path of a directory passed by a second launch. */
+  path: string;
+}
+
+export function onOpenRepoRequest(cb: (e: OpenRepoRequest) => void): Promise<() => void> {
+  return listen<OpenRepoRequest>("open-repo-request", (ev) => cb(ev.payload));
+}

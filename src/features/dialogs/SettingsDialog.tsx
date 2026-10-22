@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
+import { openLogDir } from "../../ipc/app";
 import type { RepoId } from "../../ipc/types";
 import type { Settings } from "../../ipc/settings";
 import type { PullMode } from "../../ipc/remote";
 import { useDetailsStore } from "../../state/details";
 import { useSettingsStore } from "../../state/settings";
-import { useUiStore, type Theme } from "../../state/ui";
+import { reportError, useUiStore, type Theme } from "../../state/ui";
 import { useReposStore } from "../../state/repos";
 import { useUpdaterStore } from "../../state/updater";
 import { FormDialog } from "./FormDialog";
@@ -177,6 +178,20 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         {upd.status === "error" && upd.error !== null && (
           <span className={styles["hint"]} role="alert">{`Update check failed: ${upd.error}`}</span>
         )}
+      </div>
+      <strong>Diagnostics</strong>
+      <div className={styles["field"]}>
+        <button
+          type="button"
+          onClick={() =>
+            void openLogDir().catch((e: unknown) => reportError(e, "Could not open the log folder"))
+          }
+        >
+          Open log folder
+        </button>
+        <span className={styles["hint"]}>
+          Logs stay on this machine. GitBranch sends no telemetry.
+        </span>
       </div>
       {error !== null && (
         <div className={styles["error"]} role="alert">

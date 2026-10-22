@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { appInfo, loadSession } from "./ipc/app";
+import { appInfo, loadSession, takeLaunchPath } from "./ipc/app";
+import { drainLaunchPaths } from "./lib/launchPath";
 import type { AppInfo } from "./ipc/types";
 import { registerPhase2Dialogs } from "./features/dialogs";
 import { OpBanner } from "./features/shell/OpBanner";
@@ -11,7 +12,7 @@ import { BlameView } from "./features/blame/BlameView";
 import { CenterDiff } from "./features/diff/CenterDiff";
 import { useDetailsStore } from "./state/details";
 import { DetailsPane } from "./features/commit/DetailsPane";
-import { onRepoChanged } from "./ipc/events";
+import { onOpenRepoRequest, onRepoChanged } from "./ipc/events";
 import { onOpProgress } from "./ipc/progress";
 import { useProgressStore } from "./state/progress";
 import { ProgressBar } from "./features/shell/ProgressBar";
@@ -58,7 +59,17 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     let stopSync: (() => void) | null = null;
+    let stopOpenRequests: (() => void) | null = null;
     void (async () => {
+      try {
+        const stop = await onOpenRepoRequest((e) => {
+          void useReposStore.getState().openPath(e.path);
+        });
+        if (cancelled) stop();
+        else stopOpenRequests = stop;
+      } catch (e) {
+        reportError(e, "Could not subscribe to open-repository requests");
+      }
       let startup: string | null = null;
       try {
         const i = await appInfo();
@@ -76,10 +87,16 @@ export default function App() {
       if (cancelled) return;
       stopSync = startSessionSync();
       if (startup !== null) await useReposStore.getState().openPath(startup);
+      try {
+        await drainLaunchPaths(takeLaunchPath, (p) => useReposStore.getState().openPath(p));
+      } catch (e) {
+        reportError(e, "Could not open the repository passed on launch");
+      }
     })();
     return () => {
       cancelled = true;
       stopSync?.();
+      stopOpenRequests?.();
     };
   }, []);
 

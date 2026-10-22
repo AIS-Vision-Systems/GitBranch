@@ -7,6 +7,8 @@ import {
   openSettings,
   openStashPush,
 } from "../features/dialogs/open";
+import { openLogDir } from "../ipc/app";
+import { reportError } from "../state/ui";
 import { useGraphStore } from "../state/graph";
 import { useOpsStore } from "../state/ops";
 import type { Command } from "../state/palette";
@@ -27,6 +29,12 @@ export function buildCommands(): Command[] {
       id: "check-updates",
       title: "Check for updates",
       run: () => useUpdaterStore.getState().check({ manual: true }),
+    },
+    {
+      id: "open-log-dir",
+      title: "Open log folder",
+      run: () =>
+        openLogDir().catch((e: unknown) => reportError(e, "Could not open the log folder")),
     },
     { id: "new-tab", title: "New tab", shortcut: "Ctrl+T", run: () => repos.newTab() },
   ];
