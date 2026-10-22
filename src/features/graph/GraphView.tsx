@@ -9,7 +9,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { Ref, RepoId } from "../../ipc/types";
-import { EMPTY_GRAPH, refsByOid, useGraphStore, WIP_OID } from "../../state/graph";
+import { EMPTY_GRAPH, filterActive, refsByOid, useGraphStore, WIP_OID } from "../../state/graph";
 import { shortOid } from "../../state/ops";
 import { useReposStore } from "../../state/repos";
 import { useWorktreesStore, worktreesOf } from "../../state/worktrees";
@@ -19,6 +19,7 @@ import { ContextMenu } from "../shell/ContextMenu";
 import { useContextMenu } from "../shell/useContextMenu";
 import { HEADER_H, LANE_W, ROW_H } from "./constants";
 import { rowDomId } from "./domId";
+import { FilterBar } from "./FilterBar";
 import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
 import { commitMenu, refMenu, remoteTrackingName, wipMenu } from "./menus";
@@ -76,7 +77,12 @@ export function GraphView({ repoId }: Props) {
   const lanes = useMemo(() => laneCount(rows), [rows]);
   const headOid = refs?.head.oid ?? null;
   const fileCount = status?.entries.length ?? 0;
-  const hasWip = fileCount > 0;
+  const filterBarOpen = useGraphStore(
+    (s) => s.filterBarOpen[repoId] === true || filterActive(s.filters[repoId]),
+  );
+  const filtering = useGraphStore((s) => filterActive(s.filters[repoId]));
+  // The working-tree row is not a commit, so it never matches a commit filter.
+  const hasWip = fileCount > 0 && !filtering;
   const offset = hasWip ? 1 : 0;
   const count = rows.length + offset;
 
@@ -246,7 +252,8 @@ export function GraphView({ repoId }: Props) {
   const active = selectedOid !== null && indexOfOid(selectedOid) >= 0 ? selectedOid : undefined;
 
   return (
-    <>
+    <div className={styles["pane"]}>
+      {filterBarOpen && <FilterBar repoId={repoId} />}
       <div
         ref={scrollRef}
         className={styles["root"]}
@@ -322,6 +329,6 @@ export function GraphView({ repoId }: Props) {
           onClose={ctxMenu.close}
         />
       )}
-    </>
+    </div>
   );
 }

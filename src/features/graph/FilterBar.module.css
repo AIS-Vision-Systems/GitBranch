@@ -1,0 +1,41 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+.input {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 1px solid var(--color-accent);
+}
+
+.count {
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.active {
+  color: var(--color-accent);
+  opacity: 1;
+}
+
+.error {
+  color: var(--color-danger);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

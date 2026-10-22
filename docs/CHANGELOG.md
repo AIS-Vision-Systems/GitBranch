@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 2026-10-22: command palette (Ctrl+K) and commit filter bar (Ctrl+F: author, message, path) on the graph.
 - 2026-10-21: GitKraken parity, round 3 (item 5.10): thicker change ruler with a clearer viewport indicator and
   an explicit Wrap button; the app restores its window (size, position, maximized), the right-pane width, the open
   repository tabs and the selected one on the next start (`session.json`); a "+" tab (Ctrl+T) opens the welcome

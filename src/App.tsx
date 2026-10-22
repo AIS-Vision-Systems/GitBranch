@@ -26,6 +26,8 @@ import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { useSidebarOpen } from "./features/sidebar/useSidebarOpen";
+import { CommandPalette } from "./features/shell/CommandPalette";
+import { usePaletteStore } from "./state/palette";
 import { useReposStore } from "./state/repos";
 import { startSessionSync } from "./state/session";
 import { reportError, useUiStore, type Theme } from "./state/ui";
@@ -140,6 +142,27 @@ export default function App() {
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      if (mod && !e.shiftKey && !e.altKey && k === "k") {
+        e.preventDefault();
+        if (!e.repeat && useDialogsStore.getState().current === null) {
+          usePaletteStore.getState().toggle();
+        }
+        return;
+      }
+      if (
+        mod &&
+        !e.shiftKey &&
+        !e.altKey &&
+        k === "f" &&
+        current !== null &&
+        useUiStore.getState().centerView === "graph" &&
+        useDialogsStore.getState().current === null &&
+        !usePaletteStore.getState().open
+      ) {
+        e.preventDefault();
+        useGraphStore.getState().openFilterBar(current.repoId);
+        return;
+      }
       if (
         mod &&
         !e.shiftKey &&
@@ -178,7 +201,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openViaDialog, close, currentId]);
+  }, [openViaDialog, close, currentId, current]);
 
   return (
     <div className={styles["app"]}>
@@ -233,6 +256,7 @@ export default function App() {
       </main>
       <WorktreeChoice />
       <DialogHost />
+      <CommandPalette />
       <Toasts />
     </div>
   );

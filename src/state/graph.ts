@@ -33,8 +33,34 @@ export interface GraphState {
   error: string | null;
 }
 
+export interface GraphFilter {
+  author: string;
+  message: string;
+  path: string;
+}
+
+export const NO_FILTER: GraphFilter = { author: "", message: "", path: "" };
+
+export function filterActive(f: GraphFilter | undefined): boolean {
+  return (
+    f !== undefined && (f.author.trim() !== "" || f.message.trim() !== "" || f.path.trim() !== "")
+  );
+}
+
 interface GraphStore {
   byRepo: Record<string, GraphState>;
+  /** Per-repo commit filter; survives reloads. */
+  filters: Record<string, GraphFilter>;
+  /** Repos whose filter bar was opened explicitly (an active filter also shows it). */
+  filterBarOpen: Record<string, boolean>;
+  /** Last error from a filtered load, shown inline in the filter bar. */
+  filterError: Record<string, string | undefined>;
+  /** Bumped to ask the filter bar to focus its first input. */
+  filterFocusTick: number;
+  setFilter: (repoId: RepoId, filter: GraphFilter) => Promise<void>;
+  openFilterBar: (repoId: RepoId) => void;
+  /** Hide the bar and clear the filter of `repoId`. */
+  closeFilterBar: (repoId: RepoId) => void;
   selectedOid: string | null;
   hoverOid: string | null;
   load: (repoId: RepoId) => Promise<void>;
@@ -78,8 +104,20 @@ function indexRows(rows: Row[], from = 0, into = new Map<string, number>()): Map
   return into;
 }
 
-function query(skip: number, limit: number): GraphQuery {
-  return { order: "date", skip, limit, all: true };
+export function buildQuery(
+  skip: number,
+  limit: number,
+  filter: GraphFilter | undefined,
+): GraphQuery {
+  const q: GraphQuery = { order: "date", skip, limit, all: true };
+  if (filter === undefined) return q;
+  const author = filter.author.trim();
+  const message = filter.message.trim();
+  const path = filter.path.trim();
+  if (author !== "") q.author = author;
+  if (message !== "") q.message = message;
+  if (path !== "") q.path = path;
+  return q;
 }
 
 function msg(e: unknown): string {
@@ -99,6 +137,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     set((s) => ({
       byRepo: { ...s.byRepo, [id]: { ...(s.byRepo[id] ?? EMPTY_GRAPH), ...p } },
     }));
+
+  const setFilterError = (id: string, error: string | undefined): void =>
+    set((s) =>
+      s.filterError[id] === error ? s : { filterError: { ...s.filterError, [id]: error } },
+    );
 
   /** A failed stash_list must not fail the graph. */
   const loadStashes = async (repoId: RepoId): Promise<StashEntry[]> => {
@@ -139,7 +182,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         performance.now() - t0,
       ];
       const [[page, tPage], [refs, tRefs], [status, tStatus], stashes, opInfo] = await Promise.all([
-        timed(ipc.loadGraph(repoId, query(0, FIRST_PAGE))),
+        timed(ipc.loadGraph(repoId, buildQuery(0, FIRST_PAGE, get().filters[repoId]))),
         timed(ipc.listRefs(repoId)),
         timed(ipc.repoStatus(repoId)),
         loadStashes(repoId),
@@ -152,6 +195,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         );
       }
       const byOid = indexRows(page.rows);
+      setFilterError(repoId, undefined);
       set((s) => ({
         byRepo: {
           ...s.byRepo,
@@ -178,12 +222,21 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     } catch (e) {
       if (generation.get(repoId) !== gen) return;
       patch(repoId, { loading: false, error: msg(e) });
+      if (filterActive(get().filters[repoId])) {
+        // A bad filter must not pop a toast per debounced keystroke; the bar shows it inline.
+        setFilterError(repoId, msg(e));
+        return;
+      }
       reportError(e, "Could not load the commit graph");
     }
   };
 
   return {
     byRepo: {},
+    filters: {},
+    filterBarOpen: {},
+    filterError: {},
+    filterFocusTick: 0,
     selectedOid: null,
     hoverOid: null,
 
@@ -202,7 +255,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       patch(repoId, { loading: true });
       const t0 = performance.now();
       try {
-        const page = await ipc.loadGraph(repoId, query(g.nextSkip, NEXT_PAGE));
+        const page = await ipc.loadGraph(
+          repoId,
+          buildQuery(g.nextSkip, NEXT_PAGE, get().filters[repoId]),
+        );
         if (generation.get(repoId) !== gen) return;
         if (import.meta.env.DEV) {
           console.info(
@@ -222,6 +278,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       } catch (e) {
         if (generation.get(repoId) !== gen) return;
         patch(repoId, { loading: false, error: msg(e) });
+        if (filterActive(get().filters[repoId])) {
+          setFilterError(repoId, msg(e));
+          return;
+        }
         reportError(e, "Could not load more commits");
       }
     },
@@ -262,6 +322,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     forget: (repoId) => {
       bump(repoId);
+      set((s) => {
+        const filters = { ...s.filters };
+        delete filters[repoId];
+        const filterBarOpen = { ...s.filterBarOpen };
+        delete filterBarOpen[repoId];
+        const filterError = { ...s.filterError };
+        delete filterError[repoId];
+        return { filters, filterBarOpen, filterError };
+      });
       useRemotesStore.getState().clear(repoId);
       useSubmodulesStore.getState().clear(repoId);
       useWorktreesStore.getState().clear(repoId);
@@ -276,6 +345,31 @@ export const useGraphStore = create<GraphStore>((set, get) => {
           hoverOid: owned(s.hoverOid) ? null : s.hoverOid,
         };
       });
+    },
+
+    setFilter: async (repoId, filter) => {
+      const prev = get().filters[repoId] ?? NO_FILTER;
+      if (
+        prev.author === filter.author &&
+        prev.message === filter.message &&
+        prev.path === filter.path
+      ) {
+        return;
+      }
+      set((s) => ({ filters: { ...s.filters, [repoId]: filter } }));
+      // reload() bumps the generation, which drops in-flight pages, and restarts paging at 0.
+      if (get().byRepo[repoId] !== undefined) await reload(repoId, false);
+    },
+
+    openFilterBar: (repoId) =>
+      set((s) => ({
+        filterBarOpen: { ...s.filterBarOpen, [repoId]: true },
+        filterFocusTick: s.filterFocusTick + 1,
+      })),
+
+    closeFilterBar: (repoId) => {
+      set((s) => ({ filterBarOpen: { ...s.filterBarOpen, [repoId]: false } }));
+      void get().setFilter(repoId, NO_FILTER);
     },
 
     select: (oid) => set({ selectedOid: oid }),

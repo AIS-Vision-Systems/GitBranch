@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use git_core::graph::{LayoutState, Row};
-use git_core::parse::log::{Commit, LogOrder, LogPage, LogQuery, log_page};
+use git_core::parse::log::{Commit, LogFilter, LogOrder, LogPage, LogQuery, log_page};
 use git_core::parse::refs::Refs;
 use git_core::parse::status::Status;
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,15 @@ pub struct GraphQuery {
     pub limit: usize,
     /// All refs (`--all`) instead of HEAD only.
     pub all: bool,
+    /// Author filter (case-insensitive literal).
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Commit message filter (case-insensitive literal).
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Path filter (pathspec).
+    #[serde(default)]
+    pub path: Option<String>,
 }
 
 /// One chunk of commits with their lane rows.
@@ -197,6 +206,14 @@ fn serve(
     Ok(finish(e, q, page))
 }
 
+/// Drops parent ids that are not themselves in `commits` (filtered logs keep the true parents).
+fn prune_parents(commits: &mut [Commit]) {
+    let known: std::collections::HashSet<String> = commits.iter().map(|c| c.oid.clone()).collect();
+    for c in commits {
+        c.parents.retain(|p| known.contains(p));
+    }
+}
+
 fn open(state: &AppState, repo_id: &str) -> Result<OpenRepo, AppError> {
     state.get(repo_id).ok_or_else(|| AppError::new("repo.not_open", "Repository is not open"))
 }
@@ -211,12 +228,46 @@ pub async fn load_graph(
 ) -> Result<GraphPage, AppError> {
     let started = std::time::Instant::now();
     let repo = open(&state, &repo_id)?;
+    let filter = LogFilter {
+        author: query.author.clone(),
+        message: query.message.clone(),
+        path: query.path.clone(),
+    };
+    if filter.is_active() {
+        // Stateless: never touches the unfiltered cache. Re-fetches from 0 and lays out the
+        // whole prefix so lanes stay consistent. Git keeps the true parents, so those outside
+        // the filtered set are pruned first, otherwise every match would open a dangling lane.
+        let q = LogQuery {
+            order: query.order,
+            skip: 0,
+            limit: query.skip.saturating_add(query.limit),
+            all: query.all,
+            filter,
+        };
+        let p = log_page(&state.runner, &repo.info.work_tree, &q).await?;
+        let mut p = p;
+        prune_parents(&mut p.commits);
+        let rows = LayoutState::new().push_all(&p.commits);
+        let start = query.skip.min(p.commits.len());
+        return Ok(GraphPage {
+            commits: p.commits[start..].to_vec(),
+            rows: rows[start..].to_vec(),
+            has_more: p.has_more,
+            next_skip: p.commits.len(),
+        });
+    }
     let entry = cache.entry(&repo_id)?;
     let mut e = entry.lock().await;
     let page = match plan(&mut e, &query)? {
         Need::Serve => None,
         Need::Fetch { skip, limit } => {
-            let q = LogQuery { order: query.order, skip, limit, all: query.all };
+            let q = LogQuery {
+                order: query.order,
+                skip,
+                limit,
+                all: query.all,
+                filter: LogFilter::default(),
+            };
             Some(log_page(&state.runner, &repo.info.work_tree, &q).await?)
         }
     };
@@ -274,8 +325,27 @@ mod tests {
         ]
     }
 
+    #[test]
+    fn pruned_filtered_linear_history_uses_one_lane() {
+        let mk = |oid: &str, parent: &str| Commit {
+            oid: oid.into(),
+            parents: vec![parent.into()],
+            author_name: "a".into(),
+            author_email: "a@x".into(),
+            author_time: 0,
+            committer_time: 0,
+            subject: oid.into(),
+        };
+        // Matches m3, m2, m1 of a longer linear history; true parents skip unmatched commits.
+        let mut v = vec![mk("m3", "x2"), mk("m2", "x1"), mk("m1", "x0")];
+        prune_parents(&mut v);
+        assert!(v.iter().all(|c| c.parents.is_empty()));
+        let rows = layout(&v);
+        assert!(rows.iter().all(|r| r.lane == 0));
+    }
+
     fn q(order: LogOrder, skip: usize, limit: usize) -> GraphQuery {
-        GraphQuery { order, skip, limit, all: true }
+        GraphQuery { order, skip, limit, all: true, author: None, message: None, path: None }
     }
 
     /// Fake `git log`: serves `all[skip..]` honouring `limit`, recording each call.

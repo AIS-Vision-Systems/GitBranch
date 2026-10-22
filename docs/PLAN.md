@@ -114,7 +114,7 @@ Acceptance: create, commit in worktree, see it in the main tab graph without man
 Acceptance: login, clone private repo, branch, push, create PR, see it on the graph, all inside the app.
 
 ### Phase 6 — Polish and distribution
-- [ ] 6.1 Multi-repo tabs, command palette (Ctrl+K), commit search/filter (author, message, path).
+- [x] 6.1 Multi-repo tabs, command palette (Ctrl+K), commit search/filter (author, message, path).
 - [ ] 6.2 Blame view (`git blame --porcelain`), file history.
 - [ ] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
 - [ ] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
