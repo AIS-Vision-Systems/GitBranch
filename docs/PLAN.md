@@ -132,7 +132,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
 - [ ] 7.1 Difftool/editor commands: append `"$LOCAL" "$REMOTE"` to the difftool setting when absent and fix the
   Settings placeholder; new pure `resolve_program()` in `git-core::ops::config` (Windows `PATHEXT` lookup) so
   `code` resolves to `code.cmd` in `open_in_editor` and the difftool path.
-- [ ] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
+- [x] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
   the Path field instead of being wiped by the next keystroke.
 - [ ] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
   longer fires inside text fields.
