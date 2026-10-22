@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- 2026-10-22: **Phase 8 demo.** (1) The top row is only tabs (repo/worktree icons, close on hover, `+`) plus Help,
+  Settings and the account avatar. (2) The ribbon under it: repository › branch dropdowns, Undo / Redo (checkout
+  `feat` → Undo → `main` → Redo → `feat`, verified with git), Fetch caret menu, Push, Branch, Stash, Pop, Terminal
+  (Windows Terminal opened at the smoke repo's work tree), More and Search. (3) Help opens the About dialog with
+  version, credits, license, Check for updates, AIS branding and the scrollable guide. (4) The account panel shows
+  the real avatar, the commit signature (edit → `git config --show-scope` reports the new local value, global
+  untouched), account details and the four account actions. Installer 3.02 MiB, 421 cargo + 567 vitest tests.
+- 2026-10-22: Account panel (item 8.4): the account button shows the real GitHub avatar (downloaded by the backend
+  without the token, cached on disk for a week). The panel shows the **commit signature** (effective `user.name` /
+  `user.email` for the current repository with their scope) editable for this repository or globally, the account
+  (name, email, scopes, API rate limit) and Manage account, Re-authorize, Sign out, Revoke on GitHub.
+- 2026-10-22: Ribbon under the tab row replaces the toolbar (item 8.3): repository › branch dropdowns (ahead/behind,
+  checkout), Undo / **Redo** (Ctrl+Y, re-applies the HEAD recorded before the last Undo until HEAD moves), Fetch
+  with a caret menu (fetch all, pull fast-forward / rebase / merge, prune), Push, Branch, Stash, Pop, **Terminal**
+  (opens Windows Terminal or cmd.exe, `$TERMINAL` / gnome-terminal / konsole / xterm on Linux, at the work tree;
+  Settings → Terminal overrides it), an Actions overflow (Clone, Remotes, Stashes, Toggle sidebar, Settings) and
+  Search. Fetch all no longer prunes; Prune is its own menu item.
+- 2026-10-22: About dialog (help button, palette "About GitBranch", item 8.2): logo, version, credits, license line,
+  Check for updates, AIS Vision Systems branding and the bundled English user guide.
+- 2026-10-22: Tab row (item 8.1): 44 px tabs with repository / worktree icons, close on hover, `+` tab; the right side
+  holds only Help, Settings and the account button. The Theme button moved to Settings; the sidebar toggles with
+  Ctrl+B, from the palette or the ribbon overflow.
+- 2026-10-22: License is now dual (item 8.0): free for noncommercial use under PolyForm Noncommercial 1.0.0,
+  commercial license from AIS Vision Systems (`LICENSE.md`, `LICENSE-COMMERCIAL.md`). Icons come from
+  `lucide-react`.
 - 2026-10-22: **Phase 7 demo.** (1) Settings → difftool `meld` and editor `code` now work as typed: `$LOCAL`/`$REMOTE` are appended and `code` resolves to `code.cmd` on Windows (no console flash). (2) Right-click a file → File history with the filter bar already open: the Path field fills in. (3) Ctrl+F inside a text field types instead of opening the filter bar. (4) Check for updates with the network off: the card stays with the error and Retry. (5) Filtered graph "load more" is served from the cache; a 10k-line blame scrolls with only the visible rows rendered. Installer 2.9 MiB, 534 vitest + 398 cargo tests green.
 - 2026-10-22: **Phase 7 review fixes.** Difftool settings work with a bare program (`meld`): `$LOCAL`/`$REMOTE` are appended when absent and `code` resolves to `code.cmd` on Windows for both the editor and the difftool; the empty-tree base is computed with `git hash-object` (SHA-256 safe). "File history" fills the Path field of an open filter bar; Ctrl+F stays out of text fields. A failed manual update check keeps the card with Retry, the first check waits for settings to load, and a failed install is not hidden by the hourly check. Filtered graph paging reuses the log cache; the blame view virtualises its rows. Release and CI workflow actions are pinned to commit SHAs.
 - 2026-10-22: **Phase 6 demo.** (1) Ctrl+K opens the command palette; Ctrl+F filters the graph by author, message or path. (2) Right-click a file → Blame / File history / Open in difftool. (3) Settings (gear, Ctrl+,): git path, pull strategy, diff options, editor, difftool, update opt-out. (4) A second launch focuses the running window and opens its repo as a tab; logs live in a daily file, no telemetry. (5) Clone lists remote branches; per-user NSIS installer is 2.9 MiB; tag `vX.Y.Z` builds a signed draft release with `latest.json`.

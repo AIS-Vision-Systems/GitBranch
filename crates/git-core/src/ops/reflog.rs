@@ -109,16 +109,54 @@ fn is_plain_commit(subject: &str) -> bool {
     ["commit:", "commit (amend):", "commit (initial):"].iter().any(|p| subject.starts_with(p))
 }
 
-/// Undoes the last HEAD movement and returns what was done.
+/// The result of [`undo_last`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UndoOutcome {
+    /// What was undone.
+    pub info: UndoInfo,
+    /// The action that redoes it.
+    pub redo: UndoAction,
+    /// Oid of HEAD after the undo; a redo is only valid while HEAD is still here.
+    pub head: String,
+    /// Branch HEAD is on after the undo (`None` when detached); a redo is also void once this changes,
+    /// because another branch may point at the same `head`.
+    pub branch: Option<String>,
+}
+
+/// Rejects targets that git could read as an option or that are not what the action kind expects.
+fn check_target(action: &UndoAction) -> Result<(), ReflogError> {
+    let bad = |why: &str| ReflogError::Parse(ParseError(format!("invalid redo target: {why}")));
+    match action {
+        UndoAction::ResetKeep { target }
+        | UndoAction::ResetSoft { target }
+        | UndoAction::Checkout { target, detach: true } => {
+            if !is_full_oid(target) {
+                return Err(bad("expected a full commit id"));
+            }
+        }
+        UndoAction::Checkout { target, detach: false } => {
+            if target.is_empty() || target.starts_with('-') || target.contains(char::is_whitespace)
+            {
+                return Err(bad("expected a branch name"));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Performs an [`UndoAction`]. The action may come from the UI (redo), so targets are validated first.
 ///
 /// # Errors
-/// [`ReflogError::Parse`] with "nothing to undo" when [`undo_preview`] is `None`;
+/// [`ReflogError::Parse`] for a target that is not a full oid / plain branch name;
 /// [`ReflogError::Git`] when git refuses (for example `reset --keep` with conflicting local changes).
-pub async fn undo_last(runner: &GitRunner, repo: &Path) -> Result<UndoInfo, ReflogError> {
-    let info = undo_preview(runner, repo)
-        .await?
-        .ok_or_else(|| ReflogError::Parse(ParseError("nothing to undo".into())))?;
-    match &info.action {
+pub async fn apply_action(
+    runner: &GitRunner,
+    repo: &Path,
+    action: &UndoAction,
+) -> Result<(), ReflogError> {
+    check_target(action)?;
+    match action {
         UndoAction::ResetKeep { target } => {
             runner.run(repo, &["reset", "-q", "--keep", target], RunOpts::default()).await?;
         }
@@ -134,5 +172,39 @@ pub async fn undo_last(runner: &GitRunner, repo: &Path) -> Result<UndoInfo, Refl
             runner.run(repo, &argv, RunOpts::default()).await?;
         }
     }
-    Ok(info)
+    Ok(())
+}
+
+async fn head_oid(runner: &GitRunner, repo: &Path) -> Result<String, ReflogError> {
+    Ok(runner.run(repo, &["rev-parse", "HEAD"], RunOpts::default()).await?.stdout_str().clone())
+}
+
+/// Short name of the branch HEAD is on, `None` when detached.
+async fn head_branch(runner: &GitRunner, repo: &Path) -> Option<String> {
+    let sym = ["symbolic-ref", "-q", "--short", "HEAD"];
+    runner.run(repo, &sym, RunOpts::default()).await.ok().map(|o| o.stdout_str().clone())
+}
+
+/// Undoes the last HEAD movement and returns what was done and how to redo it.
+///
+/// # Errors
+/// [`ReflogError::Parse`] with "nothing to undo" when [`undo_preview`] is `None`;
+/// [`ReflogError::Git`] when git refuses (for example `reset --keep` with conflicting local changes).
+pub async fn undo_last(runner: &GitRunner, repo: &Path) -> Result<UndoOutcome, ReflogError> {
+    let info = undo_preview(runner, repo)
+        .await?
+        .ok_or_else(|| ReflogError::Parse(ParseError("nothing to undo".into())))?;
+    let before = head_oid(runner, repo).await?;
+    let redo = match &info.action {
+        UndoAction::Checkout { .. } => match head_branch(runner, repo).await {
+            Some(b) => UndoAction::Checkout { target: b, detach: false },
+            None => UndoAction::Checkout { target: before, detach: true },
+        },
+        UndoAction::ResetSoft { .. } => UndoAction::ResetSoft { target: before },
+        UndoAction::ResetKeep { .. } => UndoAction::ResetKeep { target: before },
+    };
+    apply_action(runner, repo, &info.action).await?;
+    let head = head_oid(runner, repo).await?;
+    let branch = head_branch(runner, repo).await;
+    Ok(UndoOutcome { info, redo, head, branch })
 }

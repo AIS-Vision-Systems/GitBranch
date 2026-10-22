@@ -18,3 +18,7 @@ export function conflictedFiles(repoId: RepoId): Promise<string[]> {
 export function openInEditor(repoId: RepoId, path: string): Promise<void> {
   return call<void>("open_in_editor", { repoId, path });
 }
+
+export function openTerminal(repoId: RepoId): Promise<void> {
+  return call<void>("open_terminal", { repoId });
+}

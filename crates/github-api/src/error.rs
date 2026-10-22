@@ -43,6 +43,9 @@ pub enum Error {
     /// The OAuth app does not allow the device flow.
     #[error("device flow is not enabled for this OAuth app (see docs/DECISIONS.md D-004)")]
     DeviceFlowDisabled,
+    /// A URL outside the allowed hosts.
+    #[error("refused URL: {0}")]
+    BadUrl(String),
     /// Credential store failure.
     #[error(transparent)]
     Token(#[from] TokenError),
@@ -62,6 +65,7 @@ impl Error {
             Self::Expired => "github.expired",
             Self::Cancelled => "github.cancelled",
             Self::DeviceFlowDisabled => "github.device_flow_disabled",
+            Self::BadUrl(_) => "github.bad_url",
             Self::Token(_) => "github.keyring",
         }
     }

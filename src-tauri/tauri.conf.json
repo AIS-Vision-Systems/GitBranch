@@ -34,8 +34,8 @@
       "icons/icon.ico"
     ],
     "publisher": "Rosepetal",
-    "copyright": "Copyright (c) 2026 Xavi Anguera",
-    "license": "MIT",
+    "copyright": "Copyright (c) 2026 AIS Vision Systems",
+    "license": "PolyForm Noncommercial 1.0.0 or commercial license (see LICENSE.md)",
     "category": "DeveloperTool",
     "shortDescription": "Lightweight Git client with a commit graph",
     "longDescription": "GitBranch is a lightweight Git desktop client: commit graph first, worktrees and GitHub pull requests. It drives the system git; git must be installed.",

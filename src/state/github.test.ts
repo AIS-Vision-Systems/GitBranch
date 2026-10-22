@@ -15,7 +15,13 @@ vi.mock("../ipc/github", () => ({
 }));
 
 const acct: GithubAccount = {
-  user: { login: "octo", name: "Octo Cat", avatarUrl: null, htmlUrl: "https://github.com/octo" },
+  user: {
+    login: "octo",
+    name: "Octo Cat",
+    avatarUrl: null,
+    htmlUrl: "https://github.com/octo",
+    email: null,
+  },
   scopes: ["repo"],
   offline: false,
 };

@@ -18,5 +18,6 @@ export const DIALOG = {
   githubLogin: "github.login",
   githubRepoPicker: "github.repoPicker",
   settings: "app.settings",
+  about: "app.about",
   githubCreatePull: "github.createPull",
 } as const;

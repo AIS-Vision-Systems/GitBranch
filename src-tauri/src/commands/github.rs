@@ -45,6 +45,8 @@ pub struct GithubState {
     pub store: KeyringStore,
     /// Cached check summaries per commit.
     pub checks: ChecksCache,
+    /// Avatar download guard (in-flight and negative caches).
+    pub avatars: super::avatar::AvatarGuard,
     pending: Mutex<Pending>,
 }
 
@@ -54,6 +56,7 @@ impl Default for GithubState {
             client: Arc::new(GitHub::new(ReqwestTransport::default())),
             store: KeyringStore,
             checks: ChecksCache::new(Duration::from_secs(120), Duration::from_secs(20)),
+            avatars: super::avatar::AvatarGuard::default(),
             pending: Mutex::new(Pending::default()),
         }
     }

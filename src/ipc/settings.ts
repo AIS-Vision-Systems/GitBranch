@@ -9,6 +9,7 @@ export interface Settings {
   diffContextLines: number;
   diffIgnoreWhitespace: boolean;
   editor: string | null;
+  terminal: string | null;
   difftool: string | null;
   autoUpdateCheck: boolean;
 }

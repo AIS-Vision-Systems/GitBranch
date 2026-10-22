@@ -39,6 +39,8 @@ pub struct Settings {
     pub diff_ignore_whitespace: bool,
     /// Editor command overriding `core.editor`, `$VISUAL` and `$EDITOR`.
     pub editor: Option<String>,
+    /// Terminal command overriding the platform default; the work tree is the cwd.
+    pub terminal: Option<String>,
     /// External diff tool command (`$LOCAL` / `$REMOTE` placeholders).
     pub difftool: Option<String>,
     /// Check for a new release at startup.
@@ -53,6 +55,7 @@ impl Default for Settings {
             diff_context_lines: 3,
             diff_ignore_whitespace: false,
             editor: None,
+            terminal: None,
             difftool: None,
             auto_update_check: true,
         }
@@ -72,6 +75,7 @@ impl Settings {
     pub fn validated(mut self) -> Result<Self, AppError> {
         self.git_path = blank_to_none(self.git_path);
         self.editor = blank_to_none(self.editor);
+        self.terminal = blank_to_none(self.terminal);
         self.difftool = blank_to_none(self.difftool);
         self.diff_context_lines = self.diff_context_lines.min(MAX_CONTEXT_LINES);
         if let Some(p) = &self.git_path {

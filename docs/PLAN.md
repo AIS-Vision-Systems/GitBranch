@@ -154,28 +154,28 @@ both files; "File history" with the bar already open shows the path.
 Goal: the top of the window matches the owner's reference: a tab row with only tabs + help + settings + account,
 an action ribbon under it, a GitKraken-style account panel and a Quasidian-style help/credits window.
 
-- [ ] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
+- [x] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
   (PolyForm Noncommercial 1.0.0 + commercial, `LICENSE.md` / `LICENSE-COMMERCIAL.md`, metadata in package.json,
   Cargo.toml, tauri.conf.json, README).
-- [ ] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only
+- [x] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only
   on hover/active, "+" tab; right side = help, settings gear, account. Theme button removed (selector already in
   Settings); Sidebar button removed, state in `useUiStore` (Ctrl+B, palette, ribbon overflow, sidebar chevron).
-- [ ] 8.2 About dialog (help button, palette): logo, name, version, "Idea and original development: Xavi Anguera",
+- [x] 8.2 About dialog (help button, palette): logo, name, version, "Idea and original development: Xavi Anguera",
   license line (opens LICENSE), "Check for updates" (shared `UpdateCheck` with Settings), AIS Vision Systems logo
   (white/blue per theme) + "An app by AIS Vision Systems", scrollable user guide from `src/help/guide.en.md`
   rendered by a small in-house markdown subset renderer (`src/lib/markdown.ts`, no innerHTML).
-- [ ] 8.3 Ribbon (replaces the toolbar): left = repository dropdown › branch dropdown (ahead/behind, checkout);
+- [x] 8.3 Ribbon (replaces the toolbar): left = repository dropdown › branch dropdown (ahead/behind, checkout);
   centre = Undo, Redo, Fetch (caret: fetch all / pull ff / pull rebase / pull merge / prune), Push, Branch, Stash,
   Pop, Terminal; right = Actions overflow (Clone, Remotes, Stashes popover, Toggle sidebar, Settings) and Search.
   Redo = re-apply the HEAD recorded before the last Undo (git-core `apply_action`, cleared when HEAD moves).
   Terminal = `open_terminal` command spawning an external terminal at the work tree (settings override, then
   `wt.exe` / `cmd.exe` on Windows, `$TERMINAL` / `x-terminal-emulator` / gnome-terminal / konsole / xterm on
   Linux), argv only, modelled on `open_in_editor`.
-- [ ] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
+- [x] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
   signature" = effective `user.name`/`user.email` for the current repo, editable globally or per repo
   (`git-core::ops::config::{identity,set_identity}`); "Account" = name, email, scopes, rate limit; Manage account,
   Re-authorize, Sign out, Revoke.
-- [ ] 8.5 Docs: ARCHITECTURE (shell layout, ribbon, about, terminal, avatar cache), CHANGELOG demo note.
+- [x] 8.5 Docs: ARCHITECTURE (shell layout, ribbon, about, terminal, avatar cache), CHANGELOG demo note.
 
 Acceptance: the top row shows only tabs + help + gear + account; every former toolbar action is reachable from
 the ribbon or its overflow; Terminal opens at the work tree on Windows; installer still < 25 MB.

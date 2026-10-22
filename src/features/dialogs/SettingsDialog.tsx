@@ -7,7 +7,7 @@ import { useDetailsStore } from "../../state/details";
 import { useSettingsStore } from "../../state/settings";
 import { reportError, useUiStore, type Theme } from "../../state/ui";
 import { useReposStore } from "../../state/repos";
-import { useUpdaterStore } from "../../state/updater";
+import { UpdateCheck } from "../shell/UpdateCheck";
 import { FormDialog } from "./FormDialog";
 import styles from "./Form.module.css";
 
@@ -41,9 +41,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [ctx, setCtx] = useState(String(current.diffContextLines));
   const [ws, setWs] = useState(current.diffIgnoreWhitespace);
   const [editor, setEditor] = useState(current.editor ?? "");
+  const [terminal, setTerminal] = useState(current.terminal ?? "");
   const [difftool, setDifftool] = useState(current.difftool ?? "");
   const [auto, setAuto] = useState(current.autoUpdateCheck);
-  const upd = useUpdaterStore();
   const selectRef = useRef<HTMLSelectElement>(null);
   const ctxNum = Number(ctx);
   const valid = ctx.trim() !== "" && Number.isInteger(ctxNum) && ctxNum >= 0 && ctxNum <= 100;
@@ -56,6 +56,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       diffContextLines: clampContext(ctxNum),
       diffIgnoreWhitespace: ws,
       editor: orNull(editor),
+      terminal: orNull(terminal),
       difftool: orNull(difftool),
       autoUpdateCheck: auto,
     };
@@ -148,6 +149,19 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <span className={styles["hint"]}>Bare names are resolved on PATH</span>
       </label>
       <label className={styles["field"]}>
+        <span className={styles["label"]}>Terminal</span>
+        <input
+          className={styles["input"]}
+          value={terminal}
+          placeholder="wt"
+          onChange={(e) => setTerminal(e.target.value)}
+        />
+        <span className={styles["hint"]}>
+          Command for the Terminal button (default: Windows Terminal or cmd.exe; $TERMINAL /
+          x-terminal-emulator / gnome-terminal / konsole / xterm on Linux)
+        </span>
+      </label>
+      <label className={styles["field"]}>
         <span className={styles["label"]}>Difftool command</span>
         <input
           className={styles["input"]}
@@ -165,25 +179,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
         <span>Check for updates automatically</span>
       </label>
-      <div className={styles["field"]}>
-        <button
-          type="button"
-          disabled={upd.status === "checking" || upd.status === "downloading"}
-          onClick={() => void upd.check({ manual: true })}
-        >
-          Check now
-        </button>
-        {upd.status === "checking" && <span className={styles["hint"]}>Checking…</span>}
-        {upd.status !== "checking" && upd.upToDate && (
-          <span className={styles["hint"]}>You&apos;re up to date</span>
-        )}
-        {upd.status === "available" && (
-          <span className={styles["hint"]}>{`GitBranch ${upd.version ?? ""} is available`}</span>
-        )}
-        {upd.status === "error" && upd.error !== null && (
-          <span className={styles["hint"]} role="alert">{`Update check failed: ${upd.error}`}</span>
-        )}
-      </div>
+      <UpdateCheck />
       <strong>Diagnostics</strong>
       <div className={styles["field"]}>
         <button

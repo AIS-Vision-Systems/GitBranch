@@ -1,0 +1,92 @@
+.panel.panel {
+  position: relative;
+  width: min(720px, 92vw);
+  max-width: 92vw;
+  height: min(640px, 88vh);
+  max-height: 88vh;
+}
+
+.body.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.credits {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-2);
+  flex: none;
+}
+
+.name {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+
+.link {
+  all: unset;
+  cursor: pointer;
+  color: var(--color-accent);
+  font-size: 0.9rem;
+}
+
+.link:hover,
+.link:focus-visible {
+  text-decoration: underline;
+}
+
+.section {
+  margin-top: var(--space-3);
+}
+
+.branding {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.ais {
+  height: 22px;
+  width: auto;
+}
+
+:global(:root[data-theme="dark"]) .aisLight {
+  display: none;
+}
+
+:root:not([data-theme="dark"]) .aisDark {
+  display: none;
+}
+
+.guide {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

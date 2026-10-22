@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="GitBranch logo">
+  <!-- Rounded diamond: a 780.4 px square with 96 px corners rotated 45°, so its tips touch the canvas edges. -->
+  <rect x="121.8" y="121.8" width="780.4" height="780.4" rx="96" fill="#15275B" transform="rotate(45 512 512)"/>
+  <!-- Main line -->
+  <line x1="432" y1="216" x2="432" y2="822" stroke="#FFFFFF" stroke-width="54" stroke-linecap="round"/>
+  <!-- Branch -->
+  <line x1="432" y1="584" x2="730" y2="358" stroke="#00AAED" stroke-width="54" stroke-linecap="round"/>
+  <!-- Commits -->
+  <circle cx="432" cy="216" r="80" fill="#FFFFFF"/>
+  <circle cx="432" cy="584" r="80" fill="#FFFFFF"/>
+  <circle cx="432" cy="822" r="80" fill="#FFFFFF"/>
+  <circle cx="730" cy="358" r="88" fill="#00AAED"/>
+</svg>

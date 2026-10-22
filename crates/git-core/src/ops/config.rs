@@ -3,6 +3,9 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
+use crate::parse::ParseError;
 use crate::{GitError, GitErrorKind, GitRunner, RunOpts};
 
 /// Splits `s` into words like a POSIX shell would: whitespace separates words, single quotes keep
@@ -210,10 +213,173 @@ pub async fn editor_command(
     Ok(value.and_then(|v| split_words(&v)).filter(|w| !w.is_empty()))
 }
 
+/// Where an identity is written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConfigScope {
+    /// The repository's `.git/config`.
+    Local,
+    /// The user's global config.
+    Global,
+}
+
+/// A config value and the scope it comes from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdentityValue {
+    /// The value.
+    pub value: String,
+    /// Scope as git prints it: `local`, `global`, `system`, `worktree` or `command`.
+    pub scope: String,
+}
+
+/// The effective `user.name` / `user.email` for a repository.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Identity {
+    /// `user.name`, if set anywhere.
+    pub name: Option<IdentityValue>,
+    /// `user.email`, if set anywhere.
+    pub email: Option<IdentityValue>,
+}
+
+/// Failure of an identity operation.
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    /// git failed.
+    #[error(transparent)]
+    Git(#[from] GitError),
+    /// Unexpected git output.
+    #[error(transparent)]
+    Parse(#[from] ParseError),
+    /// The name or email is empty or contains a newline or NUL.
+    #[error("invalid {0}")]
+    Invalid(&'static str),
+}
+
+/// Parses `git config --show-scope -z --get` output: `<scope>\0<value>\0` (git separates scope
+/// and value with NUL, verified against real git). Empty output is `None`.
+///
+/// # Errors
+/// [`ParseError`] when the scope or the value is not NUL-terminated.
+pub fn parse_scoped_value(bytes: &[u8]) -> Result<Option<IdentityValue>, ParseError> {
+    if bytes.is_empty() {
+        return Ok(None);
+    }
+    let mut parts = bytes.splitn(3, |b| *b == 0);
+    let (Some(scope), Some(value), Some(_rest)) = (parts.next(), parts.next(), parts.next()) else {
+        return Err(ParseError("config output is not NUL-terminated".into()));
+    };
+    Ok(Some(IdentityValue {
+        value: String::from_utf8_lossy(value).into_owned(),
+        scope: String::from_utf8_lossy(scope).into_owned(),
+    }))
+}
+
+async fn scoped_get(
+    runner: &GitRunner,
+    repo: &Path,
+    key: &str,
+) -> Result<Option<IdentityValue>, ConfigError> {
+    match runner
+        .run(repo, &["config", "--show-scope", "-z", "--get", key], RunOpts::default())
+        .await
+    {
+        Ok(o) => Ok(parse_scoped_value(&o.stdout)?),
+        Err(e) if e.kind == GitErrorKind::ExitCode(1) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// The effective committer identity (`user.name`, `user.email`) with the scope each comes from.
+///
+/// # Errors
+/// [`ConfigError`] if git fails for a reason other than "unset".
+pub async fn identity(runner: &GitRunner, repo: &Path) -> Result<Identity, ConfigError> {
+    Ok(Identity {
+        name: scoped_get(runner, repo, "user.name").await?,
+        email: scoped_get(runner, repo, "user.email").await?,
+    })
+}
+
+fn clean<'a>(what: &'static str, v: &'a str) -> Result<&'a str, ConfigError> {
+    let v = v.trim();
+    if v.is_empty() || v.contains(['\n', '\r', '\0']) {
+        Err(ConfigError::Invalid(what))
+    } else {
+        Ok(v)
+    }
+}
+
+/// Writes `user.name` and `user.email` at `scope`.
+///
+/// The two keys are written by two separate git commands. If the email write fails after the name
+/// was written, the previous name at that scope is restored (best effort: unset when there was none).
+///
+/// # Errors
+/// [`ConfigError::Invalid`] for an empty value or one containing a line break or NUL;
+/// [`ConfigError::Git`] if git fails.
+pub async fn set_identity(
+    runner: &GitRunner,
+    repo: &Path,
+    scope: ConfigScope,
+    name: &str,
+    email: &str,
+) -> Result<(), ConfigError> {
+    let name = clean("name", name)?;
+    let email = clean("email", email)?;
+    let flag = match scope {
+        ConfigScope::Local => "--local",
+        ConfigScope::Global => "--global",
+    };
+    let previous =
+        match runner.run(repo, &["config", flag, "--get", "user.name"], RunOpts::default()).await {
+            Ok(o) => Some(o.stdout_str().trim_end_matches(['\n', '\r']).to_string()),
+            Err(_) => None,
+        };
+    // The value is positional after the key, so a leading `-` is not an option.
+    runner.run(repo, &["config", flag, "user.name", name], RunOpts::default()).await?;
+    if let Err(e) =
+        runner.run(repo, &["config", flag, "user.email", email], RunOpts::default()).await
+    {
+        let _ = match previous {
+            Some(p) => {
+                runner.run(repo, &["config", flag, "user.name", &p], RunOpts::default()).await
+            }
+            None => {
+                runner
+                    .run(repo, &["config", flag, "--unset", "user.name"], RunOpts::default())
+                    .await
+            }
+        };
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)] // tests
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_scoped_value() {
+        let v = parse_scoped_value(b"global\0Ada Lovelace\0").unwrap().unwrap();
+        assert_eq!(v, IdentityValue { value: "Ada Lovelace".into(), scope: "global".into() });
+        let v = parse_scoped_value(b"local\0a\tb\nc\0").unwrap().unwrap();
+        assert_eq!(v.value, "a\tb\nc");
+        assert_eq!(parse_scoped_value(b"").unwrap(), None);
+        assert!(parse_scoped_value(b"nonsense\0").is_err());
+        assert!(parse_scoped_value(b"local\0unterminated").is_err());
+    }
+
+    #[test]
+    fn clean_rejects_bad_values() {
+        assert_eq!(clean("name", "  Ada ").unwrap(), "Ada");
+        assert!(clean("name", " ").is_err());
+        assert!(clean("name", "a\nb").is_err());
+        assert!(clean("email", "a\0b").is_err());
+    }
 
     fn w(s: &str) -> Vec<String> {
         split_words(s).unwrap()

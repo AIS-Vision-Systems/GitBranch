@@ -9,6 +9,7 @@ import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
 import { LoginDialog, type LoginDialogProps } from "../github/LoginDialog";
 import { RepoPickerDialog, type RepoPickerDialogProps } from "../github/RepoPickerDialog";
 import { CreatePullDialog, type CreatePullDialogProps } from "../github/CreatePullDialog";
+import { AboutDialog } from "./AboutDialog";
 import { SettingsDialog, type SettingsDialogProps } from "./SettingsDialog";
 import { DIALOG } from "./ids";
 import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
@@ -68,6 +69,7 @@ export function registerPhase2Dialogs(): void {
       onClose,
     }),
   );
+  registerDialog(DIALOG.about, (_p, onClose) => createElement(AboutDialog, { onClose }));
   registerDialog(DIALOG.settings, (p, onClose) =>
     createElement(SettingsDialog, { ...(p as unknown as Props<SettingsDialogProps>), onClose }),
   );

@@ -7,6 +7,7 @@ mod error;
 mod launch;
 mod settings;
 mod state;
+mod terminal;
 mod watcher;
 
 pub use error::AppError;
@@ -211,7 +212,12 @@ pub fn run() {
             commands::blame::blame,
             commands::reflog::undo_preview,
             commands::reflog::undo_last,
+            commands::reflog::apply_action,
+            commands::terminal::open_terminal,
             commands::github::github_account,
+            commands::avatar::github_avatar,
+            commands::identity::git_identity,
+            commands::identity::set_git_identity,
             commands::github::github_repos,
             commands::github::github_repo_slug,
             commands::github::github_pulls,

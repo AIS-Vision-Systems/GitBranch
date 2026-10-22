@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadTheme, useUiStore } from "./ui";
+import { SIDEBAR_KEY, loadSidebarOpen, loadTheme, useUiStore } from "./ui";
 
 function mockDark(dark: boolean): void {
   window.matchMedia = ((q: string) => ({
@@ -16,6 +16,17 @@ describe("ui store", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("toggles the sidebar and persists it", () => {
+    useUiStore.setState({ sidebarOpen: true });
+    useUiStore.getState().toggleSidebar();
+    expect(useUiStore.getState().sidebarOpen).toBe(false);
+    expect(localStorage.getItem(SIDEBAR_KEY)).toBe("closed");
+    expect(loadSidebarOpen()).toBe(false);
+    useUiStore.getState().setSidebarOpen(true);
+    expect(localStorage.getItem(SIDEBAR_KEY)).toBe("open");
+    expect(loadSidebarOpen()).toBe(true);
   });
 
   it("caps toasts at 5, dropping the oldest", () => {

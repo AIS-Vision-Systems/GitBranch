@@ -287,3 +287,40 @@ batch, so a filter matching more than one page shows one lane break at the page 
 (fetch the whole filtered set before painting page 1) costs a full history walk on path filters and was rejected.
 Consequences: `graph.out_of_order` when `skip > 0` arrives with a different filter (the UI never sends it: a filter
 change reloads from 0). A filter change waits for an in-flight remainder fetch on the per-repo lock.
+
+## D-032 · accepted · 2026-10-22 — Dual license metadata; icons re-exported from one module
+Context: D-030 (3) and (7) switch the license to PolyForm Noncommercial 1.0.0 + commercial and the icon set to
+`lucide-react` (item 8.0).
+Decision: `LICENSE.md` / `LICENSE-COMMERCIAL.md` follow the Quasidian texts (no CLA: GitBranch has no external
+contributors). Cargo uses `license-file = "LICENSE.md"` in `[workspace.package]` (the dual license has no SPDX id)
+and the crates inherit it; package.json says `SEE LICENSE IN LICENSE.md`; the bundle `license` string names both
+licenses and the bundle copyright is AIS Vision Systems, matching `LICENSE.md`. Icons: only `src/lib/icons.ts`
+imports `lucide-react` (named exports only); every other module imports from there, and deep imports
+(`lucide-react/*`) are banned everywhere by `no-restricted-imports`.
+Consequences: adding an icon = one line in `src/lib/icons.ts`. `pnpm lint` fails on any other `lucide-react` import.
+
+## D-033 · accepted · 2026-10-22 — Redo re-applies the HEAD recorded before the undo; terminal is an argv launcher
+Context: item 8.3 adds Redo next to the reflog-based Undo (D-021) and a Terminal button (D-030 (8)).
+Decision: `undo_last` records HEAD (branch via `symbolic-ref`, oid via `rev-parse`) before undoing and returns
+`UndoOutcome { info, redo: UndoAction, head, branch }`. The redo action mirrors the undo kind (`reset --soft` /
+`--keep` back to the recorded oid, `switch` back to the recorded branch or detached oid). The UI keeps one redo per
+repository and drops it as soon as HEAD's oid **or** branch differs from `head`/`branch` (two branches can point at
+the same commit). `apply_action` is the shared executor and validates targets (full oid for resets and detached
+checkouts, plain branch name otherwise) because the redo comes back from the UI over IPC. There is no redo stack.
+Terminal: `terminal_candidates` yields argv lists (settings override split by `split_words`, then `wt.exe -d .` /
+`cmd.exe` on Windows, `$TERMINAL` / `x-terminal-emulator` / `gnome-terminal --working-directory` /
+`konsole --workdir` / `xterm` on Linux); the first program found on `PATH` is spawned with cwd = work tree, a new
+console on Windows (stdio inherited so `cmd.exe` stays open), detached stdio on Linux, and reaped in a thread.
+Consequences: a redo after an undo of a checkout returns to the branch, not to the exact oid, when the branch has
+since moved; the user override is never passed through a shell.
+
+## D-034 · accepted · 2026-10-22 — Commit identity via `git config --show-scope`; avatars fetched by the backend
+Context: item 8.4 shows the effective commit signature and the signed-in user's GitHub photo (D-030 (4)).
+Decision: `identity()` reads `user.name` / `user.email` with `git config --show-scope --get` and reports the scope
+git prints (`local`, `global`, `system`, `worktree`, `command`); `set_identity(scope: Local | Global, ..)` writes
+both keys after validation (trimmed, non-empty, no newline/NUL). The avatar is downloaded by `github-api`
+(`avatars.githubusercontent.com` / `github.com` only, `s=64`, 2 MiB cap, `image/*` only, no `Authorization`
+header: the token never goes to the CDN) and cached by the app as `<cache_dir>/avatars/<login>.<ext>` for seven
+days; the command returns a `data:` URL or `None` on any failure, never an error toast. Logins are validated
+(`[A-Za-z0-9-]`) before they touch a path.
+Consequences: the webview never fetches from GitHub itself; offline, a cached avatar still shows.

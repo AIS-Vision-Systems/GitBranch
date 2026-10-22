@@ -30,9 +30,13 @@ GitBranch/
       blame/                   # BlameView (virtualised rows), rows.ts
       sidebar/                 # Branches, Remotes, Tags, Stashes, Worktrees, PullRequests
       dialogs/                 # one folder per dialog (NewBranch, Clone, CreatePr, Settings, ...)
-      github/                  # LoginDialog, AccountMenu, RepoPickerDialog, PullDetailView, CreatePullDialog, PrBadge
-      shell/                   # Toolbar, tabs, command palette, UpdateCard
+      github/                  # LoginDialog, AccountMenu (account panel, commit signature, avatar), RepoPicker, PR views
+      shell/                   # RepoTabs, Ribbon, Popover, command palette, Markdown, UpdateCard/UpdateCheck
       welcome/  stash/
+    lib/icons.ts               # the only module importing lucide-react (named re-exports)
+    lib/markdown.ts            # markdown subset parser for the bundled user guide (no innerHTML)
+    help/guide.en.md           # user guide shown in the About dialog
+    assets/                    # app logo, AIS Vision Systems logos (blue/white)
     styles/tokens.css
   src-tauri/
     Cargo.toml                 # the Tauri binary crate (member of the root workspace)
@@ -42,6 +46,7 @@ GitBranch/
       launch.rs                # repo path from argv, single-instance forwarding
       settings.rs              # Settings struct, load/validate
       commands/                # #[tauri::command] fns, THIN: parse args -> git-core -> serialize
+      terminal.rs              # external terminal argv candidates (settings override, then platform defaults)
       watcher.rs               # notify-based repo watcher -> emits "repo-changed" events
       state.rs                 # open repos registry, recent list, settings and session persistence
       error.rs                 # AppError
@@ -55,7 +60,7 @@ GitBranch/
       tests/{fixtures,runner}.rs
       examples/make_fixture.rs # cargo run -p git-core --features fixtures --example make_fixture -- <kind> <dir>
     github-api/
-      src/{http,client,error,auth,token,askpass,user,repos,pulls,checks}.rs  # Transport trait + reqwest/mock
+      src/{http,client,error,auth,token,askpass,user,repos,pulls,checks,avatar}.rs  # Transport trait + reqwest/mock
   docs/
   .claude/                     # Claude Code harness (see HARNESS.md)
 ```
@@ -137,6 +142,42 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 - Pull requests (D-028): the repo slug comes from the remote URL; checkout of a PR is one git-core op
   (`ops::pull_request::checkout_pr`): tracking branch for same-repo PRs, local `pr/N` from `refs/pull/<remote>/N`
   for forks.
+- Avatars (D-034): the webview never fetches from GitHub. `github_avatar(login?)` downloads
+  `https://github.com/<login>.png?size=64` through `github-api::avatar::fetch_avatar` (host allow-list, 2 MiB cap,
+  `image/*` only, **no** `Authorization` header, no API quota) and caches it as `<cache_dir>/avatars/u-<login>.<ext>`
+  for seven days (tmp + rename, one download per login in flight, 1 h negative cache, stale entry served offline).
+  The command returns a `data:` URL or `null`; the UI keeps the initials fallback.
+- Commit signature (D-034): `git-core::ops::config::identity` reads `user.name` / `user.email` with
+  `git config --show-scope -z --get` (value + the scope git reports); `set_identity(scope: local | global, ..)`
+  writes both keys after validation. The account panel edits them per repository or globally.
+
+## Window shell
+
+- Tab row (44 px, `--tabrow-h`): one tab per open repository or worktree (`FolderGit2` / `GitFork` icon, close `×`
+  on hover/active, 1 px separators, `+` tab = welcome screen); right side only help (About), settings gear and the
+  account button. Theme lives in Settings; the sidebar state lives in `useUiStore` (`Ctrl+B`, palette, ribbon
+  overflow), persisted under `gitbranch.sidebar`.
+- Ribbon (`features/shell/Ribbon.tsx`, replaces the toolbar): left = repository dropdown › branch dropdown
+  (ahead/behind, filterable checkout list); centre = Undo, Redo, Fetch (caret: fetch all / pull ff / pull rebase /
+  pull merge / prune), Push, Branch, Stash, Pop, Terminal; right = Actions overflow (Clone, Remotes, Stashes
+  popover, Toggle sidebar, Settings) and Search (filter bar). Every button is also a palette command with the same
+  shortcut; the ribbon hotkeys (`Ctrl+Z`/`Ctrl+Y`, `Ctrl+Shift+F/L/P`) are registered by the ribbon.
+- Undo / Redo (D-021, D-033): Undo is reflog-based (`undo_last` → `UndoOutcome { info, redo, head, branch }`); the
+  ops store keeps one redo per repository and a graph-store subscription drops it when HEAD's oid **or** branch
+  differs from the recorded pair. Redo calls `apply_action(repo_id, action)`, whose targets are validated in
+  git-core (full oid for resets and detached checkouts, plain branch name otherwise).
+- Terminal: `open_terminal(repo_id)` spawns the first program found on `PATH` from `terminal::terminal_candidates`
+  (settings `terminal` override split into argv; Windows `wt.exe -d .` then `cmd.exe` with `CREATE_NEW_CONSOLE` and
+  inherited stdio; Linux `$TERMINAL`, `x-terminal-emulator`, `gnome-terminal --working-directory=<wt>`,
+  `konsole --workdir <wt>`, `xterm` with detached stdio) with cwd = work tree, never a shell string, reaped in a
+  thread. Error code `terminal.open_failed` names the programs tried.
+- About dialog (`features/dialogs/AboutDialog.tsx`, help button, palette "About GitBranch"): logo, name, version
+  from `app_info`, creator credit, license line (opens `LICENSE.md` on GitHub), the shared `UpdateCheck` (same
+  component as Settings), AIS Vision Systems logo switched by `html[data-theme]`, and the user guide
+  (`src/help/guide.en.md`, imported `?raw`) rendered by `lib/markdown.ts` → `shell/Markdown.tsx`: headings,
+  paragraphs, lists, fenced code, GFM tables, bold/italic/code/links (`http(s)` only), React elements, no
+  `innerHTML`. English only (D-030).
+- Icons: `lucide-react`, named re-exports from `lib/icons.ts` only; deep imports are an eslint error (D-032).
 
 ## IPC contract
 
@@ -181,7 +222,7 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   (`src-tauri/src/settings.rs`). Fields: `gitPath` (absolute path or null = `GITBRANCH_GIT` / `git` on PATH),
   `pullStrategy` (`config` | `merge` | `rebase` | `ffOnly`), `diffContextLines` (0..=100), `diffIgnoreWhitespace`,
   `editor` (overrides `core.editor` / `$VISUAL` / `$EDITOR`), `difftool` (command with `$LOCAL` / `$REMOTE`),
-  `autoUpdateCheck` (default true). Missing fields take their defaults; a corrupt file is copied to
+  `terminal` (command for the ribbon's Terminal button, null = platform default), `autoUpdateCheck` (default true). Missing fields take their defaults; a corrupt file is copied to
   `settings.json.bad` and the defaults are used.
 - `gitPath` is read once at startup to build the `GitRunner`, so a change applies after a restart; a configured path
   that no longer exists falls back to the default git with a warning.
