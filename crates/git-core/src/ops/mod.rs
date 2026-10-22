@@ -1,5 +1,6 @@
 //! Repository operations that are not parsers: maintenance, ignore checks, and the Phase 2 writes.
 
+pub mod blame;
 pub mod branch;
 pub mod clone;
 pub mod commit;

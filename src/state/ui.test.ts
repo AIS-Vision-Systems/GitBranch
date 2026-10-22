@@ -68,4 +68,15 @@ describe("ui store", () => {
     expect(loadTheme()).toBe("dark");
     localStorage.removeItem("gitbranch.theme");
   });
+
+  it("showBlame sets the target and view; showGraph clears it", () => {
+    useUiStore.getState().showBlame("r1" as never, "a/b.ts", "abc");
+    expect(useUiStore.getState().centerView).toBe("blame");
+    expect(useUiStore.getState().blameTarget).toEqual({ repoId: "r1", path: "a/b.ts", rev: "abc" });
+    useUiStore.getState().showBlame("r1" as never, "c.ts");
+    expect(useUiStore.getState().blameTarget).toEqual({ repoId: "r1", path: "c.ts" });
+    useUiStore.getState().showGraph();
+    expect(useUiStore.getState().centerView).toBe("graph");
+    expect(useUiStore.getState().blameTarget).toBeNull();
+  });
 });

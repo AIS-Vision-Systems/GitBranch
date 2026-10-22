@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, type MouseEvent, type ReactNode } from "react";
 import type { ChangeKind, DiffTarget } from "../../ipc/commit";
 import styles from "./Commit.module.css";
 
@@ -54,6 +54,7 @@ export const Item = memo(function Item({
   item,
   selected,
   onSelect,
+  onItemMenu,
   actions,
   depth,
 }: {
@@ -62,10 +63,15 @@ export const Item = memo(function Item({
   item: FileListItem;
   selected: boolean;
   onSelect: (item: FileListItem) => void;
+  onItemMenu?: (e: MouseEvent, item: FileListItem) => void;
   actions?: (item: FileListItem) => ReactNode;
 }) {
   return (
-    <div role="listitem" className={styles["fileItem"]}>
+    <div
+      role="listitem"
+      className={styles["fileItem"]}
+      onContextMenu={onItemMenu !== undefined ? (e) => onItemMenu(e, item) : undefined}
+    >
       <button
         type="button"
         className={
@@ -120,6 +126,7 @@ export interface FileListProps {
   files: FileListItem[];
   selectedKey: string | null;
   onSelect: (item: FileListItem) => void;
+  onItemMenu?: (e: MouseEvent, item: FileListItem) => void;
   /** Optional hover/focus action buttons rendered at the right of each row. */
   actions?: (item: FileListItem) => ReactNode;
   ariaLabel?: string;
@@ -131,6 +138,7 @@ export function FileList({
   files,
   selectedKey,
   onSelect,
+  onItemMenu,
   actions,
   ariaLabel = "Changed files",
   emptyText = "No changed files",
@@ -146,6 +154,7 @@ export function FileList({
           item={f}
           selected={f.key === selectedKey}
           onSelect={onSelect}
+          {...(onItemMenu !== undefined ? { onItemMenu } : {})}
           {...(actions !== undefined ? { actions } : {})}
         />
       ))}

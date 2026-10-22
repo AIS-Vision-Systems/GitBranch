@@ -1,6 +1,7 @@
 //! `#[tauri::command]` functions, one module per area. No git logic lives here.
 
 pub mod app;
+pub mod blame;
 pub mod branch;
 pub mod clone;
 pub mod commit;

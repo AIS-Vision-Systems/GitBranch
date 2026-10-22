@@ -2,6 +2,7 @@ import type { HunkSelection, PatchOp } from "../../ipc/stage";
 import type { DiffTarget } from "../../ipc/commit";
 import type { RepoId } from "../../ipc/types";
 import { sameTarget, useDetailsStore } from "../../state/details";
+import { useUiStore } from "../../state/ui";
 import { useWipStore } from "../../state/wip";
 import { DiffView } from "./DiffView";
 import styles from "./Diff.module.css";
@@ -33,6 +34,10 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
 
   if (selectedFile === null) return null;
 
+  // Blame needs a tracked file that still exists at the shown revision.
+  const canBlame =
+    diff?.newPath != null && !diff.binary && selectedFile.target.kind !== "untracked";
+
   const onHunkOp = async (sel: HunkSelection, op: PatchOp): Promise<void> => {
     const ok = await useWipStore.getState().applyHunk(repoId, sel, op);
     // On a stale error the store already reloaded the diff.
@@ -51,6 +56,23 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
           {selectedFile.label}
         </span>
         <span className={styles["centerKind"]}>{kindLabel(selectedFile.target)}</span>
+        {canBlame && (
+          <button
+            type="button"
+            className={styles["close"]}
+            onClick={() =>
+              useUiStore
+                .getState()
+                .showBlame(
+                  repoId,
+                  selectedFile.target.path,
+                  selectedFile.target.kind === "commit" ? selectedFile.target.oid : undefined,
+                )
+            }
+          >
+            Blame
+          </button>
+        )}
         <button type="button" className={styles["close"]} aria-label="Close diff" onClick={clear}>
           ×
         </button>

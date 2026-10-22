@@ -131,6 +131,7 @@ pub fn run() {
             commands::conflict::mark_resolved,
             commands::conflict::conflicted_files,
             commands::conflict::open_in_editor,
+            commands::blame::blame,
             commands::reflog::undo_preview,
             commands::reflog::undo_last,
             commands::github::github_account,

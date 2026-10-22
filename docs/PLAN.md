@@ -115,7 +115,7 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 
 ### Phase 6 — Polish and distribution
 - [x] 6.1 Multi-repo tabs, command palette (Ctrl+K), commit search/filter (author, message, path).
-- [ ] 6.2 Blame view (`git blame --porcelain`), file history.
+- [x] 6.2 Blame view (`git blame --porcelain`), file history.
 - [ ] 6.3 Settings: git path override, default pull strategy, diff options, theme, external editor/difftool.
 - [ ] 6.4 Installer polish: NSIS (per-user), .deb + AppImage, icons.
 - [ ] 6.5 Auto-update via `tauri-plugin-updater` + `tauri-plugin-process`: startup + daily check, toast with "Update and restart", progress, opt-out setting; release workflow publishes signed bundles + `latest.json` (D-006). Needs the owner's keypair (see D-006).

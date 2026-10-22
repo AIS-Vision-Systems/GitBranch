@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { CommitDetails as Details } from "../../ipc/commit";
+import type { RepoId } from "../../ipc/types";
 import { CommitDetails } from "./CommitDetails";
 import { commitItems } from "./items";
 
@@ -26,6 +27,7 @@ const details: Details = {
 function setup() {
   return render(
     <CommitDetails
+      repoId={"r1" as RepoId}
       details={details}
       files={commitItems(details)}
       selectedKey={null}

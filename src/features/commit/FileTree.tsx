@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type MouseEvent, type ReactNode } from "react";
 import {
   buildTree,
   dirPaths,
@@ -88,6 +88,7 @@ export interface FileTreeProps {
   files: FileListItem[];
   selectedKey: string | null;
   onSelect: (item: FileListItem) => void;
+  onItemMenu?: (e: MouseEvent, item: FileListItem) => void;
   actions?: (item: FileListItem) => ReactNode;
   ariaLabel?: string;
   /** Controlled by the parent so it can offer Expand all / Collapse all. */
@@ -100,6 +101,7 @@ export function FileTree({
   files,
   selectedKey,
   onSelect,
+  onItemMenu,
   actions,
   ariaLabel,
   expanded,
@@ -123,6 +125,7 @@ export function FileTree({
             depth={depth}
             selected={n.item.key === selectedKey}
             onSelect={onSelect}
+            {...(onItemMenu !== undefined ? { onItemMenu } : {})}
             {...(actions !== undefined ? { actions } : {})}
           />
         );

@@ -5,6 +5,7 @@ import { useOpsStore } from "../../state/ops";
 import { submoduleStateLabel, submodulesOf, useSubmodulesStore } from "../../state/submodules";
 import { useWipStore } from "../../state/wip";
 import { CommitForm } from "./CommitForm";
+import { useFileMenu } from "./fileMenu";
 import { FileList, type FileListItem } from "./FileList";
 import { countStatuses, statusOf, summaryText } from "../../lib/fileTree";
 import { ExpandLink, FileTree, TreeModeToggle } from "./FileTree";
@@ -131,6 +132,7 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
     return g;
   }, [items]);
 
+  const { onItemMenu, menu: fileMenu } = useFileMenu(repoId);
   const [tree, chooseTree] = useTreeMode();
   const [expConflicts, setExpConflicts] = useExpanded();
   const [expStaged, setExpStaged] = useExpanded();
@@ -157,6 +159,7 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
         files={list}
         selectedKey={selectedKey}
         onSelect={onSelect}
+        onItemMenu={onItemMenu}
         actions={actions}
         ariaLabel={ariaLabel}
         expanded={expanded}
@@ -167,6 +170,7 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
         files={list}
         selectedKey={selectedKey}
         onSelect={onSelect}
+        onItemMenu={onItemMenu}
         actions={actions}
         ariaLabel={ariaLabel}
       />
@@ -306,6 +310,7 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
       </Section>
       <SubmodulesSection repoId={repoId} />
       <CommitForm repoId={repoId} stagedCount={stagedCount} dirty={items.length > 0} />
+      {fileMenu}
     </>
   );
 }

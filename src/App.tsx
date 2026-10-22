@@ -7,6 +7,7 @@ import { RepoTabs } from "./features/shell/RepoTabs";
 import { Toolbar } from "./features/shell/Toolbar";
 import { WorktreeChoice } from "./features/dialogs/WorktreeChoice/WorktreeChoice";
 import { GraphView } from "./features/graph/GraphView";
+import { BlameView } from "./features/blame/BlameView";
 import { CenterDiff } from "./features/diff/CenterDiff";
 import { useDetailsStore } from "./state/details";
 import { DetailsPane } from "./features/commit/DetailsPane";
@@ -132,6 +133,8 @@ export default function App() {
               t.closest('[role="menu"]') !== null));
         if (!blocked && useUiStore.getState().centerView === "diff") {
           useDetailsStore.getState().clear();
+        } else if (!blocked && useUiStore.getState().centerView === "blame") {
+          useUiStore.getState().showGraph();
         }
         return;
       }
@@ -236,6 +239,8 @@ export default function App() {
             <div className={styles["graphPane"]}>
               {centerView === "diff" ? (
                 <CenterDiff key={current.repoId} repoId={current.repoId} />
+              ) : centerView === "blame" ? (
+                <BlameView key={current.repoId} repoId={current.repoId} />
               ) : (
                 <GraphView key={current.repoId} repoId={current.repoId} />
               )}
