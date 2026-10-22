@@ -15,6 +15,9 @@ pub struct User {
     pub login: String,
     /// Display name.
     pub name: Option<String>,
+    /// Public email (often null).
+    #[serde(default)]
+    pub email: Option<String>,
     /// Avatar image URL.
     #[serde(alias = "avatar_url")]
     pub avatar_url: Option<String>,
@@ -73,6 +76,7 @@ pub async fn resolve_account<T: Transport, S: TokenStore + Sync>(
                     html_url: format!("https://github.com/{login}"),
                     login,
                     name: None,
+                    email: None,
                     avatar_url: None,
                 },
                 scopes: vec![],

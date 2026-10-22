@@ -6,6 +6,8 @@ export interface GithubUser {
   name: string | null;
   avatarUrl: string | null;
   htmlUrl: string;
+  /** Public profile email; null when the user keeps it private. */
+  email: string | null;
 }
 
 export interface GithubAccount {
@@ -189,3 +191,7 @@ export interface GithubStatus {
 }
 
 export const githubStatus = (): Promise<GithubStatus> => call("github_status");
+
+/** Avatar as a `data:` URL fetched by the backend (cached 7 days); `login` omitted = signed-in user. `null` when unavailable. */
+export const githubAvatar = (login?: string): Promise<string | null> =>
+  call("github_avatar", { login: login ?? null });

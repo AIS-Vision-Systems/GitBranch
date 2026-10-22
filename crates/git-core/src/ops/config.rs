@@ -257,20 +257,23 @@ pub enum ConfigError {
     Invalid(&'static str),
 }
 
-/// Parses `git config --show-scope --get` output: `<scope>\t<value>\n`. Empty output is `None`.
+/// Parses `git config --show-scope -z --get` output: `<scope>\0<value>\0` (git separates scope
+/// and value with NUL, verified against real git). Empty output is `None`.
 ///
 /// # Errors
-/// [`ParseError`] when the line has no tab.
+/// [`ParseError`] when the scope or the value is not NUL-terminated.
 pub fn parse_scoped_value(bytes: &[u8]) -> Result<Option<IdentityValue>, ParseError> {
-    let text = String::from_utf8_lossy(bytes);
-    let line = text.trim_end_matches(['\n', '\r']);
-    if line.is_empty() {
+    if bytes.is_empty() {
         return Ok(None);
     }
-    let (scope, value) = line
-        .split_once('\t')
-        .ok_or_else(|| ParseError(format!("config line without scope: {line:?}")))?;
-    Ok(Some(IdentityValue { value: value.to_string(), scope: scope.to_string() }))
+    let mut parts = bytes.splitn(3, |b| *b == 0);
+    let (Some(scope), Some(value), Some(_rest)) = (parts.next(), parts.next(), parts.next()) else {
+        return Err(ParseError("config output is not NUL-terminated".into()));
+    };
+    Ok(Some(IdentityValue {
+        value: String::from_utf8_lossy(value).into_owned(),
+        scope: String::from_utf8_lossy(scope).into_owned(),
+    }))
 }
 
 async fn scoped_get(
@@ -278,7 +281,10 @@ async fn scoped_get(
     repo: &Path,
     key: &str,
 ) -> Result<Option<IdentityValue>, ConfigError> {
-    match runner.run(repo, &["config", "--show-scope", "--get", key], RunOpts::default()).await {
+    match runner
+        .run(repo, &["config", "--show-scope", "-z", "--get", key], RunOpts::default())
+        .await
+    {
         Ok(o) => Ok(parse_scoped_value(&o.stdout)?),
         Err(e) if e.kind == GitErrorKind::ExitCode(1) => Ok(None),
         Err(e) => Err(e.into()),
@@ -307,6 +313,9 @@ fn clean<'a>(what: &'static str, v: &'a str) -> Result<&'a str, ConfigError> {
 
 /// Writes `user.name` and `user.email` at `scope`.
 ///
+/// The two keys are written by two separate git commands. If the email write fails after the name
+/// was written, the previous name at that scope is restored (best effort: unset when there was none).
+///
 /// # Errors
 /// [`ConfigError::Invalid`] for an empty value or one containing a line break or NUL;
 /// [`ConfigError::Git`] if git fails.
@@ -323,9 +332,27 @@ pub async fn set_identity(
         ConfigScope::Local => "--local",
         ConfigScope::Global => "--global",
     };
+    let previous =
+        match runner.run(repo, &["config", flag, "--get", "user.name"], RunOpts::default()).await {
+            Ok(o) => Some(o.stdout_str().trim_end_matches(['\n', '\r']).to_string()),
+            Err(_) => None,
+        };
     // The value is positional after the key, so a leading `-` is not an option.
-    for (key, value) in [("user.name", name), ("user.email", email)] {
-        runner.run(repo, &["config", flag, key, value], RunOpts::default()).await?;
+    runner.run(repo, &["config", flag, "user.name", name], RunOpts::default()).await?;
+    if let Err(e) =
+        runner.run(repo, &["config", flag, "user.email", email], RunOpts::default()).await
+    {
+        let _ = match previous {
+            Some(p) => {
+                runner.run(repo, &["config", flag, "user.name", &p], RunOpts::default()).await
+            }
+            None => {
+                runner
+                    .run(repo, &["config", flag, "--unset", "user.name"], RunOpts::default())
+                    .await
+            }
+        };
+        return Err(e.into());
     }
     Ok(())
 }
@@ -337,12 +364,13 @@ mod tests {
 
     #[test]
     fn parses_scoped_value() {
-        let v = parse_scoped_value(b"global\tAda Lovelace\n").unwrap().unwrap();
+        let v = parse_scoped_value(b"global\0Ada Lovelace\0").unwrap().unwrap();
         assert_eq!(v, IdentityValue { value: "Ada Lovelace".into(), scope: "global".into() });
-        let v = parse_scoped_value(b"local\ta\tb\r\n").unwrap().unwrap();
-        assert_eq!(v.value, "a\tb");
+        let v = parse_scoped_value(b"local\0a\tb\nc\0").unwrap().unwrap();
+        assert_eq!(v.value, "a\tb\nc");
         assert_eq!(parse_scoped_value(b"").unwrap(), None);
-        assert!(parse_scoped_value(b"nonsense\n").is_err());
+        assert!(parse_scoped_value(b"nonsense\0").is_err());
+        assert!(parse_scoped_value(b"local\0unterminated").is_err());
     }
 
     #[test]

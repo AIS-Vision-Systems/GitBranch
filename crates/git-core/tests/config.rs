@@ -151,4 +151,23 @@ mod identity {
             assert!(matches!(err, Err(ConfigError::Invalid(_))));
         }
     }
+
+    #[tokio::test]
+    async fn option_like_values_are_stored_literally() {
+        let r = FixtureRepo::linear(1);
+        set_identity(&r.runner(), r.path(), ConfigScope::Local, "--global", "-x@y").await.unwrap();
+        let id = identity(&r.runner(), r.path()).await.unwrap();
+        let (n, e) = (id.name.unwrap(), id.email.unwrap());
+        assert_eq!((n.value.as_str(), n.scope.as_str()), ("--global", "local"));
+        assert_eq!((e.value.as_str(), e.scope.as_str()), ("-x@y", "local"));
+    }
+
+    #[tokio::test]
+    async fn z_layout_is_scope_nul_value_nul() {
+        let r = FixtureRepo::linear(1);
+        r.git(&["config", "user.name", "Ada L"]);
+        let args = ["config", "--show-scope", "-z", "--get", "user.name"];
+        let out = r.runner().run(r.path(), &args, git_core::RunOpts::default()).await.unwrap();
+        assert_eq!(out.stdout, b"local\0Ada L\0");
+    }
 }

@@ -171,7 +171,7 @@ an action ribbon under it, a GitKraken-style account panel and a Quasidian-style
   Terminal = `open_terminal` command spawning an external terminal at the work tree (settings override, then
   `wt.exe` / `cmd.exe` on Windows, `$TERMINAL` / `x-terminal-emulator` / gnome-terminal / konsole / xterm on
   Linux), argv only, modelled on `open_in_editor`.
-- [~] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
+- [x] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
   signature" = effective `user.name`/`user.email` for the current repo, editable globally or per repo
   (`git-core::ops::config::{identity,set_identity}`); "Account" = name, email, scopes, rate limit; Manage account,
   Re-authorize, Sign out, Revoke.

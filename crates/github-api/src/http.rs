@@ -83,13 +83,40 @@ impl Response {
 pub trait Transport: Send + Sync {
     /// Performs one request; HTTP error statuses are returned as `Ok`.
     fn send(&self, req: Request) -> impl Future<Output = Result<Response, Error>> + Send;
+
+    /// Like [`Transport::send`] for untrusted downloads: the body is limited to `max_body` bytes
+    /// (checked against `Content-Length` and while reading) and every hop of a redirect chain
+    /// (at most 3) must satisfy `allow_url`; a refused URL is [`Error::BadUrl`], an oversized body
+    /// [`Error::Decode`]. The default implementation does not follow redirects.
+    fn send_limited(
+        &self,
+        req: Request,
+        max_body: usize,
+        allow_url: fn(&str) -> bool,
+    ) -> impl Future<Output = Result<Response, Error>> + Send {
+        async move {
+            if !allow_url(&req.url) {
+                return Err(Error::BadUrl("url is not allowed".into()));
+            }
+            let res = self.send(req).await?;
+            if res.body.len() > max_body {
+                return Err(Error::Decode("response body is too large".into()));
+            }
+            Ok(res)
+        }
+    }
 }
 
 /// The real transport (rustls).
 #[derive(Debug, Clone)]
 pub struct ReqwestTransport {
     client: reqwest::Client,
+    /// Never follows redirects; used by [`Transport::send_limited`].
+    manual: reqwest::Client,
 }
+
+/// Redirect hops [`Transport::send_limited`] follows.
+const MAX_HOPS: usize = 3;
 
 impl Default for ReqwestTransport {
     fn default() -> Self {
@@ -98,7 +125,13 @@ impl Default for ReqwestTransport {
             .timeout(Duration::from_secs(30))
             .build()
             .expect("reqwest client builder with static options");
-        Self { client }
+        let manual = reqwest::Client::builder()
+            .user_agent(format!("GitBranch/{}", crate::VERSION))
+            .timeout(Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("reqwest client builder with static options");
+        Self { client, manual }
     }
 }
 
@@ -127,6 +160,55 @@ impl Transport for ReqwestTransport {
             .collect();
         let body = res.bytes().await.map_err(|e| Error::Network(e.without_url().to_string()))?;
         Ok(Response { status, headers, body: body.to_vec() })
+    }
+
+    async fn send_limited(
+        &self,
+        req: Request,
+        max_body: usize,
+        allow_url: fn(&str) -> bool,
+    ) -> Result<Response, Error> {
+        let net = |e: reqwest::Error| Error::Network(e.without_url().to_string());
+        let mut url = req.url.clone();
+        for _ in 0..=MAX_HOPS {
+            if !allow_url(&url) {
+                return Err(Error::BadUrl("url is not allowed".into()));
+            }
+            let mut b = self.manual.get(&url);
+            for (k, v) in &req.headers {
+                b = b.header(k, v);
+            }
+            let mut res = b.send().await.map_err(net)?;
+            if res.status().is_redirection() {
+                let next = res
+                    .headers()
+                    .get(reqwest::header::LOCATION)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|loc| res.url().join(loc).ok())
+                    .ok_or_else(|| Error::BadUrl("redirect without a usable location".into()))?;
+                url = next.to_string();
+                continue;
+            }
+            let too_large = || Error::Decode("response body is too large".into());
+            if res.content_length().is_some_and(|n| n > max_body as u64) {
+                return Err(too_large());
+            }
+            let status = res.status().as_u16();
+            let headers = res
+                .headers()
+                .iter()
+                .filter_map(|(k, v)| Some((k.as_str().to_string(), v.to_str().ok()?.to_string())))
+                .collect();
+            let mut body = Vec::new();
+            while let Some(chunk) = res.chunk().await.map_err(net)? {
+                if body.len() + chunk.len() > max_body {
+                    return Err(too_large());
+                }
+                body.extend_from_slice(&chunk);
+            }
+            return Ok(Response { status, headers, body });
+        }
+        Err(Error::BadUrl("too many redirects".into()))
     }
 }
 

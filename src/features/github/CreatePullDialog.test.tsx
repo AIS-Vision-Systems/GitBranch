@@ -16,7 +16,7 @@ vi.mock("../../ipc/history", () => ({ commitsBetween: vi.fn() }));
 
 const id = "r1" as RepoId;
 const acct: GithubAccount = {
-  user: { login: "octo", name: null, avatarUrl: null, htmlUrl: "" },
+  user: { login: "octo", name: null, avatarUrl: null, htmlUrl: "", email: null },
   scopes: ["repo"],
   offline: false,
 };

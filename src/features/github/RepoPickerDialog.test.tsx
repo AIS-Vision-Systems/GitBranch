@@ -9,7 +9,13 @@ vi.mock("../../ipc/github", () => ({ githubRepos: vi.fn() }));
 vi.mock("../dialogs/open", () => ({ openClone: vi.fn(), openGithubLogin: vi.fn() }));
 
 const acct: GithubAccount = {
-  user: { login: "octo", name: null, avatarUrl: null, htmlUrl: "https://github.com/octo" },
+  user: {
+    login: "octo",
+    name: null,
+    avatarUrl: null,
+    htmlUrl: "https://github.com/octo",
+    email: null,
+  },
   scopes: ["repo"],
   offline: false,
 };

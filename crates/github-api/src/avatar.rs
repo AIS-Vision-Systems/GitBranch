@@ -17,7 +17,7 @@ pub struct AvatarImage {
 }
 
 /// Whether `url` is an `https` URL on a GitHub avatar host (no userinfo, no port).
-fn allowed_host(url: &str) -> bool {
+pub fn allowed_host(url: &str) -> bool {
     let Some(rest) = url.strip_prefix("https://") else { return false };
     let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
     matches!(host, "avatars.githubusercontent.com" | "github.com")
@@ -31,11 +31,12 @@ fn sized_url(avatar_url: &str, size: u32) -> String {
 }
 
 /// Downloads an avatar at `size` px. Only `avatars.githubusercontent.com` and `github.com` are
-/// contacted, and the request carries no `Authorization` header.
+/// contacted (redirects included, at most 3 hops), and the request carries no `Authorization`
+/// header.
 ///
 /// # Errors
 /// [`Error::BadUrl`] for another host or scheme, [`Error::Status`] for a non-2xx answer,
-/// [`Error::Decode`] when the body is not an image or exceeds 2 MiB, [`Error::Network`] offline.
+/// [`Error::Decode`] when the body is not an image or exceeds 2 MiB (checked before buffering it), [`Error::Network`] offline.
 pub async fn fetch_avatar<T: Transport>(
     gh: &GitHub<T>,
     avatar_url: &str,
@@ -50,7 +51,7 @@ pub async fn fetch_avatar<T: Transport>(
         headers: vec![("Accept".into(), "image/*".into())],
         body: None,
     };
-    let res = gh.transport().send(req).await?;
+    let res = gh.transport().send_limited(req, MAX_AVATAR_BYTES, allowed_host).await?;
     if !(200..300).contains(&res.status) {
         return Err(Error::Status { status: res.status, message: "avatar download failed".into() });
     }
