@@ -1,8 +1,9 @@
 //! Tests for `ops::difftool`.
 #![allow(clippy::unwrap_used)] // tests
 
+use git_core::RunOpts;
 use git_core::fixtures::FixtureRepo;
-use git_core::ops::difftool::{DifftoolError, open_difftool};
+use git_core::ops::difftool::{DifftoolError, empty_tree_oid, open_difftool};
 
 fn dirty() -> FixtureRepo {
     let r = FixtureRepo::linear(1);
@@ -77,4 +78,29 @@ async fn root_commit_uses_the_empty_tree() {
     let cmd = format!("echo ran > \"{marker}\"");
     open_difftool(&r.runner(), r.path(), &file, false, Some(&root), &cmd).await.unwrap();
     assert!(std::path::Path::new(&marker).exists());
+}
+
+#[tokio::test]
+async fn empty_tree_oid_is_the_sha1_empty_tree() {
+    let r = FixtureRepo::linear(1);
+    let oid = empty_tree_oid(&r.runner(), r.path()).await.unwrap();
+    assert_eq!(oid, "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
+}
+
+#[tokio::test]
+async fn empty_tree_oid_in_a_sha256_repo() {
+    let dir = tempfile::tempdir().unwrap();
+    let runner = git_core::fixtures::isolated_runner(dir.path());
+    let init = runner
+        .run(dir.path(), &["init", "--quiet", "--object-format=sha256"], RunOpts::default())
+        .await;
+    if init.is_err() {
+        #[allow(clippy::print_stderr)] // test skip notice
+        {
+            eprintln!("skipped: git does not support --object-format=sha256");
+        }
+        return;
+    }
+    let oid = empty_tree_oid(&runner, dir.path()).await.unwrap();
+    assert_eq!(oid, "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321");
 }

@@ -6,8 +6,17 @@ use std::time::Duration;
 
 use crate::{GitError, GitErrorKind, GitRunner, RunOpts};
 
-/// The well-known empty tree, the "parent" of a root commit.
-const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+/// The id of the empty tree (the "parent" of a root commit) in this repository's hash format
+/// (SHA-1 or SHA-256), from `git hash-object -t tree --stdin` with empty input.
+///
+/// # Errors
+/// [`GitError`] if git fails.
+pub async fn empty_tree_oid(runner: &GitRunner, repo: &Path) -> Result<String, GitError> {
+    let out = runner
+        .run(repo, &["hash-object", "-t", "tree", "--stdin"], RunOpts::with_stdin(Vec::new()))
+        .await?;
+    Ok(out.stdout_str().trim().to_string())
+}
 
 /// How long we wait for the tool before assuming it is a long-running GUI and detaching.
 const EARLY_EXIT_WAIT: Duration = Duration::from_millis(1500);
@@ -50,26 +59,25 @@ pub async fn open_difftool(
     if let Some(rev) = rev.filter(|r| !crate::refname::is_safe_revision(r)) {
         return Err(DifftoolError::InvalidRevision(rev.to_string()));
     }
-    let cfg = format!("difftool.gbtool.cmd={tool_cmd}");
+    let cfg = format!("difftool.gbtool.cmd={}", super::config::difftool_cmd(tool_cmd));
     let mut args: Vec<&str> =
         vec!["-c", &cfg, "difftool", "--no-prompt", "--tool=gbtool", "--no-symlinks"];
     // A commit is compared with its first parent (the empty tree for a root commit).
-    let parent = rev.map(|r| format!("{r}^"));
-    let base: &str = match (&parent, rev) {
-        (Some(p), Some(_))
-            if runner
-                .run(repo, &["rev-parse", "--verify", "--quiet", p], RunOpts::default())
+    let base = match rev.filter(|_| !staged) {
+        Some(r) => {
+            let p = format!("{r}^");
+            let ok = runner
+                .run(repo, &["rev-parse", "--verify", "--quiet", &p], RunOpts::default())
                 .await
-                .is_ok() =>
-        {
-            p
+                .is_ok();
+            Some(if ok { p } else { empty_tree_oid(runner, repo).await? })
         }
-        _ => EMPTY_TREE,
+        None => None,
     };
     if staged {
         args.push("--cached");
-    } else if let Some(rev) = rev {
-        args.extend([base, rev]);
+    } else if let (Some(base), Some(rev)) = (&base, rev) {
+        args.extend([base.as_str(), rev]);
     }
     args.extend(["--", path]);
 
