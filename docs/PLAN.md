@@ -125,8 +125,90 @@ Acceptance: login, clone private repo, branch, push, create PR, see it on the gr
 - [x] 6.8 Clone dialog: when coming from the GitHub picker, offer the default branch and a branch list
   (`git ls-remote --heads`) instead of a free-text field.
 
+### Phase 7 — Phase 6 review fixes
+Goal: close the findings of the 2026-10-22 read-only review of `phase-5..phase-6` (all checks were green, two
+real bugs). Owner decisions for Phases 7–9 are in D-030.
+
+- [ ] 7.1 Difftool/editor commands: append `"$LOCAL" "$REMOTE"` to the difftool setting when absent and fix the
+  Settings placeholder; new pure `resolve_program()` in `git-core::ops::config` (Windows `PATHEXT` lookup) so
+  `code` resolves to `code.cmd` in `open_in_editor` and the difftool path.
+- [ ] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
+  the Path field instead of being wiped by the next keystroke.
+- [ ] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
+  longer fires inside text fields.
+- [ ] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
+  instead of a 5 s guess; a failed install is not overwritten by the hourly check.
+- [ ] 7.5 Filtered graph paging: cache filtered pages like the unfiltered log (key = order/all/author/message/path)
+  instead of re-running `git log` from commit 0 on every "load more".
+- [ ] 7.6 Difftool empty-tree fallback via `git hash-object -t tree --stdin` (SHA-256 safe); no `rev-parse` when
+  `staged`.
+- [ ] 7.7 Virtualise `BlameView` rows (`@tanstack/react-virtual`, same pattern as the graph).
+- [ ] 7.8 Docs drift: ARCHITECTURE sections for settings, updater, log file, single instance, blame; CHANGELOG
+  installer size; 6.8 wording ("any URL"); note that file history has no `--follow`.
+- [ ] 7.9 Pin `.github/workflows/release.yml` actions to commit SHAs.
+
+Acceptance: check ladder green; `code` as editor opens a conflicted file on Windows; `meld` as difftool receives
+both files; "File history" with the bar already open shows the path.
+
+### Phase 8 — Window chrome: tab row, ribbon, account, about (GitKraken parity, round 4a)
+Goal: the top of the window matches the owner's reference: a tab row with only tabs + help + settings + account,
+an action ribbon under it, a GitKraken-style account panel and a Quasidian-style help/credits window.
+
+- [ ] 8.0 `lucide-react` (named imports only, eslint rule against deep imports, one re-export file); dual license
+  (PolyForm Noncommercial 1.0.0 + commercial, `LICENSE.md` / `LICENSE-COMMERCIAL.md`, metadata in package.json,
+  Cargo.toml, tauri.conf.json, README).
+- [ ] 8.1 Tab row: 44 px, 15 px font, repo/worktree lucide icon per tab, 1 px vertical separators, close × only
+  on hover/active, "+" tab; right side = help, settings gear, account. Theme button removed (selector already in
+  Settings); Sidebar button removed, state in `useUiStore` (Ctrl+B, palette, ribbon overflow, sidebar chevron).
+- [ ] 8.2 About dialog (help button, palette): logo, name, version, "Idea and original development: Xavi Anguera",
+  license line (opens LICENSE), "Check for updates" (shared `UpdateCheck` with Settings), AIS Vision Systems logo
+  (white/blue per theme) + "An app by AIS Vision Systems", scrollable user guide from `src/help/guide.en.md`
+  rendered by a small in-house markdown subset renderer (`src/lib/markdown.ts`, no innerHTML).
+- [ ] 8.3 Ribbon (replaces the toolbar): left = repository dropdown › branch dropdown (ahead/behind, checkout);
+  centre = Undo, Redo, Fetch (caret: fetch all / pull ff / pull rebase / pull merge / prune), Push, Branch, Stash,
+  Pop, Terminal; right = Actions overflow (Clone, Remotes, Stashes popover, Toggle sidebar, Settings) and Search.
+  Redo = re-apply the HEAD recorded before the last Undo (git-core `apply_action`, cleared when HEAD moves).
+  Terminal = `open_terminal` command spawning an external terminal at the work tree (settings override, then
+  `wt.exe` / `cmd.exe` on Windows, `$TERMINAL` / `x-terminal-emulator` / gnome-terminal / konsole / xterm on
+  Linux), argv only, modelled on `open_in_editor`.
+- [ ] 8.4 Account panel: real GitHub avatar (fetched by the backend to a data URL, cached), login; "Commit
+  signature" = effective `user.name`/`user.email` for the current repo, editable globally or per repo
+  (`git-core::ops::config::{identity,set_identity}`); "Account" = name, email, scopes, rate limit; Manage account,
+  Re-authorize, Sign out, Revoke.
+- [ ] 8.5 Docs: ARCHITECTURE (shell layout, ribbon, about, terminal, avatar cache), CHANGELOG demo note.
+
+Acceptance: the top row shows only tabs + help + gear + account; every former toolbar action is reachable from
+the ribbon or its overflow; Terminal opens at the work tree on Windows; installer still < 25 MB.
+
+### Phase 9 — Side panels: sidebar and commit details (GitKraken parity, round 4b)
+Goal: a GitKraken-style left sidebar (LOCAL / REMOTE / WORKTREES / PULL REQUESTS) and a details pane whose
+header stays put while the file tree scrolls.
+
+- [ ] 9.1 Co-authors in git-core: `Co-authored-by:` trailers parsed from `git show` (`%(trailers:...)`), exposed
+  as `coAuthors` on the commit details, stripped from the displayed body. Needs git >= 2.22 (version probe note).
+- [ ] 9.2 Author avatars (amends D-023): GitHub photo for known authors only (the signed-in user's commits and
+  `@users.noreply.github.com` emails → login → `github.com/<login>.png`, backend fetch + disk cache, negative
+  cache); initials for everyone else; graph nodes stay initials.
+- [ ] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
+  of the pane; 40 px avatar, name, "authored <date>", parents at the right; "Co-authors:" avatar chips; summary +
+  Path/Tree toggle + Expand all); the file tree below scrolls independently, rows ~22 px, 10 px indent per level.
+- [ ] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
+  remotes grouped per remote.
+- [ ] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
+  (one sub-tree per remote, "Add remote…" header action), WORKTREES, PULL REQUESTS; branch rows with a check on
+  HEAD and ↑↓ badges; click selects the commit, hover highlights it, double-click checks out, right-click opens the
+  existing ref context menu.
+- [ ] 9.6 Sidebar resize and collapse: draggable width (shared `Splitter`, persisted with the session); collapse
+  chevron in the panel's own top bar; collapsed state is a 36 px icon rail with one icon + count per section,
+  clicking an icon expands and scrolls to that section.
+- [ ] 9.7 Docs: ARCHITECTURE (sidebar, details layout, co-authors, avatar source), CHANGELOG demo note.
+
+Acceptance: four sections with counts and a working filter; drag to resize and collapse to the rail from the
+panel; double-click checks out; the details header never scrolls away while the file list does; a commit with
+`Co-authored-by:` trailers shows chips and a body without the trailer lines.
+
 ## Out of scope (explicitly)
-GitLab/Bitbucket/Azure, integrated terminal, AI features, cloud workspaces, issue trackers, LFS management UI, GPG key management (signing uses the user's existing git config).
+GitLab/Bitbucket/Azure, integrated terminal (an external terminal launcher is Phase 8), AI features, cloud workspaces, issue trackers, LFS management UI, GPG key management (signing uses the user's existing git config).
 
 ## Risks
 

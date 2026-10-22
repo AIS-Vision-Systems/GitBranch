@@ -257,3 +257,22 @@ stage/unstage/discard are rejected while ignore-whitespace is on (a `-w` patch m
 is reachable by any script in the webview and can set commands that run code; this is accepted because the values are
 user-chosen and the webview only loads bundled content. Keep the CSP strict and never load remote content.
 Consequences: `get_settings`, `set_settings`, `open_difftool` commands; `pullStrategy` seeds the Pull dialog default.
+
+## D-030 · accepted · 2026-10-22 — Phases 7–9: Phase 6 review fixes, then GitKraken parity round 4 (owner decisions)
+Context: Phase 6 was implemented by a weaker model. A read-only review of `phase-5..phase-6` with the full check
+ladder green found two real bugs (difftool command without `$LOCAL`/`$REMOTE`; filter bar not following "File
+history") and several smaller issues. The owner then asked for a redesign of the window chrome and the side panels
+with GitKraken screenshots as reference, and for a help/credits window like Quasidian's.
+Decision (owner, 2026-10-22): (1) Three phases: 7 = review fixes, 8 = tab row + ribbon + account panel + about
+dialog, 9 = sidebar + commit details. (2) The about dialog and the bundled user guide are in English; no i18n.
+(3) The license becomes dual, PolyForm Noncommercial 1.0.0 + a commercial license from AIS Vision Systems (the
+Quasidian model); MIT metadata is replaced in package.json, Cargo.toml and tauri.conf.json. (4) Amends D-023:
+author avatars in the details pane use the GitHub photo for known authors only (the signed-in user's commits and
+`@users.noreply.github.com` emails, resolved to a login and fetched by the backend with a disk cache); everyone
+else keeps the offline initials; graph nodes stay initials. (5) The sidebar is resizable and collapsible from its
+own top bar; collapsed, it becomes an icon rail with per-section counts. (6) The theme selector lives only in
+Settings; the header keeps tabs, help, settings and account. (7) Icons come from `lucide-react` (named imports
+only). (8) An external terminal launcher (argv only, cwd = work tree, no shell string) is in scope; an integrated
+terminal stays out of scope.
+Consequences: implementation ADRs (markdown subset renderer, redo semantics, terminal candidates, identity writes)
+are logged when their items land. `docs/PLAN.md` Phases 7–9 carry the items.
