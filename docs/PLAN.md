@@ -134,7 +134,7 @@ real bugs). Owner decisions for Phases 7–9 are in D-030.
   `code` resolves to `code.cmd` in `open_in_editor` and the difftool path.
 - [x] 7.2 Filter bar resync: an open `FilterBar` follows store changes, so "File history" from the file menu fills
   the Path field instead of being wiped by the next keystroke.
-- [ ] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
+- [x] 7.3 `isEditableTarget()` in `src/lib/keys.ts` (dedupe the copies in `App.tsx`/`Toolbar.tsx`); Ctrl+F no
   longer fires inside text fields.
 - [ ] 7.4 Updater: a failed manual check keeps the card (error + Retry); the scheduler waits for settings `loaded`
   instead of a 5 s guess; a failed install is not overwritten by the hourly check.

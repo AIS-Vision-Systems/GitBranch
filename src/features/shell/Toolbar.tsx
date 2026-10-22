@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RepoId } from "../../ipc/types";
+import { isEditableTarget } from "../../lib/keys";
 import { useDialogsStore } from "../../state/dialogs";
 import { useGraphStore } from "../../state/graph";
 import { undoCommand, useOpsStore } from "../../state/ops";
@@ -52,11 +53,8 @@ export function Toolbar({ repoId }: Props) {
       if (e.repeat || useDialogsStore.getState().current !== null) return;
       const t = e.target;
       if (
-        t instanceof HTMLInputElement ||
-        t instanceof HTMLTextAreaElement ||
-        t instanceof HTMLSelectElement ||
-        (t instanceof HTMLElement &&
-          (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
+        isEditableTarget(t) ||
+        (t instanceof HTMLElement && t.closest('[aria-modal="true"]') !== null)
       ) {
         return;
       }
@@ -76,11 +74,8 @@ export function Toolbar({ repoId }: Props) {
       if (e.repeat || useDialogsStore.getState().current !== null) return;
       const t = e.target;
       if (
-        t instanceof HTMLInputElement ||
-        t instanceof HTMLTextAreaElement ||
-        t instanceof HTMLSelectElement ||
-        (t instanceof HTMLElement &&
-          (t.isContentEditable || t.closest('[aria-modal="true"]') !== null))
+        isEditableTarget(t) ||
+        (t instanceof HTMLElement && t.closest('[aria-modal="true"]') !== null)
       ) {
         return;
       }
