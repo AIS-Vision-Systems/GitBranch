@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 2026-10-22: **Phase 7 demo.** (1) Settings → difftool `meld` and editor `code` now work as typed: `$LOCAL`/`$REMOTE` are appended and `code` resolves to `code.cmd` on Windows (no console flash). (2) Right-click a file → File history with the filter bar already open: the Path field fills in. (3) Ctrl+F inside a text field types instead of opening the filter bar. (4) Check for updates with the network off: the card stays with the error and Retry. (5) Filtered graph "load more" is served from the cache; a 10k-line blame scrolls with only the visible rows rendered. Installer 2.9 MiB, 534 vitest + 398 cargo tests green.
 - 2026-10-22: **Phase 7 review fixes.** Difftool settings work with a bare program (`meld`): `$LOCAL`/`$REMOTE` are appended when absent and `code` resolves to `code.cmd` on Windows for both the editor and the difftool; the empty-tree base is computed with `git hash-object` (SHA-256 safe). "File history" fills the Path field of an open filter bar; Ctrl+F stays out of text fields. A failed manual update check keeps the card with Retry, the first check waits for settings to load, and a failed install is not hidden by the hourly check. Filtered graph paging reuses the log cache; the blame view virtualises its rows. Release and CI workflow actions are pinned to commit SHAs.
 - 2026-10-22: **Phase 6 demo.** (1) Ctrl+K opens the command palette; Ctrl+F filters the graph by author, message or path. (2) Right-click a file → Blame / File history / Open in difftool. (3) Settings (gear, Ctrl+,): git path, pull strategy, diff options, editor, difftool, update opt-out. (4) A second launch focuses the running window and opens its repo as a tab; logs live in a daily file, no telemetry. (5) Clone lists remote branches; per-user NSIS installer is 2.9 MiB; tag `vX.Y.Z` builds a signed draft release with `latest.json`.
 - 2026-10-22: Clone dialog lists the remote branches (default first) via `git ls-remote --symref` on the URL typed
@@ -9,7 +10,7 @@
   through the askpass bridge; never prompts); falls back to a text field when the lookup fails.
 - 2026-10-22: single instance (a second launch focuses the window and opens the repo path as a tab); local daily log file (`gitbranch.log`, 7 days, no telemetry) with Settings → Open log folder.
 - 2026-10-22: auto-update: startup + daily check, "Update and restart" card with progress, opt-out in Settings, palette "Check for updates"; tag `vX.Y.Z` triggers a draft release with signed bundles + latest.json.
-- 2026-10-22: installers: per-user NSIS (2.5 MiB), .deb depends on git, publisher/category/description metadata.
+- 2026-10-22: installers: per-user NSIS (2.9 MiB, measured at the Phase 7 build), .deb depends on git, publisher/category/description metadata.
 - 2026-10-22: Settings dialog (gear, Ctrl+,): theme, git path (applies after restart), default pull strategy, diff context lines / ignore whitespace, external editor and difftool; "Open in difftool" in the file menu.
 - 2026-10-22: blame view (right-click a file → Blame, or the Blame button in the diff header) and file history (right-click → File history filters the graph by path; no `--follow`, so renames are not
   followed).
