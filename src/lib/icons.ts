@@ -8,6 +8,8 @@ export {
   ArchiveRestore,
   ChevronDown,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleHelp,
   CircleUser,
   Cloud,

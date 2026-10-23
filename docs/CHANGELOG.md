@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 2026-10-23: Sidebar resize and collapse (item 9.6): drag the sidebar edge (width persisted, shared Splitter),
+  collapse chevron in its top bar, collapsed state is a 36 px icon rail with a count per section; clicking a
+  rail icon expands the sidebar and scrolls to that section.
 - 2026-10-23: Sidebar (items 9.4-9.5): filter box; collapsible LOCAL / REMOTE (one tree per remote, "Add remote..."
   action) / WORKTREES / PULL REQUESTS sections with icon, uppercase title and count; branches as folders by `/`
   with a check on HEAD and ahead/behind badges; click selects the commit, hover highlights it, double-click or

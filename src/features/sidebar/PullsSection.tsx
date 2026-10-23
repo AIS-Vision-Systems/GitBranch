@@ -8,6 +8,7 @@ import type { PullFilter } from "../../state/pulls";
 import { GitPullRequest } from "../../lib/icons";
 import { GithubNotice } from "../github/GithubNotice";
 import { openCreatePull, openGithubLogin } from "../dialogs/open";
+import { filterPulls, usePullCount } from "./counts";
 import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
@@ -101,10 +102,8 @@ export function PullsSection({ repoId, query = "" }: { repoId: RepoId; query?: s
   const refresh = usePullsStore((s) => s.refresh);
 
   const q = query.trim().toLowerCase();
-  const pulls =
-    q === ""
-      ? allPulls
-      : allPulls.filter((p) => `#${p.number} ${p.title}`.toLowerCase().includes(q));
+  const pulls = filterPulls(allPulls, q);
+  const count = usePullCount(repoId, query);
   const login = account?.user.login;
   const signedIn = account !== null && account !== undefined;
 
@@ -170,7 +169,7 @@ export function PullsSection({ repoId, query = "" }: { repoId: RepoId; query?: s
       id="pulls"
       icon={<GitPullRequest size={14} />}
       title="Pull requests"
-      count={signedIn ? pulls.length : null}
+      count={count}
       actions={
         <>
           {signedIn && (

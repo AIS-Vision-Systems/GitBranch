@@ -3,7 +3,8 @@ import type { Ref, RepoId } from "../../ipc/types";
 import { GitBranch } from "../../lib/icons";
 import { useGraphStore } from "../../state/graph";
 import { BranchTree } from "./BranchTreeView";
-import { buildTree, countLeaves, filterTree } from "./branchTree";
+import { buildTree, filterTree } from "./branchTree";
+import { useLocalCount } from "./counts";
 import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
@@ -13,7 +14,7 @@ export function LocalSection({ repoId, query = "" }: { repoId: RepoId; query?: s
     const local: Ref[] = (refs ?? []).filter((r) => r.kind === "localBranch");
     return filterTree(buildTree(local), query);
   }, [refs, query]);
-  const count = countLeaves(filtered.nodes);
+  const count = useLocalCount(repoId, query);
   return (
     <SidebarSection id="local" icon={<GitBranch size={14} />} title="Local" count={count}>
       {count === 0 ? (

@@ -7,6 +7,7 @@ import { worktreesOf, useWorktreesStore } from "../../state/worktrees";
 import { openAddWorktree, openLockWorktree } from "../dialogs/open";
 import { FolderGit2 } from "../../lib/icons";
 import { samePath } from "../../lib/paths";
+import { filterWorktrees, useWorktreeCount } from "./counts";
 import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
@@ -145,19 +146,17 @@ export function WorktreesSection({ repoId, query = "" }: { repoId: RepoId; query
   const currentPath = useReposStore(
     (s) => s.open.find((r) => r.repoId === s.currentId)?.path ?? null,
   );
+  const count = useWorktreeCount(repoId, query);
   const anyPrunable = all.some((w) => w.prunable);
   const q = query.trim().toLowerCase();
-  const list =
-    q === ""
-      ? all
-      : all.filter((w) => [w.branch ?? "", w.path].join("\n").toLowerCase().includes(q));
+  const list = filterWorktrees(all, q);
 
   return (
     <SidebarSection
       id="worktrees"
       icon={<FolderGit2 size={14} />}
       title="Worktrees"
-      count={list.length}
+      count={count}
       actions={
         <>
           <button

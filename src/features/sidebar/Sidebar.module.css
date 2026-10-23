@@ -2,7 +2,7 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  width: var(--sidebar-w);
+  width: var(--sidebar-w); /* default; App passes the persisted width */
   height: 100%;
   min-height: 0;
   border-right: 1px solid var(--color-border);
@@ -354,4 +354,61 @@
 
 .checkPending {
   background: var(--color-warning);
+}
+
+.collapseButton,
+.railButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+
+.collapseButton:hover,
+.railButton:hover {
+  background: var(--color-chip-bg);
+  color: var(--color-fg);
+}
+
+.collapseButton:focus-visible,
+.railButton:focus-visible {
+  outline: 1px solid var(--color-accent);
+}
+
+.rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 36px;
+  height: 100%;
+  padding: var(--space-2) 0;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+.railBadge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--color-chip-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  font-size: 0.6rem;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
 }

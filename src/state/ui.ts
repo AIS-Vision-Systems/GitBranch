@@ -106,6 +106,10 @@ interface UiState {
   sidebarSections: Record<string, boolean>;
   setSidebarSection: (id: string, open: boolean) => void;
   toggleSidebarSection: (id: string) => void;
+  /** Section id the sidebar should scroll to once rendered (not persisted). */
+  pendingSidebarScroll: string | null;
+  requestSidebarScroll: (id: string) => void;
+  clearSidebarScroll: () => void;
   /** Whether the About dialog is requested (the dialog itself lands with item 8.2). */
   centerView: "graph" | "diff" | "blame";
   /** File shown by the blame view (`rev` undefined = working tree). */
@@ -142,6 +146,9 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ sidebarSections: next });
   },
   toggleSidebarSection: (id) => get().setSidebarSection(id, get().sidebarSections[id] === false),
+  pendingSidebarScroll: null,
+  requestSidebarScroll: (id) => set({ pendingSidebarScroll: id }),
+  clearSidebarScroll: () => set({ pendingSidebarScroll: null }),
   centerView: "graph",
   blameTarget: null,
   showBlame: (repoId, path, rev) =>

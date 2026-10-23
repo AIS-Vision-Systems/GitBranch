@@ -30,6 +30,7 @@ import { useOpsStore } from "./state/ops";
 import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
+import { sidebarWidth, useSidebarWidth } from "./features/sidebar/sidebarWidth";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { openAbout, openSettings } from "./features/dialogs/open";
 import { useSettingsStore } from "./state/settings";
@@ -49,6 +50,7 @@ export default function App() {
   const openViaDialog = useReposStore((s) => s.openViaDialog);
   const close = useReposStore((s) => s.close);
   const [detailsWidth, setDetailsWidth] = useDetailsWidth();
+  const [sidebarW, setSidebarW] = useSidebarWidth();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const currentId = current?.repoId ?? null;
@@ -265,7 +267,18 @@ export default function App() {
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (
           <div className={styles["panes"]}>
-            {sidebarOpen && <Sidebar key={current.repoId} repoId={current.repoId} />}
+            <Sidebar key={current.repoId} repoId={current.repoId} width={sidebarW} />
+            {sidebarOpen && (
+              <Splitter
+                side="left"
+                width={sidebarW}
+                onChange={setSidebarW}
+                label="Resize sidebar"
+                min={sidebarWidth.MIN}
+                max={sidebarWidth.maxWidth()}
+                defaultWidth={sidebarWidth.DEFAULT}
+              />
+            )}
             <div className={styles["graphPane"]}>
               {centerView === "diff" ? (
                 <CenterDiff key={current.repoId} repoId={current.repoId} />

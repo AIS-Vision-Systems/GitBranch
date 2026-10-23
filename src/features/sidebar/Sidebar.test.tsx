@@ -6,6 +6,7 @@ import { EMPTY_GRAPH, useGraphStore } from "../../state/graph";
 import { useGithubStore } from "../../state/github";
 import { useOpsStore } from "../../state/ops";
 import { EMPTY_PULLS, usePullsStore } from "../../state/pulls";
+import { useUiStore } from "../../state/ui";
 import { useWorktreesStore } from "../../state/worktrees";
 import { Sidebar } from "./Sidebar";
 
@@ -97,6 +98,16 @@ describe("Sidebar", () => {
     expect(toggle("Local")).toHaveTextContent("Local3");
     expect(toggle("Remote")).toHaveTextContent("Remote3");
     expect(toggle("Worktrees")).toHaveTextContent("Worktrees0");
+  });
+
+  it("collapse button closes the sidebar and the rail replaces the sections", () => {
+    useUiStore.setState({ sidebarOpen: true });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(useUiStore.getState().sidebarOpen).toBe(false);
+    expect(screen.queryByRole("region", { name: "Local" })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Sidebar (collapsed)" })).toBeTruthy();
+    useUiStore.setState({ sidebarOpen: true });
   });
 
   it("marks HEAD and shows ahead/behind badges", () => {

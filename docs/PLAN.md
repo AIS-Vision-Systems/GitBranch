@@ -198,10 +198,10 @@ header stays put while the file tree scrolls.
   (one sub-tree per remote, "Add remote…" header action), WORKTREES, PULL REQUESTS; branch rows with a check on
   HEAD and ↑↓ badges; click selects the commit, hover highlights it, double-click checks out, right-click opens the
   existing ref context menu.
-- [~] 9.6 Sidebar resize and collapse: draggable width (shared `Splitter`, persisted with the session); collapse
+- [x] 9.6 Sidebar resize and collapse: draggable width (shared `Splitter`, persisted with the session); collapse
   chevron in the panel's own top bar; collapsed state is a 36 px icon rail with one icon + count per section,
   clicking an icon expands and scrolls to that section.
-- [ ] 9.7 Docs: ARCHITECTURE (sidebar, details layout, co-authors, avatar source), CHANGELOG demo note.
+- [~] 9.7 Docs: ARCHITECTURE (sidebar, details layout, co-authors, avatar source), CHANGELOG demo note.
 
 Acceptance: four sections with counts and a working filter; drag to resize and collapse to the rail from the
 panel; double-click checks out; the details header never scrolls away while the file list does; a commit with

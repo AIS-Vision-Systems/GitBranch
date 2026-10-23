@@ -5,12 +5,27 @@ import styles from "./Splitter.module.css";
 const STEP = 16;
 
 interface Props {
-  /** Current width of the pane to the right of the handle. */
+  /** Current width of the pane the handle resizes. */
   width: number;
   onChange: (w: number) => void;
+  /** Which side of the handle the resized pane is on (default "right"). */
+  side?: "left" | "right";
+  label?: string;
+  min?: number;
+  max?: number;
+  defaultWidth?: number;
 }
 
-export function Splitter({ width, onChange }: Props) {
+export function Splitter({
+  width,
+  onChange,
+  side = "right",
+  label = "Resize details pane",
+  min = MIN_WIDTH,
+  max,
+  defaultWidth = DEFAULT_WIDTH,
+}: Props) {
+  const left = side === "left";
   const [dragging, setDragging] = useState(false);
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
@@ -19,7 +34,12 @@ export function Splitter({ width, onChange }: Props) {
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>): void => {
     if (!dragging) return;
-    onChange(window.innerWidth - e.clientX);
+    if (left) {
+      const origin = e.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
+      onChange(e.clientX - origin);
+    } else {
+      onChange(window.innerWidth - e.clientX);
+    }
   };
   const end = (e: PointerEvent<HTMLDivElement>): void => {
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
@@ -28,8 +48,10 @@ export function Splitter({ width, onChange }: Props) {
     setDragging(false);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === "ArrowLeft") onChange(width + STEP);
-    else if (e.key === "ArrowRight") onChange(width - STEP);
+    const grow = left ? "ArrowRight" : "ArrowLeft";
+    const shrink = left ? "ArrowLeft" : "ArrowRight";
+    if (e.key === grow) onChange(width + STEP);
+    else if (e.key === shrink) onChange(width - STEP);
     else return;
     e.preventDefault();
   };
@@ -38,17 +60,17 @@ export function Splitter({ width, onChange }: Props) {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize details pane"
+      aria-label={label}
       aria-valuenow={width}
-      aria-valuemin={MIN_WIDTH}
-      aria-valuemax={maxWidth()}
+      aria-valuemin={min}
+      aria-valuemax={max ?? maxWidth()}
       tabIndex={0}
       className={dragging ? `${styles["splitter"]} ${styles["active"]}` : styles["splitter"]}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={end}
       onPointerCancel={end}
-      onDoubleClick={() => onChange(DEFAULT_WIDTH)}
+      onDoubleClick={() => onChange(defaultWidth)}
       onKeyDown={onKeyDown}
     />
   );
