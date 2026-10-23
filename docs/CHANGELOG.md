@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- 2026-10-23: **Phase 9 demo.** (1) Sidebar with LOCAL 4 / REMOTE 3 / WORKTREES 1 on a fixture repo: `feature/`
+  folder, check on HEAD, `^1` badge on main; typing `two` in the filter narrows both trees and auto-expands
+  `feature` under `origin`. (2) Enter on `hotfix` checks it out (`git branch --show-current` = hotfix); the
+  collapse chevron leaves a 36 px rail with counts, the Remote icon reopens the sidebar on that section, and
+  dragging the edge persists the width (260 -> 353). (3) Selecting the co-authored commit shows the fixed
+  header: short id + Copy, parent at the right, bordered message without the trailer lines, 40 px avatar,
+  "authored 2026-10-23 11:13", chips "Ann Example" (initials) and "Octo Cat" (real GitHub photo via the noreply
+  email). Installer 3.03 MiB, exe 8.42 MiB; 428 cargo + 605 vitest tests.
 - 2026-10-23: Sidebar resize and collapse (item 9.6): drag the sidebar edge (width persisted, shared Splitter),
   collapse chevron in its top bar, collapsed state is a 36 px icon rail with a count per section; clicking a
   rail icon expands the sidebar and scrolls to that section.
