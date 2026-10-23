@@ -1,9 +1,11 @@
 import { fireEvent, render } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ref } from "../../ipc/types";
-import { chipItems } from "./chips";
 import type { RepoId } from "../../ipc/types";
 import { useOpsStore } from "../../state/ops";
+import { useRemotesStore } from "../../state/remotes";
+import { resetAvatarCache } from "../github/useAvatar";
 import { RefChip } from "./RefChip";
 
 const local = (name: string, over: Partial<Ref> = {}): Ref => ({
@@ -18,7 +20,7 @@ const local = (name: string, over: Partial<Ref> = {}): Ref => ({
 const remote = (name: string): Ref => ({
   name,
   fullName: `refs/remotes/${name}`,
-  kind: { remoteBranch: { remote: "origin" } },
+  kind: { remoteBranch: { remote: name.split("/")[0]! } },
   target: "c0",
   upstream: null,
   isHead: false,
@@ -26,7 +28,12 @@ const remote = (name: string): Ref => ({
 const up = { name: "origin/main", ahead: 0, behind: 0, gone: false };
 
 const checkout = vi.fn().mockResolvedValue(true);
+vi.mock("../../ipc/github", () => ({
+  githubAvatar: vi.fn((login: string) => Promise.resolve(`data:image/png;base64,${login}`)),
+}));
 beforeEach(() => {
+  resetAvatarCache();
+  useRemotesStore.setState({ byRepo: {} } as never);
   checkout.mockClear();
   useOpsStore.setState({ checkout } as never);
 });
@@ -82,7 +89,7 @@ describe("RefChip", () => {
   it("a remote chip dims the origin/ prefix", () => {
     const { container } = render(<RefChip gitRef={remote("origin/dev")} />);
     expect(container.querySelector('[data-icon="cloud"]')).not.toBeNull();
-    expect(container.textContent).toBe("origin/dev");
+    expect(container.textContent?.endsWith("origin/dev")).toBe(true);
   });
 
   it("a tag chip has the tag icon", () => {
@@ -96,20 +103,39 @@ describe("RefChip", () => {
   });
 });
 
-describe("chipItems", () => {
-  it("folds the upstream remote chip into the local chip and puts HEAD first", () => {
-    const items = chipItems([
-      remote("origin/main"),
-      local("dev"),
-      local("main", { isHead: true, upstream: up }),
-    ]);
-    expect(items.map((i) => i.gitRef.name)).toEqual(["main", "dev"]);
-    expect(items[0]!.withUpstream).toBe(true);
-    expect(items[1]!.withUpstream).toBe(false);
+describe("RefChip remote logos", () => {
+  const rid = "r1" as RepoId;
+  const rem = (name: string, owner: string) => ({
+    name,
+    fetchUrl: `https://github.com/${owner}/x.git`,
+    pushUrl: `https://github.com/${owner}/x.git`,
   });
 
-  it("keeps an unrelated remote chip", () => {
-    const items = chipItems([local("main", { upstream: up }), remote("origin/other")]);
-    expect(items.map((i) => i.gitRef.name)).toEqual(["main", "origin/other"]);
+  it("orders check, name, laptop, then one logo per remote with titles", async () => {
+    useRemotesStore.setState({
+      byRepo: { [rid]: [rem("origin", "alice"), rem("fork", "bob")] },
+    } as never);
+    const { container } = render(
+      <RefChip
+        repoId={rid}
+        gitRef={local("main", { isHead: true })}
+        remotes={["origin", "fork"]}
+      />,
+    );
+    await waitFor(() => expect(container.querySelectorAll("img")).toHaveLength(2));
+    const kids = Array.from(container.firstElementChild!.childNodes) as Element[];
+    expect(kids[0]!.getAttribute("data-icon")).toBe("check");
+    expect(kids[1]!.textContent).toBe("main");
+    expect(kids[2]!.getAttribute("data-icon")).toBe("laptop");
+    expect(kids.slice(3).map((k) => k.tagName)).toEqual(["IMG", "IMG"]);
+    expect(kids.slice(3).map((k) => k.getAttribute("title"))).toEqual(["origin", "fork"]);
+  });
+
+  it("falls back to a titled cloud icon without an avatar", () => {
+    const { container } = render(
+      <RefChip repoId={rid} gitRef={local("dev")} remotes={["origin"]} />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-icon="cloud"] title')?.textContent).toBe("origin");
   });
 });

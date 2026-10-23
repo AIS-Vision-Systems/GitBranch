@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_WIDTH, STORAGE_KEY, useDetailsWidth } from "./detailsWidth";
 import { Splitter } from "./Splitter";
+import { createWidthStore } from "./paneWidth";
 
 function Harness() {
   const [w, setW] = useDetailsWidth();
@@ -42,5 +43,55 @@ describe("Splitter", () => {
     expect(sep).toHaveAttribute("aria-valuenow", "600");
     fireEvent.doubleClick(sep);
     expect(sep).toHaveAttribute("aria-valuenow", String(DEFAULT_WIDTH));
+  });
+});
+
+describe("Splitter side=left", () => {
+  const store = createWidthStore({
+    key: "test.leftWidth",
+    defaultWidth: 260,
+    min: 180,
+    maxFraction: 0.45,
+  });
+  function LeftHarness() {
+    const [w, setW] = store.useWidth();
+    return (
+      <div>
+        <Splitter
+          side="left"
+          width={w}
+          onChange={setW}
+          label="Resize sidebar"
+          min={store.MIN}
+          defaultWidth={store.DEFAULT}
+        />
+      </div>
+    );
+  }
+
+  it("drags relative to the parent's left edge and persists", () => {
+    render(<LeftHarness />);
+    const sep = screen.getByRole("separator", { name: "Resize sidebar" });
+    sep.setPointerCapture = vi.fn();
+    sep.hasPointerCapture = vi.fn(() => false);
+    sep.parentElement!.getBoundingClientRect = () => ({ left: 10 }) as DOMRect;
+    fireEvent.pointerDown(sep, { pointerId: 1 });
+    fireEvent.pointerMove(sep, { pointerId: 1, clientX: 350 });
+    expect(sep).toHaveAttribute("aria-valuenow", "340");
+    expect(localStorage.getItem("test.leftWidth")).toBe("340");
+    fireEvent.pointerMove(sep, { pointerId: 1, clientX: 20 });
+    expect(sep).toHaveAttribute("aria-valuenow", "180");
+  });
+
+  it("ArrowRight grows, ArrowLeft shrinks, double-click resets", () => {
+    render(<LeftHarness />);
+    const sep = screen.getByRole("separator", { name: "Resize sidebar" });
+    fireEvent.keyDown(sep, { key: "ArrowRight" });
+    expect(sep).toHaveAttribute("aria-valuenow", "276");
+    fireEvent.keyDown(sep, { key: "ArrowLeft" });
+    fireEvent.keyDown(sep, { key: "ArrowLeft" });
+    expect(sep).toHaveAttribute("aria-valuenow", "244");
+    fireEvent.doubleClick(sep);
+    expect(sep).toHaveAttribute("aria-valuenow", "260");
   });
 });

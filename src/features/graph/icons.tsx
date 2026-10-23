@@ -20,9 +20,10 @@ export function LaptopIcon() {
   );
 }
 
-export function CloudIcon() {
+export function CloudIcon({ title }: { title?: string }) {
   return (
     <svg {...base} data-icon="cloud">
+      {title !== undefined && <title>{title}</title>}
       <path d="M4.5 12.5a3 3 0 0 1-.4-5.97A4 4 0 0 1 11.9 6.3 3.1 3.1 0 0 1 11.5 12.5z" />
     </svg>
   );

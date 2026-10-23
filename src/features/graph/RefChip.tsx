@@ -1,10 +1,18 @@
 import { memo, type DragEvent, type MouseEvent } from "react";
 import type { Ref, RepoId } from "../../ipc/types";
 import { useOpsStore } from "../../state/ops";
+import { useRemoteAvatar } from "../github/remoteAvatar";
 import { acceptDrag, endDrag, leaveDrag, startDrag, takeDrop } from "./dnd";
 import { CheckIcon, CloudIcon, LaptopIcon, TagIcon } from "./icons";
 import { remoteTrackingName } from "./menus";
 import styles from "./Graph.module.css";
+
+/** Round owner avatar of a remote (title = remote name); Cloud icon when there is none. */
+function RemoteLogo({ repoId, name }: { repoId: RepoId | undefined; name: string }) {
+  const src = useRemoteAvatar((repoId ?? "") as RepoId, name);
+  if (src === null || repoId === undefined) return <CloudIcon title={name} />;
+  return <img className={styles["chipLogo"]} src={src} alt="" title={name} draggable={false} />;
+}
 
 interface Props {
   gitRef: Ref;
@@ -14,7 +22,9 @@ interface Props {
   onContextMenu?: (e: MouseEvent, gitRef: Ref) => void;
   /** Stable callback: a local branch named `source` was dropped on this chip. */
   onBranchDrop?: (source: string, target: Ref) => void;
-  /** The branch's upstream chip was folded into this one: show the cloud icon. */
+  /** Remotes folded into this local chip (one logo each). */
+  remotes?: readonly string[];
+  /** Fallback when `remotes` is absent: the live upstream's remote gets a logo. */
   withUpstream?: boolean;
 }
 
@@ -23,6 +33,7 @@ export const RefChip = memo(function RefChip({
   repoId,
   onContextMenu,
   onBranchDrop,
+  remotes,
   withUpstream = false,
 }: Props) {
   const hl = styles["dropTarget"];
@@ -65,6 +76,9 @@ export const RefChip = memo(function RefChip({
     ];
     const ahead = upstream !== null && !upstream.gone ? upstream.ahead : 0;
     const behind = upstream !== null && !upstream.gone ? upstream.behind : 0;
+    const logoRemotes =
+      remotes ??
+      (withUpstream && upstream !== null ? [upstream.name.split("/")[0] ?? upstream.name] : []);
     return (
       <span
         className={cls.join(" ")}
@@ -80,9 +94,11 @@ export const RefChip = memo(function RefChip({
         }
       >
         {isHead && <CheckIcon />}
-        <LaptopIcon />
         {name}
-        {withUpstream && <CloudIcon />}
+        <LaptopIcon />
+        {logoRemotes.map((r) => (
+          <RemoteLogo key={r} repoId={repoId} name={r} />
+        ))}
         {(ahead > 0 || behind > 0) && (
           <span className={styles["sync"]}>
             {ahead > 0 && `↑${ahead}`}
@@ -104,7 +120,7 @@ export const RefChip = memo(function RefChip({
         onDoubleClick={onDouble}
         {...dropProps}
       >
-        <CloudIcon />
+        <RemoteLogo repoId={repoId} name={kind.remoteBranch.remote} />
         <span>
           <span className={styles["remotePrefix"]}>{label.slice(0, cut)}</span>
           {label.slice(cut)}

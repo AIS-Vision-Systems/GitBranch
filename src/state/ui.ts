@@ -62,6 +62,31 @@ function saveSidebarOpen(open: boolean): void {
   }
 }
 
+export const SIDEBAR_SECTIONS_KEY = "gitbranch.sidebarSections";
+
+/** Persisted open/closed state per sidebar section id (missing id = open). */
+export function loadSidebarSections(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_SECTIONS_KEY);
+    if (raw === null) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(parsed)) if (typeof v === "boolean") out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveSidebarSections(sections: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(SIDEBAR_SECTIONS_KEY, JSON.stringify(sections));
+  } catch {
+    /* ignore */
+  }
+}
+
 export interface BlameTarget {
   repoId: RepoId;
   path: string;
@@ -77,6 +102,14 @@ interface UiState {
   sidebarOpen: boolean;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  /** Open state per sidebar section id; absent = open. */
+  sidebarSections: Record<string, boolean>;
+  setSidebarSection: (id: string, open: boolean) => void;
+  toggleSidebarSection: (id: string) => void;
+  /** Section id the sidebar should scroll to once rendered (not persisted). */
+  pendingSidebarScroll: string | null;
+  requestSidebarScroll: (id: string) => void;
+  clearSidebarScroll: () => void;
   /** Whether the About dialog is requested (the dialog itself lands with item 8.2). */
   centerView: "graph" | "diff" | "blame";
   /** File shown by the blame view (`rev` undefined = working tree). */
@@ -106,6 +139,16 @@ export const useUiStore = create<UiState>((set, get) => ({
     saveSidebarOpen(open);
     set({ sidebarOpen: open });
   },
+  sidebarSections: loadSidebarSections(),
+  setSidebarSection: (id, open) => {
+    const next = { ...get().sidebarSections, [id]: open };
+    saveSidebarSections(next);
+    set({ sidebarSections: next });
+  },
+  toggleSidebarSection: (id) => get().setSidebarSection(id, get().sidebarSections[id] === false),
+  pendingSidebarScroll: null,
+  requestSidebarScroll: (id) => set({ pendingSidebarScroll: id }),
+  clearSidebarScroll: () => set({ pendingSidebarScroll: null }),
   centerView: "graph",
   blameTarget: null,
   showBlame: (repoId, path, rev) =>

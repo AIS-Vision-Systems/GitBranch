@@ -1,6 +1,7 @@
 import { Fragment, memo, useMemo, type MouseEvent } from "react";
 import { formatRelative } from "../../lib/time";
 import type { Commit, Ref, RepoId, Row } from "../../ipc/types";
+import { useAuthorAvatar } from "../github/useAuthorAvatar";
 import { avatarColor, initials } from "./avatar";
 import { chipItems } from "./chips";
 import { MAX_CHIPS } from "./constants";
@@ -75,6 +76,7 @@ export const GraphRow = memo(function GraphRow({
     expanded ? styles["expandedRow"] : "",
   ];
   const isMerge = commit.parents.length > 1;
+  const avatarUrl = useAuthorAvatar(commit.authorEmail, repoId);
   const items = useMemo(() => chipItems(refs), [refs]);
   const shown = expanded ? items : items.slice(0, MAX_CHIPS);
   const hidden = items.length - shown.length;
@@ -91,6 +93,7 @@ export const GraphRow = memo(function GraphRow({
           {...(repoId !== undefined ? { repoId } : {})}
           gitRef={r}
           withUpstream={it.withUpstream}
+          remotes={it.remotes}
           {...(onRefContextMenu !== undefined ? { onContextMenu: onRefContextMenu } : {})}
           {...(onRefDrop !== undefined ? { onBranchDrop: onRefDrop } : {})}
         />
@@ -147,6 +150,12 @@ export const GraphRow = memo(function GraphRow({
                 +{hidden}
               </button>
             )}
+            {!expanded && (
+              <span
+                className={`${styles["connector"]} ${styles[`lane${colorIndex(row.color)}`]}`}
+                aria-hidden
+              />
+            )}
           </span>
         )}
       </span>
@@ -158,7 +167,8 @@ export const GraphRow = memo(function GraphRow({
         isMerge={isMerge}
         initials={initials(commit.authorName)}
         avatarIdx={avatarColor(commit.authorEmail)}
-        hasRefs={items.length > 0}
+        connector={!expanded && (shown.length > 0 || worktrees.length > 0)}
+        avatarUrl={avatarUrl}
       />
       <span className={styles["messageCell"]}>
         <span className={`${styles["bar"]} ${styles[`lane${colorIndex(row.color)}`]}`} />

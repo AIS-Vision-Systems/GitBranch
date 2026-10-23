@@ -9,6 +9,8 @@ export interface MenuState<T> {
 export function useContextMenu<T>(): {
   menu: MenuState<T> | null;
   open: (e: MouseEvent, data: T) => void;
+  /** Open at explicit coordinates (keyboard invocation). */
+  openAt: (x: number, y: number, data: T) => void;
   close: () => void;
 } {
   const [menu, setMenu] = useState<MenuState<T> | null>(null);
@@ -16,6 +18,9 @@ export function useContextMenu<T>(): {
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, data });
   }, []);
+  const openAt = useCallback((x: number, y: number, data: T): void => {
+    setMenu({ x, y, data });
+  }, []);
   const close = useCallback((): void => setMenu(null), []);
-  return { menu, open, close };
+  return { menu, open, openAt, close };
 }

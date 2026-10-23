@@ -5,7 +5,10 @@ import { confirm } from "../../state/dialogs";
 import { useReposStore } from "../../state/repos";
 import { worktreesOf, useWorktreesStore } from "../../state/worktrees";
 import { openAddWorktree, openLockWorktree } from "../dialogs/open";
+import { BrushCleaning, FolderGit2, Plus } from "../../lib/icons";
 import { samePath } from "../../lib/paths";
+import { filterWorktrees, useWorktreeCount } from "./counts";
+import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
 function title(w: Worktree): string {
@@ -137,41 +140,53 @@ function WorktreeRow({
   );
 }
 
-export function WorktreesSection({ repoId }: { repoId: RepoId }) {
-  const list = useWorktreesStore((s) => worktreesOf(s, repoId));
+export function WorktreesSection({ repoId, query = "" }: { repoId: RepoId; query?: string }) {
+  const all = useWorktreesStore((s) => worktreesOf(s, repoId));
   const prune = useWorktreesStore((s) => s.prune);
   const currentPath = useReposStore(
     (s) => s.open.find((r) => r.repoId === s.currentId)?.path ?? null,
   );
-  const anyPrunable = list.some((w) => w.prunable);
+  const count = useWorktreeCount(repoId, query);
+  const anyPrunable = all.some((w) => w.prunable);
+  const q = query.trim().toLowerCase();
+  const list = filterWorktrees(all, q);
 
   return (
-    <section className={styles["section"]} aria-label="Worktrees">
-      <header className={styles["sectionHeader"]}>
-        <h3 className={styles["sectionTitle"]}>
-          Worktrees <span className={styles["count"]}>({list.length})</span>
-        </h3>
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          onClick={() => openAddWorktree(repoId)}
-        >
-          Add…
-        </button>
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          disabled={!anyPrunable}
-          onClick={() => void prune(repoId)}
-        >
-          Prune
-        </button>
-      </header>
+    <SidebarSection
+      id="worktrees"
+      icon={<FolderGit2 size={14} />}
+      title="Worktrees"
+      count={count}
+      actions={
+        <>
+          <button
+            type="button"
+            className={styles["headerAction"]}
+            aria-label="Add worktree…"
+            title="Add worktree… (Ctrl+Shift+W)"
+            onClick={() => openAddWorktree(repoId)}
+          >
+            <Plus size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={styles["headerAction"]}
+            aria-label="Prune"
+            title="Prune worktrees whose folder is gone"
+            disabled={!anyPrunable}
+            onClick={() => void prune(repoId)}
+          >
+            <BrushCleaning size={14} aria-hidden />
+          </button>
+        </>
+      }
+    >
+      {list.length === 0 && q !== "" && <div className={styles["sectionNote"]}>No matches</div>}
       <div role="list" aria-label="Worktrees">
         {list.map((w) => (
           <WorktreeRow key={w.path} repoId={repoId} w={w} currentPath={currentPath} />
         ))}
       </div>
-    </section>
+    </SidebarSection>
   );
 }

@@ -182,6 +182,7 @@ pub fn run() {
             commands::remote::add_remote,
             commands::remote::remove_remote,
             commands::remote::rename_remote,
+            commands::remote::set_remote_url,
             commands::remote::fetch,
             commands::remote::pull,
             commands::remote::push,

@@ -80,7 +80,7 @@ export const Item = memo(function Item({
         aria-current={selected ? "true" : undefined}
         style={
           depth !== undefined
-            ? { paddingLeft: `calc(var(--space-3) + ${depth} * var(--space-3))` }
+            ? { paddingLeft: `calc(var(--space-2) + ${depth} * 10px)` }
             : undefined
         }
         title={item.origPath !== null ? `${item.origPath} → ${item.path}` : item.path}

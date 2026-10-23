@@ -138,6 +138,15 @@ describe("GraphView", () => {
       fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
       expect(screen.queryByText("d")).toBeNull();
     });
+
+    it("draws the connector inline but not in the expanded overlay", () => {
+      const { container } = render(<GraphView repoId={id} />);
+      expect(container.querySelectorAll("[class*='connector']").length).toBe(1);
+      expect(container.querySelector("line[data-connector]")).not.toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "+2" }));
+      expect(container.querySelectorAll("span[class*='connector']").length).toBe(0);
+      expect(container.querySelector("line[data-connector]")).toBeNull();
+    });
   });
 
   describe("branch drag and drop", () => {

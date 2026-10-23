@@ -12,6 +12,7 @@ export const DIALOG = {
   pull: "remote.pull",
   push: "remote.push",
   remotes: "remote.list",
+  editRemote: "remote.edit",
   clone: "repo.clone",
   addWorktree: "worktree.add",
   lockWorktree: "worktree.lock",

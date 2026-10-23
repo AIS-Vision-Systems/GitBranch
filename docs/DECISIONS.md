@@ -324,3 +324,28 @@ header: the token never goes to the CDN) and cached by the app as `<cache_dir>/a
 days; the command returns a `data:` URL or `None` on any failure, never an error toast. Logins are validated
 (`[A-Za-z0-9-]`) before they touch a path.
 Consequences: the webview never fetches from GitHub itself; offline, a cached avatar still shows.
+
+## D-035 · accepted · 2026-10-23 — Author photos only for known GitHub authors; co-author trailers leave the body
+Context: Phase 9 wants GitKraken-style avatars in the details pane, but D-023 keeps avatars offline because
+resolving an arbitrary author email through a third party leaks the email.
+Decision: (1) The frontend maps an author email to a GitHub login only when it needs no lookup:
+`<id>+<login>@users.noreply.github.com` / `<login>@users.noreply.github.com`, or the signed-in account's own
+email (`loginForAuthor`, pure). Only then is the photo requested through the existing backend command
+(`github_avatar(login)`, D-034 cache + one-hour negative cache). Everyone else keeps the initials badge, and the
+graph nodes stay initials for all authors (no per-row network). Gravatar stays out. (2) `commit_details` asks
+git for `%(trailers:key=Co-authored-by,valueonly,unfold)` and strips those lines from the body itself, following
+git's trailer rules (last paragraph only, no indented keys, optional space before `:`, folded continuations,
+CRLF preserved) and never more lines than git parsed, so prose that merely mentions `Co-authored-by:` survives.
+Consequences: no author email ever leaves the machine; `coAuthors` is a separate field on `CommitDetails`;
+git >= 2.22 is needed for `%(trailers:...)`, already implied by `MIN_GIT_VERSION` 2.31.
+
+## D-036 · accepted · 2026-10-23 — Known-author photos also in the graph; the git identity counts as "me"
+Context: after the Phase 9 review the owner wants the GitHub photo on graph nodes too, and their commits carry the
+git identity email (`user.email`), which differs from the (private) GitHub account email.
+Decision: amends D-023 (4) and D-035 (1). The effective `user.email` of the open repository (`git_identity`,
+loaded once per repo into `state/identity.ts`) maps to the signed-in login like the account email does; the
+resolution stays lookup-free, so the only network calls are one `github_avatar(login)` per distinct known login
+(cached in the session and on disk). Graph nodes render the photo when it resolves and the initials otherwise.
+Remote chips and sidebar remote rows show the GitHub owner's avatar parsed from the fetch URL (`githubOwner`),
+validated against GitHub login rules before it reaches the backend.
+Consequences: still no author email leaves the machine; unknown authors stay initials everywhere.

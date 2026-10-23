@@ -121,6 +121,27 @@ pub async fn rename_remote(
     Ok(())
 }
 
+/// Sets the URL of remote `name`. `push` sets the push URL only (`--push`); otherwise the fetch
+/// URL (git also uses it for push until a push URL is set).
+///
+/// # Errors
+/// [`GitError`] if the remote does not exist.
+pub async fn set_remote_url(
+    runner: &GitRunner,
+    repo: &Path,
+    name: &str,
+    url: &str,
+    push: bool,
+) -> Result<(), GitError> {
+    let mut args = vec!["remote", "set-url"];
+    if push {
+        args.push("--push");
+    }
+    args.extend(["--", name, url]);
+    runner.run(repo, &args, RunOpts::default()).await?;
+    Ok(())
+}
+
 /// What to fetch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

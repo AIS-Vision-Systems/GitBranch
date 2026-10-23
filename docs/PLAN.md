@@ -184,24 +184,24 @@ the ribbon or its overflow; Terminal opens at the work tree on Windows; installe
 Goal: a GitKraken-style left sidebar (LOCAL / REMOTE / WORKTREES / PULL REQUESTS) and a details pane whose
 header stays put while the file tree scrolls.
 
-- [ ] 9.1 Co-authors in git-core: `Co-authored-by:` trailers parsed from `git show` (`%(trailers:...)`), exposed
+- [x] 9.1 Co-authors in git-core: `Co-authored-by:` trailers parsed from `git show` (`%(trailers:...)`), exposed
   as `coAuthors` on the commit details, stripped from the displayed body. Needs git >= 2.22 (version probe note).
-- [ ] 9.2 Author avatars (amends D-023): GitHub photo for known authors only (the signed-in user's commits and
+- [x] 9.2 Author avatars (amends D-023): GitHub photo for known authors only (the signed-in user's commits and
   `@users.noreply.github.com` emails → login → `github.com/<login>.png`, backend fetch + disk cache, negative
   cache); initials for everyone else; graph nodes stay initials.
-- [ ] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
+- [x] 9.3 Details pane layout: fixed header (oid + Copy; message in a bordered box with its own scroll, max 40 %
   of the pane; 40 px avatar, name, "authored <date>", parents at the right; "Co-authors:" avatar chips; summary +
   Path/Tree toggle + Expand all); the file tree below scrolls independently, rows ~22 px, 10 px indent per level.
-- [ ] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
+- [x] 9.4 Branch tree model (pure TS): folders by `/`, folders first, case-insensitive filter with auto-expand;
   remotes grouped per remote.
-- [ ] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
+- [x] 9.5 Sidebar UI: filter box; collapsible sections with lucide icon, uppercase title and count: LOCAL, REMOTE
   (one sub-tree per remote, "Add remote…" header action), WORKTREES, PULL REQUESTS; branch rows with a check on
   HEAD and ↑↓ badges; click selects the commit, hover highlights it, double-click checks out, right-click opens the
   existing ref context menu.
-- [ ] 9.6 Sidebar resize and collapse: draggable width (shared `Splitter`, persisted with the session); collapse
+- [x] 9.6 Sidebar resize and collapse: draggable width (shared `Splitter`, persisted with the session); collapse
   chevron in the panel's own top bar; collapsed state is a 36 px icon rail with one icon + count per section,
   clicking an icon expands and scrolls to that section.
-- [ ] 9.7 Docs: ARCHITECTURE (sidebar, details layout, co-authors, avatar source), CHANGELOG demo note.
+- [x] 9.7 Docs: ARCHITECTURE (sidebar, details layout, co-authors, avatar source), CHANGELOG demo note.
 
 Acceptance: four sections with counts and a working filter; drag to resize and collapse to the rail from the
 panel; double-click checks out; the details header never scrolls away while the file list does; a commit with

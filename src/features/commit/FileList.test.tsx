@@ -89,6 +89,7 @@ describe("item mapping", () => {
       committerTime: 0,
       subject: "",
       body: "",
+      coAuthors: [],
       files: [{ path: "n", origPath: "o", kind: "renamed", similarity: 90 }],
     });
     expect(rows[0]?.target).toEqual({ kind: "commit", oid: "abc", path: "n" });

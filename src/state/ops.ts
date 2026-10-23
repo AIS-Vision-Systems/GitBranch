@@ -141,6 +141,7 @@ interface OpsState {
   addRemote: (repoId: RepoId, name: string, url: string) => Promise<boolean>;
   removeRemote: (repoId: RepoId, name: string) => Promise<boolean>;
   renameRemote: (repoId: RepoId, old: string, name: string) => Promise<boolean>;
+  setRemoteUrl: (repoId: RepoId, name: string, url: string, push: boolean) => Promise<boolean>;
 }
 
 export const AUTH_REQUIRED_TITLE =
@@ -403,6 +404,14 @@ export const useOpsStore = create<OpsState>((set, get) => {
 
     renameRemote: async (repoId, old, name) => {
       const ok = await run("Rename remote failed", () => remoteIpc.renameRemote(repoId, old, name));
+      if (ok) reloadRemotes(repoId);
+      return ok;
+    },
+
+    setRemoteUrl: async (repoId, name, url, push) => {
+      const ok = await run("Update remote URL failed", () =>
+        remoteIpc.setRemoteUrl(repoId, name, url, push),
+      );
       if (ok) reloadRemotes(repoId);
       return ok;
     },

@@ -1,6 +1,40 @@
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { Row } from "../../ipc/types";
 import { lanePaths } from "./lanePaths";
+import { LaneStrip } from "./LaneStrip";
+
+describe("LaneStrip node", () => {
+  const base: Row = { oid: "x", lane: 1, color: 2, hasIncoming: true, edges: [] };
+  it("draws a clipped photo instead of initials when avatarUrl is set", () => {
+    const { container } = render(
+      <LaneStrip
+        row={base}
+        lanes={2}
+        isHead={false}
+        initials="AB"
+        avatarUrl="data:image/png;base64,AA"
+      />,
+    );
+    const img = container.querySelector("image");
+    expect(img?.getAttribute("href")).toBe("data:image/png;base64,AA");
+    expect(img?.getAttribute("clip-path")).toMatch(/^url\(#avclip-/);
+    expect(container.querySelector("clipPath circle")).not.toBeNull();
+    expect(container.querySelector("text")).toBeNull();
+  });
+  it("shows initials without a photo", () => {
+    const { container } = render(<LaneStrip row={base} lanes={2} isHead={false} initials="AB" />);
+    expect(container.querySelector("image")).toBeNull();
+    expect(container.querySelector("text")?.textContent).toBe("AB");
+  });
+  it("draws the connector line only when asked", () => {
+    const on = render(<LaneStrip row={base} lanes={2} isHead={false} connector />);
+    expect(on.container.querySelector("line[data-connector]")?.getAttribute("x1")).toBe("0");
+    on.unmount();
+    const off = render(<LaneStrip row={base} lanes={2} isHead={false} />);
+    expect(off.container.querySelector("line[data-connector]")).toBeNull();
+  });
+});
 
 const r = (over: Partial<Row>): Row => ({
   oid: "x",

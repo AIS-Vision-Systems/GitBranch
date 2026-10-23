@@ -18,12 +18,84 @@
   color: var(--color-fg-muted);
 }
 
+.topFixed {
+  overflow: hidden;
+  container-type: size;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .header {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   gap: var(--space-2);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-3) 0;
+}
+
+.files {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.idRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.parents {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.messageBox {
+  max-height: 40cqh;
+  overflow: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+}
+
+.authorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.authorInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.coAuthors {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2) 1px 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.85em;
 }
 
 .subject {
@@ -41,16 +113,7 @@
   font-size: 12px;
 }
 
-.person,
-.ids {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .role {
-  width: 70px;
   flex: none;
   color: var(--color-fg-muted);
   font-size: 0.85em;
@@ -102,7 +165,9 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-1) var(--space-3);
+  min-height: 22px;
+  line-height: 22px;
+  padding: 0 var(--space-2);
   border: 0;
   background: transparent;
   color: var(--color-fg);
@@ -448,14 +513,13 @@
 .fileHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background: var(--color-bg-elevated);
+  padding: var(--space-1) 0;
   border-bottom: 1px solid var(--color-border);
 }
 
 .summaryText {
+  flex: 1;
   color: var(--color-fg-muted);
   font-size: 0.85em;
 }

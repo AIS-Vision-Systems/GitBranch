@@ -24,6 +24,7 @@ function details(oid: string): CommitDetails {
     committerTime: 0,
     subject: oid,
     body: "",
+    coAuthors: [],
     files: [],
   };
 }

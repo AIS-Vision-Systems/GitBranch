@@ -179,6 +179,41 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   `innerHTML`. English only (D-030).
 - Icons: `lucide-react`, named re-exports from `lib/icons.ts` only; deep imports are an eslint error (D-032).
 
+## Side panels
+
+- Sidebar (`features/sidebar/`): `Sidebar` = top bar (filter `<input type=search>`, collapse chevron) + a
+  scrolling body of four `SidebarSection`s (lucide icon, uppercase title, count, header actions; open state in
+  `useUiStore.sidebarSections`, persisted under `gitbranch.sidebarSections`, root `data-section=<id>`). LOCAL and
+  REMOTE render `BranchTree` (`BranchTreeView.tsx`) from the pure model in `branchTree.ts` (`buildTree`: folders
+  by `/`, folders first, case-insensitive; `groupByRemote` strips `<remote>/`; `filterTree` returns the pruned
+  nodes plus the folder paths to auto-expand). REMOTE is one `role=tree` whose level-1 rows are the remotes
+  (`remotesOf` adds empty ones), with "Add remote…" opening the Remotes dialog. Rows: HEAD check, `↑n ↓n` /
+  `gone` badges from `upstream`; click `select(target)`, hover `setHover` (cleared on unmount), double-click or
+  Enter = the ref menu's own Checkout item (`refActions.ts`), right-click / Shift+F10 = `refMenu`; roving
+  tabindex with arrow keys. The filter also narrows WORKTREES (branch, path) and PULL REQUESTS (`#n title`); the
+  counts come from `counts.ts` hooks shared with the rail.
+- Sidebar width and rail: `shell/paneWidth.ts` (`createWidthStore`) backs both `detailsWidth.ts` (480 / 320 /
+  70 %, `gitbranch.detailsWidth`) and `sidebar/sidebarWidth.ts` (260 / 180 / 45 %, `gitbranch.sidebarWidth`); the
+  shared `Splitter` takes `side: "left" | "right"`. When `sidebarOpen` is false `Sidebar` renders `SidebarRail`
+  (36 px, expand chevron, one icon + count per section); clicking an icon opens the sidebar and that section and
+  sets `pendingSidebarScroll`, which `Sidebar` consumes with `scrollIntoView` after render. `Ctrl+B` toggles.
+- Details pane (`features/commit/CommitDetails.tsx`): a flex column whose header never scrolls — short id + Copy
+  with the parent buttons at the right, the message in a bordered box with its own scroll (`max-height: 40cqh`,
+  the pane's `.top` is a size container for the commit view only), a 40 px author avatar with "authored <date>"
+  (and "committed by …" when the committer differs), "Co-authors:" chips, then summary + Path/Tree + Expand all.
+  Only `div.files` below scrolls; rows are 22 px with a 10 px indent per level, shared with the working-tree pane.
+- Co-authors (D-035): `commit_details` asks `git show` for `%(trailers:key=Co-authored-by,valueonly,unfold)` as
+  a separate `%x1f` field (body stays last) and `strip_co_author_lines` removes at most that many matching lines
+  from the last paragraph of the body, following git's trailer rules (no indented keys, optional space before
+  `:`, folded continuations dropped, CRLF kept). `CommitDetails.coAuthors: CoAuthor[]` crosses IPC unchanged.
+- Author avatars (D-023, D-034, D-035): `features/github/authorLogin.ts` maps an email to a login without any
+  lookup (noreply addresses, the signed-in account's email); `useAuthorAvatar(email)` → `useAvatar(login)` →
+  `github_avatar(login)` (backend download, disk cache, one-hour negative cache). `features/github/Avatar.tsx`
+  renders the photo or the initials badge (`graph/avatar.ts` colours). The repo's effective `user.email`
+  (`state/identity.ts`, one `git_identity` call per repo) also maps to the signed-in login (D-036), and graph
+  nodes show the photo when it resolves (`LaneStrip` clip-path image), initials otherwise. Remote chips and
+  sidebar remote rows show the remote owner's avatar (`github/remoteAvatar.ts`: `githubOwner(url)` → `useAvatar`).
+
 ## IPC contract
 
 - One Rust command = one TypeScript wrapper in `src/ipc/<area>.ts` with identical names and a shared type file

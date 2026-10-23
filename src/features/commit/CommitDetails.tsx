@@ -1,6 +1,7 @@
 import type { CommitDetails as Details } from "../../ipc/commit";
 import type { RepoId } from "../../ipc/types";
 import { formatAbsolute } from "../../lib/time";
+import { Avatar } from "../github/Avatar";
 import { reportError, useUiStore } from "../../state/ui";
 import { countStatuses, statusOf, summaryText } from "../../lib/fileTree";
 import { useMemo } from "react";
@@ -12,27 +13,8 @@ import styles from "./Commit.module.css";
 
 export const SHORT_OID = 7;
 
-function Person({
-  role,
-  name,
-  email,
-  time,
-}: {
-  role: string;
-  name: string;
-  email: string;
-  time: number;
-}) {
-  return (
-    <div className={styles["person"]}>
-      <span className={styles["role"]}>{role}</span>
-      <span className={styles["name"]} title={email}>
-        {name}
-      </span>
-      <span className={styles["date"]}>{formatAbsolute(time)}</span>
-    </div>
-  );
-}
+/** Stable reference: a commit's tree starts fully collapsed. */
+const EMPTY: ReadonlySet<string> = new Set<string>();
 
 async function copyOid(oid: string): Promise<void> {
   try {
@@ -62,7 +44,7 @@ export function CommitDetails({
 }: CommitDetailsProps) {
   const { onItemMenu, menu } = useFileMenu(repoId);
   const [tree, chooseTree] = useTreeMode();
-  const [expanded, setExpanded] = useExpanded();
+  const [expanded, setExpanded] = useExpanded(`${repoId}:${d.oid}`, EMPTY);
   const summary = useMemo(() => summaryText(countStatuses(files, statusOf)), [files]);
   const sameAsAuthor =
     d.committerName === d.authorName &&
@@ -71,19 +53,7 @@ export function CommitDetails({
   return (
     <div className={styles["details"]}>
       <header className={styles["header"]}>
-        <h2 className={styles["subject"]}>{d.subject}</h2>
-        {d.body !== "" && <pre className={styles["body"]}>{d.body}</pre>}
-        <Person role="Author" name={d.authorName} email={d.authorEmail} time={d.authorTime} />
-        {!sameAsAuthor && (
-          <Person
-            role="Committer"
-            name={d.committerName}
-            email={d.committerEmail}
-            time={d.committerTime}
-          />
-        )}
-        <div className={styles["ids"]}>
-          <span className={styles["role"]}>Commit</span>
+        <div className={styles["idRow"]}>
           <code className={styles["oid"]} title={d.oid}>
             {d.oid.slice(0, SHORT_OID)}
           </code>
@@ -95,47 +65,82 @@ export function CommitDetails({
           >
             Copy
           </button>
+          {d.parents.length > 0 && (
+            <div className={styles["parents"]}>
+              <span className={styles["role"]}>{d.parents.length > 1 ? "Parents" : "Parent"}</span>
+              {d.parents.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={styles["parent"]}
+                  title={p}
+                  onClick={() => onSelectParent(p)}
+                >
+                  {p.slice(0, SHORT_OID)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {d.parents.length > 0 && (
-          <div className={styles["ids"]}>
-            <span className={styles["role"]}>{d.parents.length > 1 ? "Parents" : "Parent"}</span>
-            {d.parents.map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={styles["parent"]}
-                title={p}
-                onClick={() => onSelectParent(p)}
+        <div className={styles["messageBox"]}>
+          <h2 className={styles["subject"]}>{d.subject}</h2>
+          {d.body !== "" && <pre className={styles["body"]}>{d.body}</pre>}
+        </div>
+        <div className={styles["authorRow"]}>
+          <Avatar name={d.authorName} email={d.authorEmail} size={40} repoId={repoId} />
+          <div className={styles["authorInfo"]}>
+            <span className={styles["name"]} title={d.authorEmail}>
+              {d.authorName}
+            </span>
+            <span className={styles["date"]}>authored {formatAbsolute(d.authorTime)}</span>
+            {!sameAsAuthor && (
+              <span className={styles["date"]} title={d.committerEmail}>
+                committed by {d.committerName} {formatAbsolute(d.committerTime)}
+              </span>
+            )}
+          </div>
+        </div>
+        {d.coAuthors.length > 0 && (
+          <div className={styles["coAuthors"]}>
+            <span className={styles["role"]}>Co-authors:</span>
+            {d.coAuthors.map((c) => (
+              <span
+                key={`${c.name}<${c.email}>`}
+                className={styles["chip"]}
+                title={`${c.name} <${c.email}>`}
               >
-                {p.slice(0, SHORT_OID)}
-              </button>
+                <Avatar name={c.name} email={c.email} size={18} repoId={repoId} />
+                {c.name}
+              </span>
             ))}
           </div>
         )}
+        <div className={styles["fileHeader"]}>
+          <span className={styles["summaryText"]}>{summary}</span>
+          <TreeModeToggle tree={tree} onChange={chooseTree} />
+          {tree && files.length > 0 && <ExpandLink expanded={expanded} onChange={setExpanded} />}
+        </div>
       </header>
-      <TreeModeToggle tree={tree} onChange={chooseTree} />
-      <div className={styles["fileHeader"]}>
-        <span className={styles["summaryText"]}>{summary}</span>
-        {tree && files.length > 0 && <ExpandLink expanded={expanded} onChange={setExpanded} />}
+      <div className={styles["files"]}>
+        {tree && files.length > 0 ? (
+          <FileTree
+            files={files}
+            selectedKey={selectedKey}
+            onSelect={onSelectFile}
+            onItemMenu={onItemMenu}
+            ariaLabel="Changed files"
+            expanded={expanded}
+            onExpandedChange={setExpanded}
+          />
+        ) : (
+          <FileList
+            files={files}
+            selectedKey={selectedKey}
+            onSelect={onSelectFile}
+            onItemMenu={onItemMenu}
+          />
+        )}
       </div>
-      {tree && files.length > 0 ? (
-        <FileTree
-          files={files}
-          selectedKey={selectedKey}
-          onSelect={onSelectFile}
-          onItemMenu={onItemMenu}
-          ariaLabel="Changed files"
-          expanded={expanded}
-          onExpandedChange={setExpanded}
-        />
-      ) : (
-        <FileList
-          files={files}
-          selectedKey={selectedKey}
-          onSelect={onSelectFile}
-          onItemMenu={onItemMenu}
-        />
-      )}
       {menu}
     </div>
   );

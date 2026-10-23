@@ -134,9 +134,9 @@ export function WipPane({ repoId, items, selectedKey, onSelect }: WipPaneProps) 
 
   const { onItemMenu, menu: fileMenu } = useFileMenu(repoId);
   const [tree, chooseTree] = useTreeMode();
-  const [expConflicts, setExpConflicts] = useExpanded();
-  const [expStaged, setExpStaged] = useExpanded();
-  const [expUnstaged, setExpUnstaged] = useExpanded();
+  const [expConflicts, setExpConflicts] = useExpanded(`${repoId}:wip:conflicts`, "all");
+  const [expStaged, setExpStaged] = useExpanded(`${repoId}:wip:staged`, "all");
+  const [expUnstaged, setExpUnstaged] = useExpanded(`${repoId}:wip:unstaged`, "all");
   const treeLink = (
     list: FileListItem[],
     expanded: Expanded,

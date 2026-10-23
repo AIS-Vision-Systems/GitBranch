@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- 2026-10-23: Graph polish: branch chips read check, name, laptop, then one logo per remote holding the branch
+  (GitHub owner avatar), left-aligned with a line joining the chip to its commit node; commit nodes show the
+  author's GitHub photo when the author is known, now including commits made with the repo's own git
+  identity email (D-036).
+- 2026-10-23: Sidebar polish from the Phase 9 review: branches and folders sorted together alphabetically, a
+  branch / folder icon on every row, the GitHub owner avatar on remote rows, and a remote context menu
+  (Edit remote dialog with name, pull and push URLs; copy link; remove). Right-click no longer shows the
+  webview menu; the commit file tree starts collapsed and remembers what you expand per commit.
+- 2026-10-23: **Phase 9 demo.** (1) Sidebar with LOCAL 4 / REMOTE 3 / WORKTREES 1 on a fixture repo: `feature/`
+  folder, check on HEAD, `^1` badge on main; typing `two` in the filter narrows both trees and auto-expands
+  `feature` under `origin`. (2) Enter on `hotfix` checks it out (`git branch --show-current` = hotfix); the
+  collapse chevron leaves a 36 px rail with counts, the Remote icon reopens the sidebar on that section, and
+  dragging the edge persists the width (260 -> 353). (3) Selecting the co-authored commit shows the fixed
+  header: short id + Copy, parent at the right, bordered message without the trailer lines, 40 px avatar,
+  "authored 2026-10-23 11:13", chips "Ann Example" (initials) and "Octo Cat" (real GitHub photo via the noreply
+  email). Installer 3.03 MiB, exe 8.43 MiB; 429 cargo + 656 vitest tests.
+- 2026-10-23: Sidebar resize and collapse (item 9.6): drag the sidebar edge (width persisted, shared Splitter),
+  collapse chevron in its top bar, collapsed state is a 36 px icon rail with a count per section; clicking a
+  rail icon expands the sidebar and scrolls to that section.
+- 2026-10-23: Sidebar (items 9.4-9.5): filter box; collapsible LOCAL / REMOTE (one tree per remote, "Add remote..."
+  action) / WORKTREES / PULL REQUESTS sections with icon, uppercase title and count; branches as folders by `/`
+  with a check on HEAD and ahead/behind badges; click selects the commit, hover highlights it, double-click or
+  Enter checks out, right-click or Shift+F10 opens the ref menu; arrow keys walk the tree.
+- 2026-10-22: Commit details (items 9.1-9.3): fixed header (short id + Copy, parents at the right, message in a
+  bordered box with its own scroll capped at 40 % of the pane, 40 px avatar, "authored <date>", summary + Path/Tree
+  + Expand all) above a file list that scrolls on its own (22 px rows, 10 px indent). `Co-authored-by:` trailers
+  become avatar chips and leave the body. Known GitHub authors (noreply emails, the signed-in account) get their
+  GitHub photo, cached by the backend; everyone else keeps initials.
 - 2026-10-22: **Phase 8 demo.** (1) The top row is only tabs (repo/worktree icons, close on hover, `+`) plus Help,
   Settings and the account avatar. (2) The ribbon under it: repository › branch dropdowns, Undo / Redo (checkout
   `feat` → Undo → `main` → Redo → `feat`, verified with git), Fetch caret menu, Push, Branch, Stash, Pop, Terminal

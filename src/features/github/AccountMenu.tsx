@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { GITHUB_REVOKE_URL } from "../../ipc/github";
 import { gitIdentity, setGitIdentity, type ConfigScope, type Identity } from "../../ipc/identity";
 import type { RepoId } from "../../ipc/types";
+import { useIdentityStore } from "../../state/identity";
 import { useAvatar } from "./useAvatar";
 import { CircleUser } from "../../lib/icons";
 import { useNow } from "../../lib/useNow";
@@ -87,6 +88,7 @@ function SignatureSection({ repoId }: { repoId: RepoId }) {
     try {
       await setGitIdentity(repoId, scope, name.trim(), email.trim());
       setEditing(false);
+      void useIdentityStore.getState().load(repoId, true);
       await load();
     } catch (e) {
       reportError(e, "Could not save the commit identity");

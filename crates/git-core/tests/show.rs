@@ -103,3 +103,35 @@ async fn unknown_oid_errors() {
     let repo = FixtureRepo::linear(1);
     assert!(commit_details(&repo.runner(), repo.path(), "deadbeef").await.is_err());
 }
+
+#[tokio::test]
+async fn co_authors_parsed_and_stripped() {
+    let repo = FixtureRepo::linear(1);
+    let plain = commit_details(&repo.runner(), repo.path(), &repo.rev_parse("HEAD")).await.unwrap();
+    assert!(plain.co_authors.is_empty());
+    repo.git(&[
+        "commit",
+        "--allow-empty",
+        "-m",
+        "Subject\n\nBody text\n\nCo-authored-by: Ann <ann@example.com>\nCo-authored-by: Bob Builder <bob@example.com>",
+    ]);
+    let d = commit_details(&repo.runner(), repo.path(), &repo.rev_parse("HEAD")).await.unwrap();
+    let got: Vec<_> = d.co_authors.iter().map(|c| (c.name.as_str(), c.email.as_str())).collect();
+    assert_eq!(got, [("Ann", "ann@example.com"), ("Bob Builder", "bob@example.com")]);
+    assert_eq!(d.body, "Body text");
+}
+#[tokio::test]
+async fn co_authors_crlf_and_lowercase_key() {
+    let repo = FixtureRepo::linear(1);
+    repo.git(&[
+        "commit",
+        "--allow-empty",
+        "--cleanup=verbatim",
+        "-m",
+        "Subject\r\n\r\nBody text\r\n\r\nco-authored-by: Cy <cy@example.com>\r\n",
+    ]);
+    let d = commit_details(&repo.runner(), repo.path(), &repo.rev_parse("HEAD")).await.unwrap();
+    let got: Vec<_> = d.co_authors.iter().map(|c| (c.name.as_str(), c.email.as_str())).collect();
+    assert_eq!(got, [("Cy", "cy@example.com")]);
+    assert_eq!(d.body, "Body text");
+}

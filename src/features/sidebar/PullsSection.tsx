@@ -5,8 +5,11 @@ import type { RepoId } from "../../ipc/types";
 import { useGithubStore } from "../../state/github";
 import { pullsOf, usePullsStore } from "../../state/pulls";
 import type { PullFilter } from "../../state/pulls";
+import { GitPullRequest } from "../../lib/icons";
 import { GithubNotice } from "../github/GithubNotice";
 import { openCreatePull, openGithubLogin } from "../dialogs/open";
+import { filterPulls, usePullCount } from "./counts";
+import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
 const FILTERS: { id: PullFilter; label: string }[] = [
@@ -81,11 +84,11 @@ function PullRow({
   );
 }
 
-export function PullsSection({ repoId }: { repoId: RepoId }) {
+export function PullsSection({ repoId, query = "" }: { repoId: RepoId; query?: string }) {
   const account = useGithubStore((s) => s.account);
   const slug = usePullsStore((s) => pullsOf(s, repoId).slug);
   const filter = usePullsStore((s) => pullsOf(s, repoId).filter);
-  const pulls = usePullsStore((s) => pullsOf(s, repoId).pulls);
+  const allPulls = usePullsStore((s) => pullsOf(s, repoId).pulls);
   const loaded = usePullsStore((s) => pullsOf(s, repoId).loaded);
   const loading = usePullsStore((s) => pullsOf(s, repoId).loading);
   const error = usePullsStore((s) => pullsOf(s, repoId).error);
@@ -98,6 +101,9 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
   const select = usePullsStore((s) => s.select);
   const refresh = usePullsStore((s) => s.refresh);
 
+  const q = query.trim().toLowerCase();
+  const pulls = filterPulls(allPulls, q);
+  const count = usePullCount(repoId, query);
   const login = account?.user.login;
   const signedIn = account !== null && account !== undefined;
 
@@ -138,8 +144,10 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
     );
   } else if (loading && !loaded) {
     body = <div className={styles["sectionNote"]}>Loading…</div>;
-  } else if (loaded && pulls.length === 0) {
+  } else if (loaded && allPulls.length === 0) {
     body = <div className={styles["sectionNote"]}>{EMPTY_TEXT[filter]}</div>;
+  } else if (loaded && pulls.length === 0 && q !== "") {
+    body = <div className={styles["sectionNote"]}>No matches</div>;
   } else {
     body = (
       <div role="list" aria-label="Pull requests">
@@ -157,31 +165,37 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
   }
 
   return (
-    <section className={styles["section"]} aria-label="Pull requests">
-      <header className={styles["sectionHeader"]}>
-        <h3 className={styles["sectionTitle"]}>Pull requests</h3>
-        {signedIn && (
+    <SidebarSection
+      id="pulls"
+      icon={<GitPullRequest size={14} />}
+      title="Pull requests"
+      count={count}
+      actions={
+        <>
+          {signedIn && (
+            <button
+              type="button"
+              className={styles["headerAction"]}
+              aria-label="New pull request"
+              title="New pull request"
+              onClick={() => openCreatePull(repoId)}
+            >
+              +
+            </button>
+          )}
           <button
             type="button"
             className={styles["headerAction"]}
-            aria-label="New pull request"
-            title="New pull request"
-            onClick={() => openCreatePull(repoId)}
+            aria-label="Refresh pull requests"
+            title="Refresh"
+            disabled={!signedIn || loading}
+            onClick={() => void refresh(repoId)}
           >
-            +
+            ↻
           </button>
-        )}
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          aria-label="Refresh pull requests"
-          title="Refresh"
-          disabled={!signedIn || loading}
-          onClick={() => void refresh(repoId)}
-        >
-          ↻
-        </button>
-      </header>
+        </>
+      }
+    >
       {signedIn && (
         <div className={styles["segmented"]} role="group" aria-label="Filter">
           {FILTERS.map((f) => (
@@ -198,6 +212,6 @@ export function PullsSection({ repoId }: { repoId: RepoId }) {
         </div>
       )}
       {body}
-    </section>
+    </SidebarSection>
   );
 }
