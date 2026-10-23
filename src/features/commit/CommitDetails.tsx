@@ -87,7 +87,7 @@ export function CommitDetails({
           {d.body !== "" && <pre className={styles["body"]}>{d.body}</pre>}
         </div>
         <div className={styles["authorRow"]}>
-          <Avatar name={d.authorName} email={d.authorEmail} size={40} />
+          <Avatar name={d.authorName} email={d.authorEmail} size={40} repoId={repoId} />
           <div className={styles["authorInfo"]}>
             <span className={styles["name"]} title={d.authorEmail}>
               {d.authorName}
@@ -109,7 +109,7 @@ export function CommitDetails({
                 className={styles["chip"]}
                 title={`${c.name} <${c.email}>`}
               >
-                <Avatar name={c.name} email={c.email} size={18} />
+                <Avatar name={c.name} email={c.email} size={18} repoId={repoId} />
                 {c.name}
               </span>
             ))}

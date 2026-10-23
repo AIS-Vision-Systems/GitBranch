@@ -125,7 +125,8 @@ describe("AccountMenu", () => {
       expect(setGitIdentity).toHaveBeenCalledWith("r1", "global", "New Name", "new@example.test"),
     );
     await waitFor(() => expect(screen.queryByRole("button", { name: "Save" })).toBeNull());
-    expect(gitIdentity).toHaveBeenCalledTimes(2);
+    // Panel load, identity store refresh, panel reload.
+    expect(gitIdentity).toHaveBeenCalledTimes(3);
   });
 
   it("saves locally when This repository is chosen", async () => {

@@ -17,6 +17,7 @@ import { onOpProgress } from "./ipc/progress";
 import { useProgressStore } from "./state/progress";
 import { ProgressBar } from "./features/shell/ProgressBar";
 import { useGraphStore } from "./state/graph";
+import { useIdentityStore } from "./state/identity";
 import { useDetailsWidth } from "./features/shell/detailsWidth";
 import { Splitter } from "./features/shell/Splitter";
 import { DialogHost } from "./features/shell/DialogHost";
@@ -54,6 +55,10 @@ export default function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const currentId = current?.repoId ?? null;
+
+  useEffect(() => {
+    if (currentId !== null) void useIdentityStore.getState().load(currentId);
+  }, [currentId]);
 
   useEffect(() => {
     let cancelled = false;

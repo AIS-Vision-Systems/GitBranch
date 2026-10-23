@@ -338,3 +338,14 @@ git's trailer rules (last paragraph only, no indented keys, optional space befor
 CRLF preserved) and never more lines than git parsed, so prose that merely mentions `Co-authored-by:` survives.
 Consequences: no author email ever leaves the machine; `coAuthors` is a separate field on `CommitDetails`;
 git >= 2.22 is needed for `%(trailers:...)`, already implied by `MIN_GIT_VERSION` 2.31.
+
+## D-036 · accepted · 2026-10-23 — Known-author photos also in the graph; the git identity counts as "me"
+Context: after the Phase 9 review the owner wants the GitHub photo on graph nodes too, and their commits carry the
+git identity email (`user.email`), which differs from the (private) GitHub account email.
+Decision: amends D-023 (4) and D-035 (1). The effective `user.email` of the open repository (`git_identity`,
+loaded once per repo into `state/identity.ts`) maps to the signed-in login like the account email does; the
+resolution stays lookup-free, so the only network calls are one `github_avatar(login)` per distinct known login
+(cached in the session and on disk). Graph nodes render the photo when it resolves and the initials otherwise.
+Remote chips and sidebar remote rows show the GitHub owner's avatar parsed from the fetch URL (`githubOwner`),
+validated against GitHub login rules before it reaches the backend.
+Consequences: still no author email leaves the machine; unknown authors stay initials everywhere.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-23: Graph polish: branch chips read check, name, laptop, then one logo per remote holding the branch
+  (GitHub owner avatar), left-aligned with a line joining the chip to its commit node; commit nodes show the
+  author's GitHub photo when the author is known, now including commits made with the repo's own git
+  identity email (D-036).
 - 2026-10-23: Sidebar polish from the Phase 9 review: branches and folders sorted together alphabetically, a
   branch / folder icon on every row, the GitHub owner avatar on remote rows, and a remote context menu
   (Edit remote dialog with name, pull and push URLs; copy link; remove). Right-click no longer shows the

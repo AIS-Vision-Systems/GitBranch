@@ -1,9 +1,20 @@
+import type { RepoId } from "../../ipc/types";
 import { avatarColor, initials } from "../graph/avatar";
 import styles from "./Avatar.module.css";
 import { useAuthorAvatar } from "./useAuthorAvatar";
 
-export function Avatar({ name, email, size }: { name: string; email: string; size: number }) {
-  const url = useAuthorAvatar(email);
+export function Avatar({
+  name,
+  email,
+  size,
+  repoId,
+}: {
+  name: string;
+  email: string;
+  size: number;
+  repoId?: RepoId;
+}) {
+  const url = useAuthorAvatar(email, repoId);
   const title = `${name} <${email}>`;
   if (url !== null) {
     return (

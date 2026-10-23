@@ -7,11 +7,10 @@ import { useOpsStore } from "../../state/ops";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
 import { reportError, useUiStore } from "../../state/ui";
 import { openEditRemote, openRemotes } from "../dialogs/open";
-import { useAvatar } from "../github/useAvatar";
+import { useRemoteAvatar } from "../github/remoteAvatar";
 import type { MenuItem } from "../shell/ContextMenu";
 import { BranchTree } from "./BranchTreeView";
 import { buildRemoteModel, useRemoteCount } from "./counts";
-import { githubOwner } from "./remoteOwner";
 import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
@@ -50,9 +49,8 @@ function remoteMenu(repoId: RepoId, remote: Remote): MenuItem[] {
   ];
 }
 
-function RemoteIcon({ url }: { url: string | undefined }) {
-  const owner = url === undefined ? null : githubOwner(url);
-  const src = useAvatar(owner);
+function RemoteIcon({ repoId, name }: { repoId: RepoId; name: string }) {
+  const src = useRemoteAvatar(repoId, name);
   if (src === null) {
     return <Cloud size={14} aria-hidden data-icon="remote" className={styles["treeFolder"]} />;
   }
@@ -96,7 +94,7 @@ export function RemoteSection({ repoId, query = "" }: { repoId: RepoId; query?: 
           nodes={nodes}
           expand={expand}
           folderIcon={(f, level) =>
-            level === 1 ? <RemoteIcon url={remoteByName.get(f.name)?.fetchUrl} /> : undefined
+            level === 1 ? <RemoteIcon repoId={repoId} name={f.name} /> : undefined
           }
           folderMenu={(f, level) => {
             const remote = level === 1 ? remoteByName.get(f.name) : undefined;

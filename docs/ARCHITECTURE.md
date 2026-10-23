@@ -209,7 +209,10 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 - Author avatars (D-023, D-034, D-035): `features/github/authorLogin.ts` maps an email to a login without any
   lookup (noreply addresses, the signed-in account's email); `useAuthorAvatar(email)` → `useAvatar(login)` →
   `github_avatar(login)` (backend download, disk cache, one-hour negative cache). `features/github/Avatar.tsx`
-  renders the photo or the initials badge (`graph/avatar.ts` colours). Graph nodes stay initials for everyone.
+  renders the photo or the initials badge (`graph/avatar.ts` colours). The repo's effective `user.email`
+  (`state/identity.ts`, one `git_identity` call per repo) also maps to the signed-in login (D-036), and graph
+  nodes show the photo when it resolves (`LaneStrip` clip-path image), initials otherwise. Remote chips and
+  sidebar remote rows show the remote owner's avatar (`github/remoteAvatar.ts`: `githubOwner(url)` → `useAvatar`).
 
 ## IPC contract
 
