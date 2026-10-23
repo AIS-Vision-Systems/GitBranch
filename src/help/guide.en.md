@@ -47,7 +47,7 @@ A banner appears while a merge, rebase, cherry-pick or revert is paused on confl
 
 ## Worktrees and GitHub
 
-The sidebar (`Ctrl+B`) lists local and remote branches, tags, stashes, **worktrees** (add with `Ctrl+Shift+W`, remove, lock, unlock, prune) and, for GitHub repositories, **pull requests** (open, closed, mine; checkout; open in browser; create from the current branch).
+The sidebar (`Ctrl+B`) has four collapsible sections with a filter box on top: **Local** and **Remote** branches as folders (a check marks the current branch, the arrows show ahead/behind; click selects the commit, double-click or `Enter` checks out, right-click opens the branch menu, "+" on Remote adds a remote), **worktrees** (add with `Ctrl+Shift+W`, remove, lock, unlock, prune) and, for GitHub repositories, **pull requests** (open, closed, mine; checkout; open in browser; create from the current branch). Drag its edge to resize it; the chevron in its top bar collapses it to an icon rail, and clicking a rail icon jumps back to that section.
 
 **Sign in** from the account button: GitHub shows a one-time code, the token goes to the operating-system keyring and never leaves the machine except to GitHub. The account panel shows the signature used for your commits (name and email, editable globally or for the current repository), the granted scopes and the API budget. Sign out removes the local token; Revoke opens the GitHub page that invalidates it.
 
