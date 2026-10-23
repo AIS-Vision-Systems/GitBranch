@@ -40,7 +40,7 @@ function flatten(
   return out;
 }
 
-const pad = (level: number): string => `calc(var(--space-3) + ${(level - 1) * INDENT}px)`;
+const pad = (level: number): string => `calc(var(--section-indent) + ${(level - 1) * INDENT}px)`;
 
 function Leaf({
   repoId,

@@ -10,8 +10,15 @@
 }
 
 .section {
+  /* Content left edge: under the section icon (padding + chevron 14px + gap). */
+  --section-indent: calc(var(--space-3) + 14px + var(--space-1));
+
   display: flex;
   flex-direction: column;
+}
+
+.section + .section {
+  margin-top: var(--space-2);
 }
 
 .sidebarBody {
@@ -50,12 +57,15 @@
 
 .sectionBody {
   min-width: 0;
+  padding-bottom: var(--space-3);
 }
 
 .sectionHeader {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  box-sizing: border-box;
+  height: 32px;
   padding-right: var(--space-2);
   border-bottom: 1px solid var(--color-border);
 }
@@ -130,7 +140,7 @@
   gap: var(--space-1);
   width: 100%;
   height: 24px;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-3) 0 var(--section-indent);
   background: transparent;
   color: var(--color-fg);
   border: 0;
@@ -207,7 +217,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--section-indent);
   cursor: pointer;
 }
 
@@ -289,7 +299,7 @@
 .segmented {
   display: flex;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--section-indent);
 }
 
 .segment {
@@ -335,7 +345,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--section-indent);
   color: var(--color-fg-muted);
   font-size: 0.8rem;
 }
