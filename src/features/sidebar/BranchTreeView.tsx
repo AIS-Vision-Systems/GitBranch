@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import type { KeyboardEvent, MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { Ref, RepoId } from "../../ipc/types";
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, Folder } from "../../lib/icons";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  GitBranch,
+} from "../../lib/icons";
 import { useGraphStore } from "../../state/graph";
-import { ContextMenu } from "../shell/ContextMenu";
+import { ContextMenu, type MenuItem } from "../shell/ContextMenu";
 import { useContextMenu } from "../shell/useContextMenu";
 import type { BranchFolder, BranchLeaf, BranchNode } from "./branchTree";
 import { checkoutRef, menuItemsFor } from "./refActions";
@@ -97,6 +105,7 @@ function Leaf({
       <span className={styles["treeLead"]} aria-hidden="true">
         {ref.isHead && <Check size={14} data-testid="head-check" />}
       </span>
+      <GitBranch size={14} aria-hidden data-icon="branch" className={styles["treeFolder"]} />
       <span className={`${styles["treeName"]} ${ref.isHead ? styles["treeNameHead"] : ""}`}>
         {leaf.name}
       </span>
@@ -121,14 +130,18 @@ function FolderRow({
   folder,
   row,
   tabIndex,
+  icon,
   onToggle,
   onActive,
+  onMenu,
 }: {
   folder: BranchFolder;
   row: FlatRow;
   tabIndex: number;
+  icon?: ReactNode;
   onToggle: (path: string) => void;
   onActive: (key: string) => void;
+  onMenu?: (e: MouseEvent, folder: BranchFolder) => void;
 }) {
   return (
     <div
@@ -144,11 +157,12 @@ function FolderRow({
         onToggle(folder.path);
       }}
       onFocus={() => onActive(row.key)}
+      onContextMenu={onMenu === undefined ? undefined : (e) => onMenu(e, folder)}
     >
       <span className={styles["treeLead"]} aria-hidden="true">
         {row.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </span>
-      <Folder size={14} aria-hidden className={styles["treeFolder"]} />
+      {icon ?? <Folder size={14} aria-hidden data-icon="folder" className={styles["treeFolder"]} />}
       <span className={styles["treeName"]}>{folder.name}</span>
     </div>
   );
@@ -159,12 +173,24 @@ interface TreeProps {
   nodes: BranchNode[];
   /** Folder paths forced open (filter matches). */
   expand?: ReadonlySet<string>;
+  /** Replaces the folder icon of a row (e.g. a remote's avatar). */
+  folderIcon?: (folder: BranchFolder, level: number) => ReactNode;
+  /** Context menu of a folder row; `null`/absent = no menu. */
+  folderMenu?: (folder: BranchFolder, level: number) => MenuItem[] | null;
 }
 
-export function BranchTree({ repoId, nodes, expand = NO_EXPAND }: TreeProps) {
+type MenuTarget = { kind: "ref"; ref: Ref } | { kind: "folder"; items: MenuItem[] };
+
+export function BranchTree({
+  repoId,
+  nodes,
+  expand = NO_EXPAND,
+  folderIcon,
+  folderMenu,
+}: TreeProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const ctxMenu = useContextMenu<Ref>();
+  const ctxMenu = useContextMenu<MenuTarget>();
   const treeRef = useRef<HTMLDivElement>(null);
 
   const isOpen = (path: string): boolean => open.has(path) || expand.has(path);
@@ -230,17 +256,28 @@ export function BranchTree({ repoId, nodes, expand = NO_EXPAND }: TreeProps) {
     } else if (node.kind === "leaf" && e.key === " ") {
       stop();
       useGraphStore.getState().select(node.ref.target);
-    } else if (
-      node.kind === "leaf" &&
-      (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))
-    ) {
-      stop();
+    } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
       const r = el.getBoundingClientRect();
-      ctxMenu.openAt(r.left + 24, r.bottom, node.ref);
+      if (node.kind === "leaf") {
+        stop();
+        ctxMenu.openAt(r.left + 24, r.bottom, { kind: "ref", ref: node.ref });
+      } else {
+        const folderItems = folderMenu?.(node, row.level);
+        if (folderItems) {
+          stop();
+          ctxMenu.openAt(r.left + 24, r.bottom, { kind: "folder", items: folderItems });
+        }
+      }
     }
   };
 
-  const items = ctxMenu.menu === null ? null : menuItemsFor(repoId, ctxMenu.menu.data);
+  const target = ctxMenu.menu?.data;
+  const items =
+    target === undefined
+      ? null
+      : target.kind === "ref"
+        ? menuItemsFor(repoId, target.ref)
+        : target.items;
   return (
     <div ref={treeRef} role="tree" aria-label="Branches" onKeyDown={onKeyDown}>
       {flat.map((row) => {
@@ -253,7 +290,7 @@ export function BranchTree({ repoId, nodes, expand = NO_EXPAND }: TreeProps) {
             level={row.level}
             rowKey={row.key}
             tabIndex={tabIndex}
-            onMenu={ctxMenu.open}
+            onMenu={(e, ref) => ctxMenu.open(e, { kind: "ref", ref })}
             onActive={setActiveKey}
           />
         ) : (
@@ -262,8 +299,13 @@ export function BranchTree({ repoId, nodes, expand = NO_EXPAND }: TreeProps) {
             folder={row.node}
             row={row}
             tabIndex={tabIndex}
+            icon={folderIcon?.(row.node, row.level)}
             onToggle={toggle}
             onActive={setActiveKey}
+            onMenu={(e, folder) => {
+              const folderItems = folderMenu?.(folder, row.level);
+              if (folderItems) ctxMenu.open(e, { kind: "folder", items: folderItems });
+            }}
           />
         );
       })}

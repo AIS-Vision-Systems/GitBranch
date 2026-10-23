@@ -23,7 +23,7 @@ const remote = (name: string): Ref => ref(name, { remoteBranch: { remote: name.s
 const names = (nodes: BranchNode[]): string[] => nodes.map((n) => `${n.kind[0]}:${n.name}`);
 
 describe("buildTree", () => {
-  it("puts folders first, sorted case-insensitively", () => {
+  it("sorts folders and leaves together, case-insensitively", () => {
     const tree = buildTree([
       ref("zeta"),
       ref("Alpha"),
@@ -31,7 +31,17 @@ describe("buildTree", () => {
       ref("bugfix/y"),
       ref("beta"),
     ]);
-    expect(names(tree)).toEqual(["f:bugfix", "f:feature", "l:Alpha", "l:beta", "l:zeta"]);
+    expect(names(tree)).toEqual(["l:Alpha", "l:beta", "f:bugfix", "f:feature", "l:zeta"]);
+  });
+
+  it("interleaves a folder between leaves", () => {
+    expect(names(buildTree([ref("phase/1"), ref("main")]))).toEqual(["l:main", "f:phase"]);
+    expect(names(buildTree([ref("project"), ref("main"), ref("feature/x"), ref("feat")]))).toEqual([
+      "l:feat",
+      "f:feature",
+      "l:main",
+      "l:project",
+    ]);
   });
 
   it("nests folders and sets name/path", () => {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-23: Sidebar polish from the Phase 9 review: branches and folders sorted together alphabetically, a
+  branch / folder icon on every row, the GitHub owner avatar on remote rows, and a remote context menu
+  (Edit remote dialog with name, pull and push URLs; copy link; remove). Right-click no longer shows the
+  webview menu; the commit file tree starts collapsed and remembers what you expand per commit.
 - 2026-10-23: **Phase 9 demo.** (1) Sidebar with LOCAL 4 / REMOTE 3 / WORKTREES 1 on a fixture repo: `feature/`
   folder, check on HEAD, `^1` badge on main; typing `two` in the filter narrows both trees and auto-expands
   `feature` under `origin`. (2) Enter on `hotfix` checks it out (`git branch --show-current` = hotfix); the

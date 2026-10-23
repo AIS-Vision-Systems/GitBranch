@@ -41,15 +41,13 @@ const collator = new Intl.Collator(undefined, { sensitivity: "base" });
 const byName = (a: BranchNode, b: BranchNode): number => collator.compare(a.name, b.name);
 
 function sortNodes(nodes: BranchNode[]): BranchNode[] {
-  const folders = nodes.filter((n) => n.kind === "folder").sort(byName);
-  const leaves = nodes.filter((n) => n.kind === "leaf").sort(byName);
-  for (const f of folders) {
-    if (f.kind === "folder") f.children = sortNodes(f.children);
+  for (const n of nodes) {
+    if (n.kind === "folder") n.children = sortNodes(n.children);
   }
-  return [...folders, ...leaves];
+  return nodes.sort(byName);
 }
 
-/** Builds a folder tree by `/`; folders first, then leaves, each sorted case-insensitively. */
+/** Builds a folder tree by `/`; folders and leaves interleaved, sorted case-insensitively. */
 export function buildTree(refs: Ref[]): BranchNode[] {
   const root: BranchNode[] = [];
   const folders = new Map<string, BranchFolder>();

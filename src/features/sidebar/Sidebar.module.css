@@ -426,3 +426,11 @@
   text-align: center;
   pointer-events: none;
 }
+
+.remoteAvatar {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-1);
+  object-fit: cover;
+}

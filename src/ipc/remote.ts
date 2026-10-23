@@ -56,6 +56,15 @@ export function renameRemote(repoId: RepoId, old: string, name: string): Promise
   return call<void>("rename_remote", { repoId, old, new: name });
 }
 
+export function setRemoteUrl(
+  repoId: RepoId,
+  name: string,
+  url: string,
+  push: boolean,
+): Promise<void> {
+  return call<void>("set_remote_url", { repoId, name, url, push });
+}
+
 export function fetch(repoId: RepoId, args: FetchArgs, opId: string): Promise<void> {
   return call<void>("fetch", { repoId, args, opId });
 }

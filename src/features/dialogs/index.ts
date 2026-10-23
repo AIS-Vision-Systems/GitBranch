@@ -16,6 +16,7 @@ import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
 import { PullDialog, type PullDialogProps } from "./PullDialog";
 import { PushDialog, type PushDialogProps } from "./PushDialog";
 import { RebaseDialog, type RebaseDialogProps } from "./RebaseDialog";
+import { EditRemoteDialog, type EditRemoteDialogProps } from "./EditRemoteDialog";
 import { RemotesDialog, type RemotesDialogProps } from "./RemotesDialog";
 import { RenameBranchDialog, type RenameBranchDialogProps } from "./RenameBranchDialog";
 import { ResetDialog, type ResetDialogProps } from "./ResetDialog";
@@ -84,6 +85,12 @@ export function registerPhase2Dialogs(): void {
   );
   registerDialog(DIALOG.remotes, (p, onClose) =>
     createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.editRemote, (p, onClose) =>
+    createElement(EditRemoteDialog, {
+      ...(p as unknown as Props<EditRemoteDialogProps>),
+      onClose,
+    }),
   );
   registerDialog(DIALOG.addWorktree, (p, onClose) =>
     createElement(AddWorktreeDialog, {
