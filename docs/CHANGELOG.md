@@ -4,7 +4,7 @@
 
 - 2026-10-22: Commit details (items 9.1-9.3): fixed header (short id + Copy, parents at the right, message in a
   bordered box with its own scroll capped at 40 % of the pane, 40 px avatar, "authored <date>", summary + Path/Tree
-  + Expand all) above a file list that scrolls on its own (22 px rows, 10 px indent).  trailers
+  + Expand all) above a file list that scrolls on its own (22 px rows, 10 px indent). `Co-authored-by:` trailers
   become avatar chips and leave the body. Known GitHub authors (noreply emails, the signed-in account) get their
   GitHub photo, cached by the backend; everyone else keeps initials.
 - 2026-10-22: **Phase 8 demo.** (1) The top row is only tabs (repo/worktree icons, close on hover, `+`) plus Help,
