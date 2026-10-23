@@ -19,8 +19,7 @@ function ref(name: string, kind: RefKind = "localBranch"): Ref {
     isHead: false,
   };
 }
-const remote = (name: string): Ref =>
-  ref(name, { remoteBranch: { remote: name.split("/")[0]! } });
+const remote = (name: string): Ref => ref(name, { remoteBranch: { remote: name.split("/")[0]! } });
 const names = (nodes: BranchNode[]): string[] => nodes.map((n) => `${n.kind[0]}:${n.name}`);
 
 describe("buildTree", () => {

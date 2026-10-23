@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-23: Sidebar (items 9.4-9.5): filter box; collapsible LOCAL / REMOTE (one tree per remote, "Add remote..."
+  action) / WORKTREES / PULL REQUESTS sections with icon, uppercase title and count; branches as folders by `/`
+  with a check on HEAD and ahead/behind badges; click selects the commit, hover highlights it, double-click or
+  Enter checks out, right-click or Shift+F10 opens the ref menu; arrow keys walk the tree.
 - 2026-10-22: Commit details (items 9.1-9.3): fixed header (short id + Copy, parents at the right, message in a
   bordered box with its own scroll capped at 40 % of the pane, 40 px avatar, "authored <date>", summary + Path/Tree
   + Expand all) above a file list that scrolls on its own (22 px rows, 10 px indent). `Co-authored-by:` trailers

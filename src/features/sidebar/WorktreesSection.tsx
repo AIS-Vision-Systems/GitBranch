@@ -5,7 +5,9 @@ import { confirm } from "../../state/dialogs";
 import { useReposStore } from "../../state/repos";
 import { worktreesOf, useWorktreesStore } from "../../state/worktrees";
 import { openAddWorktree, openLockWorktree } from "../dialogs/open";
+import { FolderGit2 } from "../../lib/icons";
 import { samePath } from "../../lib/paths";
+import { SidebarSection } from "./SidebarSection";
 import styles from "./Sidebar.module.css";
 
 function title(w: Worktree): string {
@@ -137,41 +139,51 @@ function WorktreeRow({
   );
 }
 
-export function WorktreesSection({ repoId }: { repoId: RepoId }) {
-  const list = useWorktreesStore((s) => worktreesOf(s, repoId));
+export function WorktreesSection({ repoId, query = "" }: { repoId: RepoId; query?: string }) {
+  const all = useWorktreesStore((s) => worktreesOf(s, repoId));
   const prune = useWorktreesStore((s) => s.prune);
   const currentPath = useReposStore(
     (s) => s.open.find((r) => r.repoId === s.currentId)?.path ?? null,
   );
-  const anyPrunable = list.some((w) => w.prunable);
+  const anyPrunable = all.some((w) => w.prunable);
+  const q = query.trim().toLowerCase();
+  const list =
+    q === ""
+      ? all
+      : all.filter((w) => [w.branch ?? "", w.path].join("\n").toLowerCase().includes(q));
 
   return (
-    <section className={styles["section"]} aria-label="Worktrees">
-      <header className={styles["sectionHeader"]}>
-        <h3 className={styles["sectionTitle"]}>
-          Worktrees <span className={styles["count"]}>({list.length})</span>
-        </h3>
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          onClick={() => openAddWorktree(repoId)}
-        >
-          Add…
-        </button>
-        <button
-          type="button"
-          className={styles["headerAction"]}
-          disabled={!anyPrunable}
-          onClick={() => void prune(repoId)}
-        >
-          Prune
-        </button>
-      </header>
+    <SidebarSection
+      id="worktrees"
+      icon={<FolderGit2 size={14} />}
+      title="Worktrees"
+      count={list.length}
+      actions={
+        <>
+          <button
+            type="button"
+            className={styles["headerAction"]}
+            onClick={() => openAddWorktree(repoId)}
+          >
+            Add…
+          </button>
+          <button
+            type="button"
+            className={styles["headerAction"]}
+            disabled={!anyPrunable}
+            onClick={() => void prune(repoId)}
+          >
+            Prune
+          </button>
+        </>
+      }
+    >
+      {list.length === 0 && q !== "" && <div className={styles["sectionNote"]}>No matches</div>}
       <div role="list" aria-label="Worktrees">
         {list.map((w) => (
           <WorktreeRow key={w.path} repoId={repoId} w={w} currentPath={currentPath} />
         ))}
       </div>
-    </section>
+    </SidebarSection>
   );
 }

@@ -2,6 +2,9 @@
 // Named re-exports keep the bundle tree-shaken and give the app one place to see which icons it uses.
 export {
   Archive,
+  ArrowDown,
+  ArrowUp,
+  Check,
   ArchiveRestore,
   ChevronDown,
   ChevronRight,
@@ -10,10 +13,12 @@ export {
   Cloud,
   Download,
   Ellipsis,
+  Folder,
   FolderGit2,
   GitBranch,
   GitBranchPlus,
   GitFork,
+  GitPullRequest,
   Plus,
   Redo2,
   Search,

@@ -11,7 +11,6 @@ export function loginForAuthor(
   const m = NOREPLY.exec(e);
   if (m) return m[1]!;
   if (account === null) return null;
-  const same = (other: string | null | undefined): boolean =>
-    other?.trim().toLowerCase() === e;
+  const same = (other: string | null | undefined): boolean => other?.trim().toLowerCase() === e;
   return same(account.email) || same(identityEmail) ? account.login : null;
 }
