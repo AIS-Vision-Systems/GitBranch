@@ -22,6 +22,7 @@ import { useCommitFormStore } from "../../state/commitForm";
 import { useDialogsStore } from "../../state/dialogs";
 import { EMPTY_GRAPH, useGraphStore } from "../../state/graph";
 import { useOpsStore } from "../../state/ops";
+import { useTreeExpansionStore } from "../../state/treeExpansion";
 import { wipItems } from "./items";
 import { WipPane } from "./WipPane";
 
@@ -54,6 +55,7 @@ beforeEach(() => {
   useCommitFormStore.getState().reset();
   useDialogsStore.getState().close();
   useGraphStore.setState({ byRepo: {} });
+  useTreeExpansionStore.getState().reset();
 });
 
 describe("WipPane", () => {

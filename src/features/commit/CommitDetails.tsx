@@ -13,6 +13,9 @@ import styles from "./Commit.module.css";
 
 export const SHORT_OID = 7;
 
+/** Stable reference: a commit's tree starts fully collapsed. */
+const EMPTY: ReadonlySet<string> = new Set<string>();
+
 async function copyOid(oid: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(oid);
@@ -41,7 +44,7 @@ export function CommitDetails({
 }: CommitDetailsProps) {
   const { onItemMenu, menu } = useFileMenu(repoId);
   const [tree, chooseTree] = useTreeMode();
-  const [expanded, setExpanded] = useExpanded();
+  const [expanded, setExpanded] = useExpanded(`${repoId}:${d.oid}`, EMPTY);
   const summary = useMemo(() => summaryText(countStatuses(files, statusOf)), [files]);
   const sameAsAuthor =
     d.committerName === d.authorName &&

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useTreeExpansionStore, type Expanded } from "../../state/treeExpansion";
 
 export const FILE_TREE_KEY = "gitbranch.fileTree";
 const OLD_TREE_KEY = "gitbranch.wipTree";
@@ -31,9 +32,12 @@ export function useTreeMode(): [boolean, (v: boolean) => void] {
   return [tree, choose];
 }
 
-export type Expanded = ReadonlySet<string> | "all";
+export type { Expanded };
 
-/** Expanded-folder state for one tree; every folder starts expanded. */
-export function useExpanded(): [Expanded, (e: Expanded) => void] {
-  return useState<Expanded>("all");
+/** Expanded-folder state for the tree `key`, remembered for the session; `initial` until first change. */
+export function useExpanded(key: string, initial: Expanded): [Expanded, (e: Expanded) => void] {
+  const value = useTreeExpansionStore((s) => s.byKey[key]) ?? initial;
+  const setStore = useTreeExpansionStore((s) => s.set);
+  const setValue = useCallback((e: Expanded) => setStore(key, e), [setStore, key]);
+  return [value, setValue];
 }
