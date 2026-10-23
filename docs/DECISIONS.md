@@ -324,3 +324,17 @@ header: the token never goes to the CDN) and cached by the app as `<cache_dir>/a
 days; the command returns a `data:` URL or `None` on any failure, never an error toast. Logins are validated
 (`[A-Za-z0-9-]`) before they touch a path.
 Consequences: the webview never fetches from GitHub itself; offline, a cached avatar still shows.
+
+## D-035 · accepted · 2026-10-23 — Author photos only for known GitHub authors; co-author trailers leave the body
+Context: Phase 9 wants GitKraken-style avatars in the details pane, but D-023 keeps avatars offline because
+resolving an arbitrary author email through a third party leaks the email.
+Decision: (1) The frontend maps an author email to a GitHub login only when it needs no lookup:
+`<id>+<login>@users.noreply.github.com` / `<login>@users.noreply.github.com`, or the signed-in account's own
+email (`loginForAuthor`, pure). Only then is the photo requested through the existing backend command
+(`github_avatar(login)`, D-034 cache + one-hour negative cache). Everyone else keeps the initials badge, and the
+graph nodes stay initials for all authors (no per-row network). Gravatar stays out. (2) `commit_details` asks
+git for `%(trailers:key=Co-authored-by,valueonly,unfold)` and strips those lines from the body itself, following
+git's trailer rules (last paragraph only, no indented keys, optional space before `:`, folded continuations,
+CRLF preserved) and never more lines than git parsed, so prose that merely mentions `Co-authored-by:` survives.
+Consequences: no author email ever leaves the machine; `coAuthors` is a separate field on `CommitDetails`;
+git >= 2.22 is needed for `%(trailers:...)`, already implied by `MIN_GIT_VERSION` 2.31.
