@@ -163,7 +163,9 @@ impl GitError {
 
 /// Replaces the user-info part of every `scheme://user:secret@host` in `text` with `***`.
 ///
-/// Remote URLs may carry tokens; they must never reach logs or the UI.
+/// Remote URLs may carry tokens (also in the user position, e.g. `https://ghp_x@host`); they must
+/// never reach logs or the UI. The bare user `git` (SSH convention, `ssh://git@host/...`) is kept:
+/// it is never a secret, and the UI shows and copies these URLs.
 pub fn redact_credentials(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -174,6 +176,10 @@ pub fn redact_credentials(text: &str) -> String {
         let end = tail.find(|c: char| c == '/' || c.is_whitespace() || c == '"' || c == '\'');
         let authority = &tail[..end.unwrap_or(tail.len())];
         match authority.rfind('@') {
+            Some(at) if &authority[..at] == "git" => {
+                out.push_str("git");
+                rest = &tail[at..];
+            }
             Some(at) => {
                 out.push_str("***");
                 rest = &tail[at..];
@@ -751,6 +757,16 @@ mod tests {
         assert_eq!(redact_credentials("https://github.com/o/r.git"), "https://github.com/o/r.git");
         assert_eq!(redact_credentials("git@github.com:o/r.git"), "git@github.com:o/r.git");
         assert_eq!(redact_credentials("a://b@c d://e"), "a://***@c d://e");
+        // The SSH convention user is not a secret; a token in the user position still is.
+        assert_eq!(
+            redact_credentials("ssh://git@github.com/o/r.git"),
+            "ssh://git@github.com/o/r.git"
+        );
+        assert_eq!(redact_credentials("ssh://git:pw@github.com/o/r"), "ssh://***@github.com/o/r");
+        assert_eq!(
+            redact_credentials("https://ghp_abc@github.com/o/r"),
+            "https://***@github.com/o/r"
+        );
     }
 
     #[test]

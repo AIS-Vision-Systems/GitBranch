@@ -5,7 +5,7 @@ use git_core::GitErrorKind;
 use git_core::fixtures::{FixtureRepo, commit_file_in, git_in};
 use git_core::ops::remote::{
     FetchArgs, OpCtx, PullArgs, PullMode, PushArgs, add_remote, default_pull_mode, fetch,
-    list_remotes, pull, push, remove_remote, rename_remote,
+    list_remotes, pull, push, remove_remote, rename_remote, set_remote_url,
 };
 
 fn pull_args(mode: PullMode) -> PullArgs {
@@ -60,6 +60,30 @@ async fn remote_config_roundtrip() {
     remove_remote(&r, fx.path(), "origin").await.unwrap();
     assert!(list_remotes(&r, fx.path()).await.unwrap().is_empty());
     assert!(remove_remote(&r, fx.path(), "origin").await.is_err());
+}
+
+#[tokio::test]
+async fn set_remote_url_fetch_then_push() {
+    let fx = FixtureRepo::with_remote();
+    let r = fx.runner();
+    let find =
+        |l: Vec<git_core::ops::remote::Remote>| l.into_iter().find(|x| x.name == "origin").unwrap();
+
+    set_remote_url(&r, fx.path(), "origin", "https://example.invalid/f.git", false).await.unwrap();
+    let o = find(list_remotes(&r, fx.path()).await.unwrap());
+    assert_eq!(o.fetch_url, "https://example.invalid/f.git");
+    assert_eq!(o.push_url, None);
+
+    set_remote_url(&r, fx.path(), "origin", "https://example.invalid/p.git", true).await.unwrap();
+    let o = find(list_remotes(&r, fx.path()).await.unwrap());
+    assert_eq!(o.fetch_url, "https://example.invalid/f.git");
+    assert_eq!(o.push_url.as_deref(), Some("https://example.invalid/p.git"));
+
+    assert!(
+        set_remote_url(&r, fx.path(), "nope", "https://example.invalid/x.git", false)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

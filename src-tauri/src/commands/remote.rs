@@ -173,6 +173,31 @@ pub async fn rename_remote(
     Ok(())
 }
 
+/// Sets a remote's fetch URL, or its push URL when `push` is true.
+#[tauri::command]
+pub async fn set_remote_url(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    repo_id: String,
+    name: String,
+    url: String,
+    push: bool,
+) -> Result<(), AppError> {
+    check_remote(&name)?;
+    if !valid_url(&url) {
+        return Err(invalid_arg("remote url"));
+    }
+    if has_embedded_password(&url) {
+        return Err(invalid_arg(
+            "remote url (embedded credentials are not allowed; the token lives in the keyring)",
+        ));
+    }
+    let repo = state.get(&repo_id).ok_or_else(not_open)?;
+    remote::set_remote_url(&state.runner, &repo.info.work_tree, &name, &url, push).await?;
+    emit_changed(&app, &repo_id, &[Change::Refs]);
+    Ok(())
+}
+
 /// Fetches one remote or all of them.
 #[tauri::command]
 pub async fn fetch(
