@@ -94,6 +94,9 @@
   font-weight: 600;
   color: var(--color-fg-muted);
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .countPill {
@@ -106,6 +109,7 @@
 }
 
 .headerActions {
+  flex: none;
   display: flex;
   gap: var(--space-1);
 }

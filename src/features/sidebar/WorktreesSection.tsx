@@ -5,7 +5,7 @@ import { confirm } from "../../state/dialogs";
 import { useReposStore } from "../../state/repos";
 import { worktreesOf, useWorktreesStore } from "../../state/worktrees";
 import { openAddWorktree, openLockWorktree } from "../dialogs/open";
-import { FolderGit2 } from "../../lib/icons";
+import { BrushCleaning, FolderGit2, Plus } from "../../lib/icons";
 import { samePath } from "../../lib/paths";
 import { filterWorktrees, useWorktreeCount } from "./counts";
 import { SidebarSection } from "./SidebarSection";
@@ -162,17 +162,21 @@ export function WorktreesSection({ repoId, query = "" }: { repoId: RepoId; query
           <button
             type="button"
             className={styles["headerAction"]}
+            aria-label="Add worktree…"
+            title="Add worktree… (Ctrl+Shift+W)"
             onClick={() => openAddWorktree(repoId)}
           >
-            Add…
+            <Plus size={14} aria-hidden />
           </button>
           <button
             type="button"
             className={styles["headerAction"]}
+            aria-label="Prune"
+            title="Prune worktrees whose folder is gone"
             disabled={!anyPrunable}
             onClick={() => void prune(repoId)}
           >
-            Prune
+            <BrushCleaning size={14} aria-hidden />
           </button>
         </>
       }

@@ -4,6 +4,7 @@ export {
   Archive,
   ArrowDown,
   ArrowUp,
+  BrushCleaning,
   Check,
   ArchiveRestore,
   ChevronDown,
