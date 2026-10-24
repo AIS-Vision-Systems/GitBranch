@@ -223,7 +223,7 @@ owner's colour scheme.
   long branch/worktree names ellipsised (full name on hover), PR badge drawn as its own pill with an icon.
 - [x] 10.5 Colours: centre pane and commit message box `#1c1e23`, ribbon `#202b3b`, side panels, column headers
   and tab row `#182130` (dark theme tokens); subject/body spacing in the message box.
-- [ ] 10.6 Docs: ARCHITECTURE (session aliases, quiet fetch), CHANGELOG demo note.
+- [x] 10.6 Docs: ARCHITECTURE (session aliases, quiet fetch), CHANGELOG demo note.
 
 Acceptance: 12 tabs fit without a scrollbar and the chevron lists them; an alias survives a restart; opening a repo
 updates remote refs; double-click on `origin/x` leaves `x` checked out and up to date; the graph shows ~30 rows per

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 2026-10-24: Phase 10 (owner feedback): tabs shrink instead of scrolling, with a searchable "OPEN TABS" dropdown,
+  a right-click menu (close / close others / close to the right / alias), persisted repository aliases and drag
+  to reorder; a quiet fetch of all remotes whenever a repo is opened or shown; the first row is selected when
+  nothing is; double-click on `origin/x` with a local `x` checks it out and pulls; remote menu gains "Open on
+  GitHub" and "Copy URL"; 28 px graph rows, thinner message bar, flush chip connectors, ellipsised long chip names,
+  PR badge as its own pill; new colour scheme (centre pane and message box `#1c1e23`, ribbon `#202b3b`, side
+  panels / headers / tab row `#182130`).
 - 2026-10-23: Graph polish: branch chips read check, name, laptop, then one logo per remote holding the branch
   (GitHub owner avatar), left-aligned with a line joining the chip to its commit node; commit nodes show the
   author's GitHub photo when the author is known, now including commits made with the repo's own git
