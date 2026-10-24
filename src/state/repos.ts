@@ -3,13 +3,15 @@ import type { Session } from "../ipc/app";
 import { isIpcError } from "../ipc/core";
 import * as ipc from "../ipc/repo";
 import type { OpenedRepo, RecentRepo, RepoId } from "../ipc/types";
-import { orderTabs } from "../lib/tabOrder";
-import { samePath } from "../lib/paths";
+import { groupTabs, orderTabs } from "../lib/tabOrder";
+import { pathKey, samePath } from "../lib/paths";
 import { useGraphStore } from "./graph";
 import { reportError, useUiStore } from "./ui";
 
 interface ReposState {
   open: OpenedRepo[];
+  /** Tab aliases keyed by repository path. */
+  aliases: Record<string, string>;
   currentId: string | null;
   recent: RecentRepo[];
   /** Set when the opened folder is a linked worktree, until the user chooses. */
@@ -31,6 +33,14 @@ interface ReposState {
   resolveWorktree: (choice: "main" | "worktree") => Promise<void>;
   cancelWorktree: () => void;
   close: (repoId: string) => Promise<void>;
+  /** Closes every tab except `repoId` (which becomes current). */
+  closeOthers: (repoId: string) => Promise<void>;
+  /** Closes the tabs after `repoId` in display order. */
+  closeRight: (repoId: string) => Promise<void>;
+  /** Sets (or clears, with null / blank) the alias of the repository at `path`. */
+  setAlias: (path: string, alias: string | null) => void;
+  /** Moves a tab's whole group (main checkout + worktrees) to `index`, counted in groups of the other tabs. */
+  moveTab: (repoId: string, index: number) => void;
   /** Drops tabs the backend already closed (e.g. their worktree was removed). */
   dropClosed: (repoIds: readonly string[]) => void;
   forgetRecent: (path: string) => Promise<void>;
@@ -81,6 +91,7 @@ export const useReposStore = create<ReposState>((set, get) => {
 
   return {
     open: [],
+    aliases: {},
     currentId: null,
     recent: [],
     pendingWorktree: null,
@@ -125,6 +136,11 @@ export const useReposStore = create<ReposState>((set, get) => {
     },
 
     restoreSession: async (session) => {
+      set({
+        aliases: Object.fromEntries(
+          Object.entries(session.aliases).map(([path, alias]) => [pathKey(path), alias]),
+        ),
+      });
       let current: OpenedRepo | null = null;
       for (const path of session.open) {
         try {
@@ -213,6 +229,41 @@ export const useReposStore = create<ReposState>((set, get) => {
         if (currentId !== s.currentId) resetSelection();
         return { open, currentId };
       });
+    },
+
+    closeOthers: async (repoId) => {
+      if (!get().open.some((r) => r.repoId === repoId)) return;
+      get().select(repoId);
+      const others = orderTabs(get().open).filter((r) => r.repoId !== repoId);
+      for (const r of others.reverse()) await get().close(r.repoId);
+    },
+
+    closeRight: async (repoId) => {
+      const tabs = orderTabs(get().open);
+      const i = tabs.findIndex((r) => r.repoId === repoId);
+      if (i < 0) return;
+      for (const r of tabs.slice(i + 1).reverse()) await get().close(r.repoId);
+    },
+
+    setAlias: (path, alias) => {
+      const value = alias?.trim() ?? "";
+      const key = pathKey(path);
+      set((s) => {
+        const aliases = { ...s.aliases };
+        if (value === "") delete aliases[key];
+        else aliases[key] = value;
+        return { aliases };
+      });
+    },
+
+    moveTab: (repoId, index) => {
+      // Tabs are shown grouped (main checkout + worktrees): moving any member moves its group.
+      const groups = groupTabs(get().open);
+      const from = groups.findIndex((g) => g.some((r) => r.repoId === repoId));
+      if (from < 0) return;
+      const [moving] = groups.splice(from, 1);
+      groups.splice(Math.min(Math.max(0, index), groups.length), 0, moving!);
+      set({ open: groups.flat() });
     },
 
     dropClosed: (repoIds) => {

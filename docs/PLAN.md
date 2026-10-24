@@ -213,7 +213,7 @@ owner's colour scheme.
 
 - [x] 10.1 Fetch on open/show: a quiet `fetch --all --prune` (no toasts, throttled per repo) when a repo is opened
   or its tab becomes current; if nothing is selected the first graph row (WIP if present, else first commit) is.
-- [ ] 10.2 Tab row: tabs shrink instead of scrolling; chevron at the right opens a searchable "OPEN TABS" list
+- [x] 10.2 Tab row: tabs shrink instead of scrolling; chevron at the right opens a searchable "OPEN TABS" list
   (select / close); right-click menu (Close tab, Close other tabs, Close tabs to the right, Alias repository);
   alias edited inline and persisted in the session; tabs reorder by drag.
 - [x] 10.3 Checkout flow: double-click on a remote-only branch creates the tracking branch; on a branch that

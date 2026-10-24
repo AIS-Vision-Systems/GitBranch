@@ -9,6 +9,8 @@ export function appInfo(): Promise<AppInfo> {
 export interface Session {
   open: string[];
   current: string | null;
+  /** Tab aliases keyed by repository path. */
+  aliases: Record<string, string>;
 }
 
 export const loadSession = (): Promise<Session> => call<Session>("load_session");

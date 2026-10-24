@@ -7,11 +7,16 @@ import { reportError } from "./ui";
 export const SESSION_SAVE_DELAY_MS = 300;
 
 /** Open repo paths in tab order plus the current repo's path (null on the "new tab" view). */
-export function deriveSession(open: readonly OpenedRepo[], currentId: string | null): Session {
+export function deriveSession(
+  open: readonly OpenedRepo[],
+  currentId: string | null,
+  aliases: Record<string, string> = {},
+): Session {
   const tabs = orderTabs(open);
   return {
     open: tabs.map((r) => r.path),
     current: tabs.find((r) => r.repoId === currentId)?.path ?? null,
+    aliases: { ...aliases },
   };
 }
 
@@ -22,12 +27,13 @@ export function deriveSession(open: readonly OpenedRepo[], currentId: string | n
 export function startSessionSync(delayMs: number = SESSION_SAVE_DELAY_MS): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const unsubscribe = useReposStore.subscribe((s, prev) => {
-    if (s.open === prev.open && s.currentId === prev.currentId) return;
+    if (s.open === prev.open && s.currentId === prev.currentId && s.aliases === prev.aliases)
+      return;
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      const { open, currentId } = useReposStore.getState();
-      saveSession(deriveSession(open, currentId)).catch((e: unknown) =>
+      const { open, currentId, aliases } = useReposStore.getState();
+      saveSession(deriveSession(open, currentId, aliases)).catch((e: unknown) =>
         reportError(e, "Could not save the session"),
       );
     }, delayMs);

@@ -5,12 +5,12 @@
   align-items: stretch;
   align-self: stretch;
   font-size: var(--tabrow-font);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .tab {
-  flex: none;
-  max-width: 220px;
+  flex: 1 1 auto;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -46,6 +46,7 @@
 }
 
 .close {
+  flex: none;
   display: inline-flex;
   align-items: center;
   opacity: 0;
@@ -69,7 +70,10 @@
 }
 
 .entry {
-  flex: none;
+  flex: 1 1 220px;
+  min-width: 56px;
+  max-width: 220px;
+  box-sizing: border-box;
   display: flex;
   align-items: stretch;
   padding-right: var(--space-2);
@@ -101,4 +105,12 @@
 .newTab:hover {
   background: var(--color-row-hover);
   color: var(--color-fg);
+}
+
+.dropBefore {
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.dropAfter {
+  box-shadow: inset -2px 0 0 var(--color-accent);
 }

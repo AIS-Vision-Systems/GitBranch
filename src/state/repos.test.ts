@@ -11,6 +11,7 @@ vi.mock("../ipc/repo", () => ({
 }));
 
 import * as ipc from "../ipc/repo";
+import { orderTabs } from "../lib/tabOrder";
 import { useReposStore } from "./repos";
 import { useUiStore } from "./ui";
 
@@ -40,7 +41,13 @@ const wt = repo({
 describe("repos store", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    useReposStore.setState({ open: [], currentId: null, recent: [], pendingWorktree: null });
+    useReposStore.setState({
+      open: [],
+      aliases: {},
+      currentId: null,
+      recent: [],
+      pendingWorktree: null,
+    });
     useUiStore.setState({ toasts: [] });
     m.listRecent.mockResolvedValue([{ path: "/p/proj", name: "proj", lastOpened: 1 }]);
   });
@@ -189,5 +196,90 @@ describe("repos store", () => {
     useReposStore.setState({ recent: [{ path: "/p/proj", name: "proj", lastOpened: 1 }] });
     await useReposStore.getState().forgetRecent("/p/proj");
     expect(useReposStore.getState().recent).toHaveLength(0);
+  });
+
+  describe("tab actions", () => {
+    const o1 = repo({ repoId: "o1" as RepoId, name: "other", path: "/q/other" });
+    const o2 = repo({ repoId: "o2" as RepoId, name: "third", path: "/q/third" });
+    const ids = (): string[] => useReposStore.getState().open.map((r) => r.repoId);
+
+    it("closeOthers keeps only the given tab and selects it", async () => {
+      useReposStore.setState({ open: [repo(), o1, o2], currentId: "o2" });
+      await useReposStore.getState().closeOthers("o1");
+      expect(ids()).toEqual(["o1"]);
+      expect(useReposStore.getState().currentId).toBe("o1");
+    });
+
+    it("closeRight closes tabs after it in display order", async () => {
+      // display order: r1, w1, o1, o2
+      useReposStore.setState({ open: [repo(), o1, wt, o2], currentId: "o2" });
+      await useReposStore.getState().closeRight("w1");
+      expect(ids()).toEqual(["r1", "w1"]);
+      expect(useReposStore.getState().currentId).toBe("w1");
+    });
+
+    it("closeRight keeps the current tab when it is on the left", async () => {
+      useReposStore.setState({ open: [repo(), o1, o2], currentId: "r1" });
+      await useReposStore.getState().closeRight("r1");
+      expect(ids()).toEqual(["r1"]);
+      expect(useReposStore.getState().currentId).toBe("r1");
+    });
+
+    it("moveTab reorders and clamps to the end", () => {
+      useReposStore.setState({ open: [repo(), o1, o2], currentId: "r1" });
+      useReposStore.getState().moveTab("o2", 0);
+      expect(ids()).toEqual(["o2", "r1", "o1"]);
+      useReposStore.getState().moveTab("o2", 99);
+      expect(ids()).toEqual(["r1", "o1", "o2"]);
+      useReposStore.getState().moveTab("r1", 1);
+      expect(ids()).toEqual(["o1", "r1", "o2"]);
+    });
+
+    it("moveTab moves a whole group and counts positions in groups", () => {
+      const a = repo({ repoId: "A" as RepoId, path: "/p/a", name: "a" });
+      const aWt = repo({
+        repoId: "AW" as RepoId,
+        path: "/p/a-wt",
+        name: "a-wt",
+        isWorktree: true,
+        mainWorkTree: "/p/a",
+      });
+      const b = repo({ repoId: "B" as RepoId, path: "/p/b", name: "b" });
+      useReposStore.setState({ open: [a, aWt, b], currentId: "A" });
+      useReposStore.getState().moveTab("A", 1);
+      expect(orderTabs(useReposStore.getState().open).map((r) => r.repoId)).toEqual([
+        "B",
+        "A",
+        "AW",
+      ]);
+      useReposStore.getState().moveTab("AW", 0);
+      expect(orderTabs(useReposStore.getState().open).map((r) => r.repoId)).toEqual([
+        "A",
+        "AW",
+        "B",
+      ]);
+      useReposStore.getState().moveTab("AW", 99);
+      expect(orderTabs(useReposStore.getState().open).map((r) => r.repoId)).toEqual([
+        "B",
+        "A",
+        "AW",
+      ]);
+    });
+
+    it("setAlias normalises the key so separators and a trailing slash do not matter", () => {
+      const st = useReposStore.getState();
+      st.setAlias("C:\\p\\proj\\", "Main");
+      expect(useReposStore.getState().aliases).toEqual({ "C:/p/proj": "Main" });
+      st.setAlias("C:/p/proj", null);
+      expect(useReposStore.getState().aliases).toEqual({});
+    });
+
+    it("setAlias stores trimmed values and clears on null", () => {
+      const st = useReposStore.getState();
+      st.setAlias("/p/proj", "  Main  ");
+      expect(useReposStore.getState().aliases).toEqual({ "/p/proj": "Main" });
+      st.setAlias("/p/proj", null);
+      expect(useReposStore.getState().aliases).toEqual({});
+    });
   });
 });
