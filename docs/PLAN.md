@@ -219,9 +219,9 @@ owner's colour scheme.
 - [x] 10.3 Checkout flow: double-click on a remote-only branch creates the tracking branch; on a branch that
   already exists locally it checks out and pulls so local and remote coincide. Remote context menu gains "Open on
   GitHub" (web URL in the default handler) and "Copy URL".
-- [ ] 10.4 Graph density and chips: 28 px rows, thinner message bar, chip-to-node connector flush on both ends,
+- [x] 10.4 Graph density and chips: 28 px rows, thinner message bar, chip-to-node connector flush on both ends,
   long branch/worktree names ellipsised (full name on hover), PR badge drawn as its own pill with an icon.
-- [ ] 10.5 Colours: centre pane and commit message box `#1c1e23`, ribbon `#202b3b`, side panels, column headers
+- [x] 10.5 Colours: centre pane and commit message box `#1c1e23`, ribbon `#202b3b`, side panels, column headers
   and tab row `#182130` (dark theme tokens); subject/body spacing in the message box.
 - [ ] 10.6 Docs: ARCHITECTURE (session aliases, quiet fetch), CHANGELOG demo note.
 

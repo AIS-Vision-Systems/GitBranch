@@ -29,6 +29,17 @@ export function CloudIcon({ title }: { title?: string }) {
   );
 }
 
+export function PullRequestIcon() {
+  return (
+    <svg {...base} width={12} height={12} data-icon="pull-request">
+      <circle cx="4.5" cy="3.5" r="1.6" />
+      <circle cx="4.5" cy="12.5" r="1.6" />
+      <circle cx="11.5" cy="12.5" r="1.6" />
+      <path d="M4.5 5.1v5.8M11.5 10.9V6.5a2 2 0 0 0-2-2H8" />
+    </svg>
+  );
+}
+
 export function CheckIcon() {
   return (
     <svg {...base} data-icon="check" strokeWidth={2}>

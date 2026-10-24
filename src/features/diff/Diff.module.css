@@ -4,7 +4,7 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  background: var(--color-bg);
+  background: var(--color-surface-bg);
   color: var(--color-fg);
 }
 

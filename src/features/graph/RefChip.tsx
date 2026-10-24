@@ -94,7 +94,7 @@ export const RefChip = memo(function RefChip({
         }
       >
         {isHead && <CheckIcon />}
-        {name}
+        <span className={styles["chipText"]}>{name}</span>
         <LaptopIcon />
         {logoRemotes.map((r) => (
           <RemoteLogo key={r} repoId={repoId} name={r} />
@@ -121,7 +121,7 @@ export const RefChip = memo(function RefChip({
         {...dropProps}
       >
         <RemoteLogo repoId={repoId} name={kind.remoteBranch.remote} />
-        <span>
+        <span className={styles["chipText"]}>
           <span className={styles["remotePrefix"]}>{label.slice(0, cut)}</span>
           {label.slice(cut)}
         </span>
@@ -135,7 +135,7 @@ export const RefChip = memo(function RefChip({
       onContextMenu={onMenu}
     >
       <TagIcon />
-      {name}
+      <span className={styles["chipText"]}>{name}</span>
     </span>
   );
 });

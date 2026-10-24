@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { RepoId } from "../../ipc/types";
 import { EMPTY_PULLS, prMarks, usePullsStore } from "../../state/pulls";
 import type { PrMark } from "../../state/pulls";
+import { PullRequestIcon } from "./icons";
 import styles from "./Graph.module.css";
 
 const DOT: Partial<Record<PrMark["overall"], string>> = {
@@ -25,6 +26,7 @@ export const PrBadge = memo(function PrBadge({ repoId, name }: { repoId: RepoId;
         void usePullsStore.getState().select(repoId, mark.number);
       }}
     >
+      <PullRequestIcon />#{mark.number}
       {dot !== undefined && (
         <span
           data-testid="pr-dot"
@@ -32,7 +34,6 @@ export const PrBadge = memo(function PrBadge({ repoId, name }: { repoId: RepoId;
           aria-hidden="true"
         />
       )}
-      #{mark.number}
     </button>
   );
 });
