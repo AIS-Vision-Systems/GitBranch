@@ -117,6 +117,9 @@ Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to t
 with one path per edge and one circle for the node. Refs are overlaid as chips on the row of their target oid.
 
 Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended on HEAD's lane with a dashed edge.
+Rows are 28 px (`ROW_H` = `--graph-row-h`); chips clip long names at 180 px (`.chipText`, full name in the title)
+and the chip-to-node connector runs flush from the last chip to the node edge. `checkout(<remote>/<branch>)`
+with an existing local branch switches and then pulls that branch (D-037).
 
 Tests: for every fixture repo, assert (a) each commit's parents appear strictly below it, (b) the set of
 (child, parent) edges drawn equals the real parent relation, (c) no two active lanes share an index on one row.
@@ -155,7 +158,17 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 
 - Tab row (44 px, `--tabrow-h`): one tab per open repository or worktree (`FolderGit2` / `GitFork` icon, close `×`
   on hover/active, 1 px separators, `+` tab = welcome screen); right side only help (About), settings gear and the
-  account button. Theme lives in Settings; the sidebar state lives in `useUiStore` (`Ctrl+B`, palette, ribbon
+  account button. Tabs shrink (`flex: 1 1 220px`, min 56 px, ellipsised label) instead of scrolling; the chevron
+  after `+` opens `TabSearchMenu` (filter box, "OPEN TABS" list with per-row close, arrows/Enter/Escape). Right-click
+  → Close tab / Close other tabs / Close tabs to the right / Alias repository; the alias is edited in `TabAliasBar`
+  (replaces the row: input, Save / Clear / Cancel) and stored in `useReposStore.aliases` keyed by repository path,
+  persisted in `session.json` (`aliases`, D-037) and shown by `tabName()` in the tabs, the dropdown and the ribbon
+  repository button. Tabs are draggable (`application/x-gitbranch-tab`); `moveTab` reorders the `open` array,
+  `orderTabs` still keeps a worktree next to its main checkout (a group moves as one). `dragDropEnabled: false` in
+  tauri.conf.json keeps WebView2 from eating HTML5 drag events (D-037). Showing a repo (open, restore, tab switch) runs
+  `ops.fetchQuiet` (all remotes, prune; progress bar, no toasts, 60 s throttle per repo, skipped when busy or
+  without remotes); when nothing is selected after a load, `GraphView` selects the WIP row or the first commit
+  (`lib/firstRow.ts`) unless a pull request is being viewed. Theme lives in Settings; the sidebar state lives in `useUiStore` (`Ctrl+B`, palette, ribbon
   overflow), persisted under `gitbranch.sidebar`.
 - Ribbon (`features/shell/Ribbon.tsx`, replaces the toolbar): left = repository dropdown › branch dropdown
   (ahead/behind, filterable checkout list); centre = Undo, Redo, Fetch (caret: fetch all / pull ff / pull rebase /
@@ -187,7 +200,9 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   REMOTE render `BranchTree` (`BranchTreeView.tsx`) from the pure model in `branchTree.ts` (`buildTree`: folders
   by `/`, folders first, case-insensitive; `groupByRemote` strips `<remote>/`; `filterTree` returns the pruned
   nodes plus the folder paths to auto-expand). REMOTE is one `role=tree` whose level-1 rows are the remotes
-  (`remotesOf` adds empty ones), with "Add remote…" opening the Remotes dialog. Rows: HEAD check, `↑n ↓n` /
+  (`remotesOf` adds empty ones), with "Add remote…" opening the Remotes dialog. Remote rows' menu: Edit, Open on GitHub
+  (`lib/remoteUrl.ts` turns https/ssh/scp-style fetch URLs into the web URL, label "Open in browser" off GitHub,
+  hidden when unparsable), Copy URL, Remove. Rows: HEAD check, `↑n ↓n` /
   `gone` badges from `upstream`; click `select(target)`, hover `setHover` (cleared on unmount), double-click or
   Enter = the ref menu's own Checkout item (`refActions.ts`), right-click / Shift+F10 = `refMenu`; roving
   tabindex with arrow keys. The filter also narrows WORKTREES (branch, path) and PULL REQUESTS (`#n title`); the

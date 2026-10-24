@@ -46,6 +46,9 @@ pub struct Session {
     pub open: Vec<String>,
     /// The path of the active tab, if any.
     pub current: Option<String>,
+    /// Tab aliases keyed by repository path (D-037); kept for closed repos too.
+    #[serde(default)]
+    pub aliases: HashMap<String, String>,
 }
 
 /// Shared state managed by Tauri.
@@ -308,7 +311,11 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let s = state(d.path());
         assert_eq!(s.load_session(), Session::default());
-        let sess = Session { open: vec!["/a".into(), "/b".into()], current: Some("/b".into()) };
+        let sess = Session {
+            open: vec!["/a".into(), "/b".into()],
+            current: Some("/b".into()),
+            aliases: HashMap::from([("/a".to_string(), "Alpha".to_string())]),
+        };
         s.save_session(&sess).unwrap();
         assert_eq!(state(d.path()).load_session(), sess);
         std::fs::write(d.path().join("cfg").join("session.json"), b"{not json").unwrap();

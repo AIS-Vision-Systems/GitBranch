@@ -2,6 +2,8 @@
   --color-bg: #f1f4f9;
   --color-bg-elevated: #ffffff;
   --color-header-bg: #e8edf5;
+  --color-ribbon-bg: #e8edf5;
+  --color-surface-bg: #ffffff;
   --color-row-hover: #eef3fb;
   --color-row-selected: #dbe7fb;
   --color-chip-bg: #e3e9f3;
@@ -34,7 +36,7 @@
   --tabrow-h: 44px;
   --ribbon-h: 56px;
   --tabrow-font: 15px;
-  --graph-row-h: 36px;
+  --graph-row-h: 28px;
   --graph-lane-w: 22px;
   --graph-header-h: 28px;
   --graph-refs-w: 240px;
@@ -82,9 +84,11 @@
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #1b2433;
+  --color-bg: #182130;
   --color-bg-elevated: #202b3b;
   --color-header-bg: #182130;
+  --color-ribbon-bg: #202b3b;
+  --color-surface-bg: #1c1e23;
   --color-row-hover: #26334a;
   --color-row-selected: #2d3d58;
   --color-chip-bg: #2d3d58;

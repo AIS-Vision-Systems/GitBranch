@@ -4,7 +4,7 @@ exports[`lanePaths > branch tip: no top half, bottom half only 1`] = `
 [
   {
     "color": 2,
-    "d": "M 33 18 L 33 36",
+    "d": "M 33 14 L 33 28",
     "kind": "straight",
   },
 ]
@@ -14,17 +14,17 @@ exports[`lanePaths > branchOut curve starts at the node 1`] = `
 [
   {
     "color": 0,
-    "d": "M 11 0 L 11 18",
+    "d": "M 11 0 L 11 14",
     "kind": "incoming",
   },
   {
     "color": 0,
-    "d": "M 11 18 L 11 36",
+    "d": "M 11 14 L 11 28",
     "kind": "straight",
   },
   {
     "color": 5,
-    "d": "M 11 18 L 22 18 C 28.0753 18 33 22.9247 33 29 L 33 36",
+    "d": "M 11 14 L 22 14 C 28.0753 14 33 18.9247 33 25 L 33 28",
     "kind": "branchOut",
   },
 ]
@@ -34,17 +34,17 @@ exports[`lanePaths > mergeIn curve ends at the node 1`] = `
 [
   {
     "color": 0,
-    "d": "M 11 0 L 11 18",
+    "d": "M 11 0 L 11 14",
     "kind": "incoming",
   },
   {
     "color": 4,
-    "d": "M 55 0 L 55 7 C 55 13.0753 50.0753 18 44 18 L 11 18",
+    "d": "M 55 0 L 55 3 C 55 9.0753 50.0753 14 44 14 L 11 14",
     "kind": "mergeIn",
   },
   {
     "color": 0,
-    "d": "M 11 18 L 11 36",
+    "d": "M 11 14 L 11 28",
     "kind": "straight",
   },
 ]
@@ -54,17 +54,17 @@ exports[`lanePaths > straight passthrough on another lane plus the node lane 1`]
 [
   {
     "color": 0,
-    "d": "M 11 0 L 11 18",
+    "d": "M 11 0 L 11 14",
     "kind": "incoming",
   },
   {
     "color": 0,
-    "d": "M 11 18 L 11 36",
+    "d": "M 11 14 L 11 28",
     "kind": "straight",
   },
   {
     "color": 3,
-    "d": "M 33 0 L 33 36",
+    "d": "M 33 0 L 33 28",
     "kind": "straight",
   },
 ]

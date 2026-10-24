@@ -349,3 +349,23 @@ resolution stays lookup-free, so the only network calls are one `github_avatar(l
 Remote chips and sidebar remote rows show the GitHub owner's avatar parsed from the fetch URL (`githubOwner`),
 validated against GitHub login rules before it reaches the backend.
 Consequences: still no author email leaves the machine; unknown authors stay initials everywhere.
+
+## D-037 · accepted · 2026-10-24 — Tab aliases in the session; quiet fetch on show; remote checkout pulls
+Context: owner feedback after Phase 9: a dozen tabs overflowed into a scrollbar, tab names are folder names
+(not always meaningful), remote refs were stale until a manual Fetch, and double-clicking `origin/x` when `x`
+already existed locally only switched branches.
+Decision: (1) Tab aliases are per repository path and live in `session.json` (`aliases`, serde default), kept
+for closed repos so an alias survives close/reopen; the folder name stays the fallback and the path stays the
+tooltip. Tab order is the order of the `open` array (drag to reorder), still grouped worktree-with-main by
+`orderTabs`. (2) Showing a repo (open, restore, tab switch) runs a quiet `git fetch --all --prune`: progress bar
+and cancel as usual, no toasts (errors only to the console), skipped when busy, when the repo has no remotes or
+when the last quiet fetch for that repo finished under 60 s ago. (3) `checkout(<remote>/<branch>)` with an
+existing local `<branch>` switches to it and then pulls `<remote> <branch>` (pull strategy from settings), so
+"checkout a remote branch" always leaves local == remote; without a local branch git-core keeps creating the
+tracking branch. (4) When nothing is selected after a graph load, the first visible row is selected (WIP when
+shown, else the first commit) unless a pull request is being viewed.
+Consequences: the session file gains one map; a repo with a stale remote may show a short progress bar on every
+tab switch after a minute; the pull after a double-click only runs when the local branch is not ahead of its
+upstream (a diverged branch gets a toast instead, never an unasked merge or rebase). The window sets
+`dragDropEnabled: false` (tauri.conf.json): Tauri's native drag-drop handler otherwise swallows HTML5 drag events
+in WebView2, which the tab reorder and the branch chip drag rely on; the app has no file-drop feature.

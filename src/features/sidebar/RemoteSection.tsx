@@ -1,7 +1,9 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useMemo } from "react";
 import type { Remote } from "../../ipc/remote";
 import type { RepoId } from "../../ipc/types";
 import { Cloud, Plus } from "../../lib/icons";
+import { hostOf, webUrlOf } from "../../lib/remoteUrl";
 import { useGraphStore } from "../../state/graph";
 import { useOpsStore } from "../../state/ops";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
@@ -24,17 +26,30 @@ async function copyRemoteUrl(url: string): Promise<void> {
 }
 
 function remoteMenu(repoId: RepoId, remote: Remote): MenuItem[] {
-  return [
+  const web = webUrlOf(remote.fetchUrl);
+  const items: MenuItem[] = [
     {
       kind: "item",
       id: "edit",
       label: `Edit ${remote.name}…`,
       onSelect: () => openEditRemote(repoId, remote.name),
     },
+  ];
+  if (web !== null) {
+    items.push({
+      kind: "item",
+      id: "open-web",
+      label: hostOf(web) === "github.com" ? "Open on GitHub" : "Open in browser",
+      onSelect: () => {
+        void openUrl(web).catch((e: unknown) => reportError(e, "Could not open the browser"));
+      },
+    });
+  }
+  items.push(
     {
       kind: "item",
       id: "copy-link",
-      label: `Copy link to remote: ${remote.name}`,
+      label: "Copy URL",
       onSelect: () => void copyRemoteUrl(remote.fetchUrl),
     },
     { kind: "separator" },
@@ -46,7 +61,8 @@ function remoteMenu(repoId: RepoId, remote: Remote): MenuItem[] {
       // The ops action asks for confirmation itself.
       onSelect: () => void useOpsStore.getState().removeRemote(repoId, remote.name),
     },
-  ];
+  );
+  return items;
 }
 
 function RemoteIcon({ repoId, name }: { repoId: RepoId; name: string }) {

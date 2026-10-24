@@ -10,7 +10,7 @@
   overflow: auto;
   outline: none;
   position: relative;
-  background: var(--color-bg-elevated);
+  background: var(--color-surface-bg);
 }
 
 .root:focus-visible {
@@ -38,7 +38,7 @@
   z-index: 5;
   height: var(--graph-header-h);
   min-width: 760px;
-  background: var(--color-header-bg);
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-fg-muted);
   font-family: var(--font-mono);
@@ -144,8 +144,8 @@
 
 .bar {
   flex: none;
-  width: 3px;
-  height: 20px;
+  width: 2px;
+  height: 16px;
   border-radius: 2px;
   background: currentColor;
 }
@@ -155,6 +155,7 @@
   flex: 1 1 auto;
   height: 2px;
   min-width: 8px;
+  margin-left: calc(-1 * var(--space-1));
   background: currentColor;
 }
 
@@ -191,13 +192,20 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 150px;
+  max-width: 180px;
   padding: 0 6px;
   border-radius: var(--radius-1);
   background: var(--color-chip-bg);
   color: var(--color-fg);
   font-size: 11px;
-  line-height: 20px;
+  line-height: 18px;
+}
+
+.chipText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chip svg {
@@ -245,7 +253,7 @@
 .tag {
   background: transparent;
   border: 1px solid var(--color-border);
-  line-height: 18px;
+  line-height: 16px;
   color: var(--color-fg-muted);
 }
 
@@ -366,14 +374,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: -2px;
-  padding: 0 4px;
-  border: 0;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   background: transparent;
   color: var(--color-fg-muted);
   font: inherit;
   font-size: 11px;
-  line-height: 20px;
+  line-height: 16px;
   cursor: pointer;
 }
 

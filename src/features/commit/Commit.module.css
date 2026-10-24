@@ -63,6 +63,7 @@
   padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-1);
+  background: var(--color-surface-bg);
 }
 
 .authorRow {
@@ -106,7 +107,7 @@
 }
 
 .body {
-  margin: 0;
+  margin: var(--space-3) 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--font-mono);

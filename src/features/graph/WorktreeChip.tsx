@@ -6,7 +6,8 @@ import styles from "./Graph.module.css";
 /** Marks a commit that another linked worktree has checked out; click opens that worktree's tab. */
 export const WorktreeChip = memo(function WorktreeChip({ mark }: { mark: WorktreeMark }) {
   const title =
-    `Checked out in worktree ${mark.path}` + (mark.branch !== null ? ` on ${mark.branch}` : "");
+    `${mark.label}
+Checked out in worktree ${mark.path}` + (mark.branch !== null ? ` on ${mark.branch}` : "");
   return (
     <button
       type="button"
@@ -18,7 +19,7 @@ export const WorktreeChip = memo(function WorktreeChip({ mark }: { mark: Worktre
       }}
     >
       <span aria-hidden="true">⧉</span>
-      <span>{mark.label}</span>
+      <span className={styles["chipText"]}>{mark.label}</span>
     </button>
   );
 });

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { samePath } from "./paths";
+import { pathKey, samePath } from "./paths";
+
+describe("pathKey", () => {
+  it("normalises separators and trailing slashes", () => {
+    expect(pathKey("C:\\a\\b\\", false)).toBe("C:/a/b");
+    expect(pathKey("/", false)).toBe("/");
+  });
+  it("lower-cases only when case-insensitive", () => {
+    expect(pathKey("C:/A", false)).toBe("C:/A");
+    expect(pathKey("C:/A", true)).toBe("c:/a");
+  });
+});
 
 describe("samePath", () => {
   it("normalises separators and trailing slashes", () => {

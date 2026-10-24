@@ -51,7 +51,7 @@ export const LaneStrip = memo(function LaneStrip({
           data-connector=""
           x1={0}
           y1={cy}
-          x2={cx}
+          x2={isMerge ? cx - NODE_R : cx - (AVATAR_R - 1)}
           y2={cy}
           className={laneCls}
           stroke="currentColor"
@@ -65,7 +65,7 @@ export const LaneStrip = memo(function LaneStrip({
           className={styles[`lane${colorIndex(p.color)}`]}
           fill="none"
           stroke="currentColor"
-          strokeWidth={2.5}
+          strokeWidth={1.5}
           strokeDasharray={wipAbove && p.kind === "incoming" ? "3 3" : undefined}
         />
       ))}

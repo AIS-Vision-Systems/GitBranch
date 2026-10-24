@@ -25,6 +25,7 @@ import { useGraphStore } from "../../state/graph";
 import { shortOid, undoCommand, useOpsStore } from "../../state/ops";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
 import { useReposStore } from "../../state/repos";
+import { tabName } from "../../lib/tabOrder";
 import { reportError, useUiStore } from "../../state/ui";
 import {
   openClone,
@@ -157,7 +158,9 @@ export function Ribbon({ repoId }: Props) {
   const repos = useReposStore((s) => s.open);
   const currentId = useReposStore((s) => s.currentId);
   const selectRepo = useReposStore((s) => s.select);
-  const repoName = repos.find((r) => r.repoId === currentId)?.name ?? "Repository";
+  const aliases = useReposStore((s) => s.aliases);
+  const current = repos.find((r) => r.repoId === currentId);
+  const repoName = current === undefined ? "Repository" : tabName(current, aliases);
 
   const clean = useGraphStore((s) => (s.byRepo[repoId]?.status?.entries.length ?? 0) === 0);
   const stashes = useGraphStore((s) => s.byRepo[repoId]?.stashes);
@@ -231,7 +234,7 @@ export function Ribbon({ repoId }: Props) {
         return repos.map((r) => ({
           kind: "item",
           id: r.repoId,
-          label: r.name,
+          label: tabName(r, aliases),
           ...(r.repoId === currentId ? { shortcut: "current" } : {}),
           onSelect: () => selectRepo(r.repoId),
         }));
