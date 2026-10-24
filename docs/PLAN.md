@@ -207,6 +207,28 @@ Acceptance: four sections with counts and a working filter; drag to resize and c
 panel; double-click checks out; the details header never scrolls away while the file list does; a commit with
 `Co-authored-by:` trailers shows chips and a body without the trailer lines.
 
+### Phase 10 — Owner feedback round: tabs, checkout flow, graph density, colours
+Goal: the tab row and graph behave like GitKraken under load (many tabs, long names) and the chrome uses the
+owner's colour scheme.
+
+- [x] 10.1 Fetch on open/show: a quiet `fetch --all --prune` (no toasts, throttled per repo) when a repo is opened
+  or its tab becomes current; if nothing is selected the first graph row (WIP if present, else first commit) is.
+- [ ] 10.2 Tab row: tabs shrink instead of scrolling; chevron at the right opens a searchable "OPEN TABS" list
+  (select / close); right-click menu (Close tab, Close other tabs, Close tabs to the right, Alias repository);
+  alias edited inline and persisted in the session; tabs reorder by drag.
+- [x] 10.3 Checkout flow: double-click on a remote-only branch creates the tracking branch; on a branch that
+  already exists locally it checks out and pulls so local and remote coincide. Remote context menu gains "Open on
+  GitHub" (web URL in the default handler) and "Copy URL".
+- [ ] 10.4 Graph density and chips: 28 px rows, thinner message bar, chip-to-node connector flush on both ends,
+  long branch/worktree names ellipsised (full name on hover), PR badge drawn as its own pill with an icon.
+- [ ] 10.5 Colours: centre pane and commit message box `#1c1e23`, ribbon `#202b3b`, side panels, column headers
+  and tab row `#182130` (dark theme tokens); subject/body spacing in the message box.
+- [ ] 10.6 Docs: ARCHITECTURE (session aliases, quiet fetch), CHANGELOG demo note.
+
+Acceptance: 12 tabs fit without a scrollbar and the chevron lists them; an alias survives a restart; opening a repo
+updates remote refs; double-click on `origin/x` leaves `x` checked out and up to date; the graph shows ~30 rows per
+860 px; long chip names are clipped with the full name on hover.
+
 ## Out of scope (explicitly)
 GitLab/Bitbucket/Azure, integrated terminal (an external terminal launcher is Phase 8), AI features, cloud workspaces, issue trackers, LFS management UI, GPG key management (signing uses the user's existing git config).
 

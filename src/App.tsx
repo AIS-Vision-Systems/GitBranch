@@ -61,6 +61,10 @@ export default function App() {
   }, [currentId]);
 
   useEffect(() => {
+    if (currentId !== null) void useOpsStore.getState().fetchQuiet(currentId);
+  }, [currentId]);
+
+  useEffect(() => {
     let cancelled = false;
     let stopSync: (() => void) | null = null;
     let stopOpenRequests: (() => void) | null = null;

@@ -66,7 +66,6 @@ describe("GraphView", () => {
     seed(5);
     render(<GraphView repoId={id} />);
     const list = screen.getByRole("listbox");
-    fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(useGraphStore.getState().selectedOid).toBe("c0");
     fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(useGraphStore.getState().selectedOid).toBe("c1");
@@ -95,10 +94,16 @@ describe("GraphView", () => {
     render(<GraphView repoId={id} />);
     expect(screen.getByText("Working tree changes (1 file)")).toBeInTheDocument();
     const list = screen.getByRole("listbox");
-    fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(useGraphStore.getState().selectedOid).toBe("WIP");
     fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(useGraphStore.getState().selectedOid).toBe("c0");
+  });
+
+  it("does not override an explicit selection", () => {
+    seed(3);
+    useGraphStore.setState({ selectedOid: "c2" });
+    render(<GraphView repoId={id} />);
+    expect(useGraphStore.getState().selectedOid).toBe("c2");
   });
 
   it("renders the column header", () => {
@@ -182,7 +187,7 @@ describe("GraphView", () => {
 
     it("local branch chips are draggable", () => {
       render(<GraphView repoId={id} />);
-      expect(screen.getByText("feat")).toHaveAttribute("draggable", "true");
+      expect(screen.getByText("feat").closest("[draggable]")).toHaveAttribute("draggable", "true");
     });
 
     it("dropping a branch on a chip opens the merge/rebase picker", () => {

@@ -11,6 +11,7 @@ import * as historyIpc from "../ipc/history";
 import type { ResetMode } from "../ipc/history";
 import * as mergeIpc from "../ipc/merge";
 import type { MergeMode, MergeOutcome, OpKind, TodoItem } from "../ipc/merge";
+import { cancelOp } from "../ipc/progress";
 import * as remoteIpc from "../ipc/remote";
 import type { FetchArgs, PullArgs, PushArgs, PushResult } from "../ipc/remote";
 import * as reflogIpc from "../ipc/reflog";
@@ -26,7 +27,7 @@ import { cloneNameFromUrl } from "../features/dialogs/validate";
 import { confirm } from "./dialogs";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
 import { useReposStore } from "./repos";
-import { useRemotesStore } from "./remotes";
+import { remotesOf, useRemotesStore } from "./remotes";
 import { useProgressStore } from "./progress";
 import { reportError, useUiStore } from "./ui";
 
@@ -134,6 +135,8 @@ interface OpsState {
   undoLast: (repoId: RepoId, info: UndoInfo) => Promise<boolean>;
   clone: (args: CloneArgs) => Promise<string | null>;
   fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
+  /** Background fetch of all remotes: progress bar only, never a toast. Throttled per repo. */
+  fetchQuiet: (repoId: RepoId) => Promise<boolean>;
   pull: (repoId: RepoId, args: PullArgs) => Promise<boolean>;
   push: (repoId: RepoId, args: PushArgs) => Promise<boolean>;
   /** Resolves with the local branch name, or null on failure/cancel. */
@@ -142,6 +145,36 @@ interface OpsState {
   removeRemote: (repoId: RepoId, name: string) => Promise<boolean>;
   renameRemote: (repoId: RepoId, old: string, name: string) => Promise<boolean>;
   setRemoteUrl: (repoId: RepoId, name: string, url: string, push: boolean) => Promise<boolean>;
+}
+
+/** Minimum gap between two quiet fetches of the same repo. */
+export const QUIET_FETCH_GAP_MS = 60_000;
+const lastQuietFetch = new Map<RepoId, number>();
+
+/** True when no quiet fetch of `repoId` finished within the last minute. */
+export function quietFetchDue(repoId: RepoId, now: number = Date.now()): boolean {
+  const last = lastQuietFetch.get(repoId);
+  return last === undefined || now - last >= QUIET_FETCH_GAP_MS;
+}
+
+/** The running background fetch, if any. It never sets `busy`; user operations cancel it first. */
+let quietOp: { repoId: RepoId; opId: string; done: Promise<void> } | null = null;
+
+/** Cancel a running quiet fetch and wait until it settles, so git never runs two commands on a repo. */
+async function yieldToQuiet(): Promise<void> {
+  const q = quietOp;
+  if (q === null) return;
+  try {
+    await cancelOp(q.opId);
+  } catch {
+    // The fetch finishes on its own; we wait for it below either way.
+  }
+  await q.done;
+}
+
+/** Forget the throttle state (tests). */
+export function resetQuietFetchThrottle(): void {
+  lastQuietFetch.clear();
 }
 
 export const AUTH_REQUIRED_TITLE =
@@ -193,6 +226,10 @@ export const useOpsStore = create<OpsState>((set, get) => {
     handled?: (e: unknown) => boolean,
   ): Promise<Outcome> => {
     if (get().busy) return "error";
+    if (quietOp !== null) {
+      await yieldToQuiet();
+      if (get().busy) return "error";
+    }
     set({ busy: true });
     try {
       await fn();
@@ -272,6 +309,10 @@ export const useOpsStore = create<OpsState>((set, get) => {
     fn: (title: string, opId: string) => Promise<boolean>,
   ): Promise<boolean> => {
     if (get().busy) return false;
+    if (quietOp !== null) {
+      await yieldToQuiet();
+      if (get().busy) return false;
+    }
     const opId = crypto.randomUUID();
     useProgressStore.getState().start({ opId, repoId, title });
     try {
@@ -326,6 +367,39 @@ export const useOpsStore = create<OpsState>((set, get) => {
             cancelledAs(title, authRequired),
           ),
       ),
+
+    fetchQuiet: async (repoId) => {
+      if (get().busy || quietOp !== null || !quietFetchDue(repoId)) return false;
+      if (useRemotesStore.getState().byRepo[repoId] === undefined) {
+        await useRemotesStore.getState().load(repoId);
+      }
+      if (remotesOf(useRemotesStore.getState(), repoId).length === 0) return false;
+      if (get().busy || quietOp !== null || !quietFetchDue(repoId)) return false;
+      // Claim the slot now so concurrent callers (tab switches) do not start a second fetch.
+      lastQuietFetch.set(repoId, Date.now());
+      const opId = crypto.randomUUID();
+      const op = { repoId, opId, done: Promise.resolve() };
+      quietOp = op;
+      useProgressStore.getState().start({ opId, repoId, title: "Fetching all remotes" });
+      const result = (async (): Promise<boolean> => {
+        try {
+          await remoteIpc.fetch(repoId, { remote: null, prune: true, tags: false }, opId);
+          return true;
+        } catch (e) {
+          // A user operation cancelled us: stay silent.
+          if (!(isIpcError(e) && e.error.code === "git.cancelled")) {
+            console.warn("Background fetch failed", e);
+          }
+          return false;
+        } finally {
+          lastQuietFetch.set(repoId, Date.now());
+          if (quietOp === op) quietOp = null;
+          useProgressStore.getState().finish(opId);
+        }
+      })();
+      op.done = result.then(() => undefined);
+      return result;
+    },
 
     pull: (repoId, args) =>
       withProgress(repoId, "Pulling", async (title, opId) => {
@@ -419,8 +493,41 @@ export const useOpsStore = create<OpsState>((set, get) => {
     createBranch: (repoId, name, startPoint, checkout) =>
       run("Create branch failed", () => branchIpc.createBranch(repoId, name, startPoint, checkout)),
 
-    checkout: (repoId, target, detach = false) =>
-      run("Checkout failed", () => branchIpc.checkout(repoId, target, detach)),
+    checkout: async (repoId, target, detach = false) => {
+      // Snapshot before the checkout: git-core creates the local branch when it is missing, and the
+      // watcher may have reloaded the refs by the time the command returns.
+      const refs = useGraphStore.getState().byRepo[repoId]?.refs?.refs ?? [];
+      const ok = await run("Checkout failed", () => branchIpc.checkout(repoId, target, detach));
+      if (!ok || detach) return ok;
+      const pullable = (branch: string): boolean => {
+        const local = refs.find((r) => r.kind === "localBranch" && r.name === branch);
+        if (local === undefined) return false;
+        return local.upstream === null || (!local.upstream.gone && local.upstream.ahead === 0);
+      };
+      const rb = refs.find(
+        (r) =>
+          typeof r.kind === "object" &&
+          "remoteBranch" in r.kind &&
+          (r.name.startsWith(`${r.kind.remoteBranch.remote}/`)
+            ? r.name
+            : `${r.kind.remoteBranch.remote}/${r.name}`) === target,
+      );
+      if (rb === undefined || typeof rb.kind !== "object" || !("remoteBranch" in rb.kind)) {
+        return ok;
+      }
+      const remote = rb.kind.remoteBranch.remote;
+      const branch = target.slice(remote.length + 1);
+      if (!refs.some((r) => r.kind === "localBranch" && r.name === branch)) return ok;
+      if (!pullable(branch)) {
+        useUiStore.getState().pushToast({
+          kind: "info",
+          title: `${branch} has local commits`,
+          detail: "Pull it from the ribbon when ready.",
+        });
+        return ok;
+      }
+      return get().pull(repoId, { remote, branch, mode: "config" });
+    },
 
     renameBranch: (repoId, old, name) =>
       run("Rename failed", () => branchIpc.renameBranch(repoId, old, name)),

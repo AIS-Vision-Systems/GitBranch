@@ -9,6 +9,8 @@ import {
   type MouseEvent,
 } from "react";
 import type { Ref, RepoId } from "../../ipc/types";
+import { firstRowOid } from "../../lib/firstRow";
+import { pullsOf, usePullsStore } from "../../state/pulls";
 import { EMPTY_GRAPH, filterActive, refsByOid, useGraphStore, WIP_OID } from "../../state/graph";
 import { shortOid } from "../../state/ops";
 import { useReposStore } from "../../state/repos";
@@ -85,6 +87,14 @@ export function GraphView({ repoId }: Props) {
   const hasWip = fileCount > 0 && !filtering;
   const offset = hasWip ? 1 : 0;
   const count = rows.length + offset;
+
+  const prSelected = usePullsStore((s) => pullsOf(s, repoId).selected !== null);
+  const loaded = g !== undefined && !g.loading && g.refs !== null && g.status !== null;
+  useEffect(() => {
+    if (!loaded || prSelected || selectedOid !== null) return;
+    const first = firstRowOid(hasWip, rows);
+    if (first !== null) select(first);
+  }, [loaded, prSelected, selectedOid, hasWip, rows, select]);
 
   const headRow = headOid !== null ? byOid.get(headOid) : undefined;
   const wipRow = headRow !== undefined ? rows[headRow] : undefined;

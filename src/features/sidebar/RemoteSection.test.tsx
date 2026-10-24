@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ref, RepoId } from "../../ipc/types";
 import { useDialogsStore } from "../../state/dialogs";
@@ -9,6 +10,7 @@ import { useUiStore } from "../../state/ui";
 import { RemoteSection } from "./RemoteSection";
 import { LocalSection } from "./LocalSection";
 
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../ipc/github", () => ({
   githubAvatar: vi.fn().mockResolvedValue("data:image/png;base64,AAAA"),
 }));
@@ -87,13 +89,34 @@ describe("remote rows", () => {
     expect(row("other").querySelector("[data-icon=remote]")).not.toBeNull();
   });
 
-  it("right-click shows Edit / Copy link / Remove", () => {
+  it("right-click shows Edit / Open on GitHub / Copy URL / Remove", () => {
     render(<RemoteSection repoId={id} />);
     fireEvent.contextMenu(row("origin"));
     const menu = screen.getByRole("menu");
     expect(within(menu).getByText("Edit origin…")).toBeTruthy();
-    expect(within(menu).getByText("Copy link to remote: origin")).toBeTruthy();
+    expect(within(menu).getByText("Copy URL")).toBeTruthy();
     expect(within(menu).getByText("Remove origin")).toBeTruthy();
+    expect(within(menu).getByText("Open on GitHub")).toBeTruthy();
+  });
+
+  it("Open on GitHub opens the web URL; other hosts say Open in browser", () => {
+    render(<RemoteSection repoId={id} />);
+    fireEvent.contextMenu(row("origin"));
+    fireEvent.click(screen.getByText("Open on GitHub"));
+    expect(openUrl).toHaveBeenCalledWith("https://github.com/octo/repo");
+    fireEvent.contextMenu(row("other"));
+    expect(screen.getByText("Open in browser")).toBeTruthy();
+  });
+
+  it("offers no Open item for a fetch URL with a space in the host", () => {
+    useRemotesStore.setState({
+      byRepo: { [id]: [{ name: "odd", fetchUrl: "https://bad host/x.git", pushUrl: null }] },
+    });
+    render(<RemoteSection repoId={id} />);
+    fireEvent.contextMenu(row("odd"));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByText("Copy URL")).toBeTruthy();
+    expect(within(menu).queryByText(/^Open /)).toBeNull();
   });
 
   it("Shift+F10 opens the same menu", () => {
@@ -105,7 +128,7 @@ describe("remote rows", () => {
   it("Copy link writes the fetch URL and toasts", async () => {
     render(<RemoteSection repoId={id} />);
     fireEvent.contextMenu(row("origin"));
-    fireEvent.click(screen.getByText("Copy link to remote: origin"));
+    fireEvent.click(screen.getByText("Copy URL"));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://github.com/octo/repo.git"));
     await waitFor(() => expect(useUiStore.getState().toasts).toHaveLength(1));
   });
@@ -114,7 +137,7 @@ describe("remote rows", () => {
     writeText.mockRejectedValueOnce(new Error("denied"));
     render(<RemoteSection repoId={id} />);
     fireEvent.contextMenu(row("origin"));
-    fireEvent.click(screen.getByText("Copy link to remote: origin"));
+    fireEvent.click(screen.getByText("Copy URL"));
     await waitFor(() => expect(useUiStore.getState().toasts).toHaveLength(1));
     expect(useUiStore.getState().toasts[0]?.kind).toBe("error");
   });
