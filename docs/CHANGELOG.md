@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 2026-10-25: Phase 11 (owner feedback 2): the chip connector reaches the node through the column gap and is 1 px
+  except on the HEAD row; message bars grow to 20 px with a faint lane-coloured band from the node to the bar;
+  author photos resolve by email through GitHub's avatar CDN for repos with a GitHub remote (other authors and
+  `noreply@anthropic.com` co-authors get their picture; unknown addresses keep initials).
 - 2026-10-24: Phase 10 (owner feedback): tabs shrink instead of scrolling, with a searchable "OPEN TABS" dropdown,
   a right-click menu (close / close others / close to the right / alias), persisted repository aliases and drag
   to reorder; a quiet fetch of all remotes whenever a repo is opened or shown; the first row is selected when

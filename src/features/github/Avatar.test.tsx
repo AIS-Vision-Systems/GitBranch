@@ -9,7 +9,7 @@ import type { RepoId } from "../../ipc/types";
 
 const R1 = "r1" as RepoId;
 
-vi.mock("../../ipc/github", () => ({ githubAvatar: vi.fn() }));
+vi.mock("../../ipc/github", () => ({ githubAvatar: vi.fn(), githubAvatarByEmail: vi.fn() }));
 
 beforeEach(() => {
   resetAvatarCache();

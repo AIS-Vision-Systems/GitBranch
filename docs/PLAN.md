@@ -229,6 +229,22 @@ Acceptance: 12 tabs fit without a scrollbar and the chevron lists them; an alias
 updates remote refs; double-click on `origin/x` leaves `x` checked out and up to date; the graph shows ~30 rows per
 860 px; long chip names are clipped with the full name on hover.
 
+### Phase 11 — Owner feedback round 2: connectors, graph bars, author photos
+Goal: the chip connector and the message bars read as one continuous line with the graph, and author photos
+appear for every GitHub author, not only the signed-in user.
+
+- [x] 11.1 Chip connector: the line from the inline chips reaches the node through the column gap (flush on
+  both ends); it keeps the 2 px weight only on the HEAD row and is 1 px elsewhere.
+- [x] 11.2 Message bars and band: the bar before the subject grows to the node height (20 px); a faint band in the
+  node's lane colour spans from the node to the bar.
+- [x] 11.3 Author photos by email: for repos with a GitHub remote, authors not resolvable without a lookup get
+  their photo from GitHub's avatar-by-email endpoint (backend fetch, disk cache, default image detected and
+  shown as initials). Fixes the signed-in author showing initials in some repos.
+
+Acceptance: the connector touches the node with no gap in every row; only the checked-out row's connector is
+2 px; bars are 20 px with the band behind; in a GitHub-hosted repo the photos of other authors and of
+`noreply@anthropic.com` co-authors appear; a repo without a GitHub remote still sends no email anywhere.
+
 ## Out of scope (explicitly)
 GitLab/Bitbucket/Azure, integrated terminal (an external terminal launcher is Phase 8), AI features, cloud workspaces, issue trackers, LFS management UI, GPG key management (signing uses the user's existing git config).
 

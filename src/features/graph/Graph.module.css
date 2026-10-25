@@ -91,10 +91,12 @@
   outline-offset: -2px;
 }
 
+/* Spills into both column gaps (COL_GAP in constants.ts) so connector and band reach the neighbours. */
 .strip {
   display: block;
   flex: none;
-  max-width: var(--graph-max-w);
+  margin: 0 calc(-1 * var(--space-2));
+  max-width: calc(var(--graph-max-w) + 2 * var(--space-2));
   overflow: hidden;
 }
 
@@ -142,21 +144,30 @@
   overflow: hidden;
 }
 
+/* Height = BAND_H in constants.ts. */
 .bar {
   flex: none;
   width: 2px;
-  height: 16px;
+  height: 20px;
   border-radius: 2px;
   background: currentColor;
 }
 
-/* Line from the inline ref chips to the node; colour comes from the .laneN class. */
+/* Line from the inline ref chips to the node; colour comes from the .laneN class. Top-aligned on a
+   whole pixel so the 1 px and 2 px variants meet the SVG half of the line exactly. */
 .connector {
   flex: 1 1 auto;
+  align-self: flex-start;
   height: 2px;
   min-width: 8px;
+  margin-top: calc(var(--graph-row-h) / 2 - 1px);
   margin-left: calc(-1 * var(--space-1));
   background: currentColor;
+}
+
+/* Every row but HEAD. */
+.connectorThin {
+  height: 1px;
 }
 
 .subject {

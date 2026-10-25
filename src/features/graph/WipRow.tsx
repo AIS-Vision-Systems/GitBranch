@@ -1,6 +1,6 @@
 import { memo, type MouseEvent } from "react";
 import { WIP_OID } from "../../state/graph";
-import { LANE_W, NODE_R, ROW_H } from "./constants";
+import { COL_GAP, LANE_W, NODE_R, ROW_H } from "./constants";
 import { rowDomId } from "./domId";
 import { colorIndex, laneX } from "./lanePaths";
 import styles from "./Graph.module.css";
@@ -52,30 +52,33 @@ export const WipRow = memo(function WipRow({
       <span className={styles["refsCell"]} />
       <svg
         className={styles["strip"]}
-        width={lanes * LANE_W}
+        width={lanes * LANE_W + 2 * COL_GAP}
         height={ROW_H}
         aria-hidden="true"
         focusable="false"
       >
-        {connected && (
-          <path
-            d={`M ${x} ${ROW_H / 2} L ${x} ${ROW_H}`}
+        {/* Same spill into the column gaps as LaneStrip, so the node stays on its lane. */}
+        <g transform={`translate(${COL_GAP} 0)`}>
+          {connected && (
+            <path
+              d={`M ${x} ${ROW_H / 2} L ${x} ${ROW_H}`}
+              className={laneCls}
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeDasharray="3 3"
+              fill="none"
+            />
+          )}
+          <circle
+            cx={x}
+            cy={ROW_H / 2}
+            r={NODE_R}
             className={laneCls}
             stroke="currentColor"
-            strokeWidth={2.5}
-            strokeDasharray="3 3"
+            strokeWidth={2}
             fill="none"
           />
-        )}
-        <circle
-          cx={x}
-          cy={ROW_H / 2}
-          r={NODE_R}
-          className={laneCls}
-          stroke="currentColor"
-          strokeWidth={2}
-          fill="none"
-        />
+        </g>
       </svg>
       <span className={styles["messageCell"]}>
         <span className={`${styles["bar"]} ${laneCls}`} />

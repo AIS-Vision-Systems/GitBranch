@@ -29,10 +29,31 @@ describe("LaneStrip node", () => {
   });
   it("draws the connector line only when asked", () => {
     const on = render(<LaneStrip row={base} lanes={2} isHead={false} connector />);
-    expect(on.container.querySelector("line[data-connector]")?.getAttribute("x1")).toBe("0");
+    expect(on.container.querySelector("line[data-connector]")?.getAttribute("x1")).toBe("-8");
     on.unmount();
     const off = render(<LaneStrip row={base} lanes={2} isHead={false} />);
     expect(off.container.querySelector("line[data-connector]")).toBeNull();
+  });
+  it("connector is 2 px on the HEAD row and 1 px elsewhere", () => {
+    const head = render(<LaneStrip row={base} lanes={2} isHead connector />);
+    expect(head.container.querySelector("line[data-connector]")?.getAttribute("stroke-width")).toBe(
+      "2",
+    );
+    head.unmount();
+    const other = render(<LaneStrip row={base} lanes={2} isHead={false} connector />);
+    const line = other.container.querySelector("line[data-connector]");
+    expect(line?.getAttribute("stroke-width")).toBe("1");
+    expect(line?.getAttribute("y1")).toBe("13.5");
+  });
+  it("draws a faint band from the node to the message bar", () => {
+    const { container } = render(<LaneStrip row={base} lanes={2} isHead={false} />);
+    const band = container.querySelector("rect[data-band]");
+    // Node centre at laneX(lane), ring radius 10; the strip spills 8 px into the right gap.
+    const x = base.lane * 22 + 11 + 10;
+    expect(band?.getAttribute("x")).toBe(String(x));
+    expect(band?.getAttribute("width")).toBe(String(2 * 22 + 8 - x));
+    expect(band?.getAttribute("height")).toBe("20");
+    expect(container.querySelector("svg")?.getAttribute("width")).toBe(String(2 * 22 + 16));
   });
 });
 
