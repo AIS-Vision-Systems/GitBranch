@@ -350,6 +350,22 @@ Remote chips and sidebar remote rows show the GitHub owner's avatar parsed from 
 validated against GitHub login rules before it reaches the backend.
 Consequences: still no author email leaves the machine; unknown authors stay initials everywhere.
 
+## D-038 · accepted · 2026-10-25 — Author photos by email for GitHub-hosted repos
+Context: with D-035/D-036 only the signed-in user and noreply authors got a photo; the owner saw initials for
+their own commits in one repo (the mapping depended on the repo's git identity and the account email) and asked
+why other authors with a GitHub account, and `noreply@anthropic.com` co-authors, stay initials.
+Decision: amends D-035 (1) and D-036. For a repository that has at least one GitHub remote, an author email that
+the lookup-free path cannot map is sent to GitHub's avatar CDN (`/u/e?email=`), which answers with the photo of
+the account owning the address or with one fixed default image. The backend (`github_avatar_email`) fetches the
+default once per process for a sentinel `.invalid` address and reports `null` when the bytes match, so unknown
+authors keep the initials badge. No token, no API quota, disk cache keyed by a SHA-256 of the address, the
+address is never logged. Repos without a GitHub remote keep D-035: no email leaves the machine.
+Consequences: the privacy argument of D-023 narrows to "no new information": the authors of a GitHub-hosted repo
+are already on GitHub with those addresses. The lookup-free path stays first, so the signed-in user's photo still
+shows offline and in non-GitHub repos. One CDN request per distinct unknown author per hour at most (negative
+cache), plus one for the sentinel per launch; a changed default image on GitHub's side is harmless (a mismatch
+only shows the default picture until the sentinel refreshes on the next launch).
+
 ## D-037 · accepted · 2026-10-24 — Tab aliases in the session; quiet fetch on show; remote checkout pulls
 Context: owner feedback after Phase 9: a dozen tabs overflowed into a scrollbar, tab names are folder names
 (not always meaningful), remote refs were stale until a manual Fetch, and double-clicking `origin/x` when `x`

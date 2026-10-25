@@ -150,6 +150,11 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   `image/*` only, **no** `Authorization` header, no API quota) and caches it as `<cache_dir>/avatars/u-<login>.<ext>`
   for seven days (tmp + rename, one download per login in flight, 1 h negative cache, stale entry served offline).
   The command returns a `data:` URL or `null`; the UI keeps the initials fallback.
+- Avatars by email (D-038): `github_avatar_email(email)` asks the CDN's
+  `https://avatars.githubusercontent.com/u/e?email=<email>&s=64` (same `fetch_avatar` path, no token, no quota).
+  The CDN answers unknown addresses with one fixed default image; the backend fetches it once per process for a
+  sentinel `.invalid` address and returns `null` whenever the bytes match (and when the sentinel is unavailable).
+  Disk cache key `e-<32 hex of sha256(email)>`, so the address never reaches the filesystem or the log.
 - Commit signature (D-034): `git-core::ops::config::identity` reads `user.name` / `user.email` with
   `git config --show-scope -z --get` (value + the scope git reports); `set_identity(scope: local | global, ..)`
   writes both keys after validation. The account panel edits them per repository or globally.
@@ -228,6 +233,9 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   (`state/identity.ts`, one `git_identity` call per repo) also maps to the signed-in login (D-036), and graph
   nodes show the photo when it resolves (`LaneStrip` clip-path image), initials otherwise. Remote chips and
   sidebar remote rows show the remote owner's avatar (`github/remoteAvatar.ts`: `githubOwner(url)` → `useAvatar`).
+  When the login path yields nothing and the repo has a GitHub remote (`remotes` store, `githubOwner`), the email
+  itself is resolved with `useEmailAvatar(email)` → `github_avatar_email` (D-038); repos without a GitHub remote
+  keep sending nothing.
 
 ## IPC contract
 

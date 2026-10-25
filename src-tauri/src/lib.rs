@@ -217,6 +217,7 @@ pub fn run() {
             commands::terminal::open_terminal,
             commands::github::github_account,
             commands::avatar::github_avatar,
+            commands::avatar::github_avatar_email,
             commands::identity::git_identity,
             commands::identity::set_git_identity,
             commands::github::github_repos,

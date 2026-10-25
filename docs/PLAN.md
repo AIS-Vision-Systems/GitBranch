@@ -237,7 +237,7 @@ appear for every GitHub author, not only the signed-in user.
   both ends); it keeps the 2 px weight only on the HEAD row and is 1 px elsewhere.
 - [x] 11.2 Message bars and band: the bar before the subject grows to the node height (20 px); a faint band in the
   node's lane colour spans from the node to the bar.
-- [ ] 11.3 Author photos by email: for repos with a GitHub remote, authors not resolvable without a lookup get
+- [x] 11.3 Author photos by email: for repos with a GitHub remote, authors not resolvable without a lookup get
   their photo from GitHub's avatar-by-email endpoint (backend fetch, disk cache, default image detected and
   shown as initials). Fixes the signed-in author showing initials in some repos.
 

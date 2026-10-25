@@ -30,6 +30,18 @@ fn sized_url(avatar_url: &str, size: u32) -> String {
     format!("{base}{sep}s={size}")
 }
 
+/// GitHub's avatar-by-email endpoint for `email`. It needs no account and no token: the CDN answers
+/// with the photo of the GitHub user who owns the address, and with one fixed default image when no
+/// user does (callers detect that image by fetching a sentinel address, see the app's avatar command).
+pub fn email_avatar_url(email: &str) -> String {
+    reqwest::Url::parse_with_params(
+        "https://avatars.githubusercontent.com/u/e",
+        [("email", email.trim())],
+    )
+    .map(|u| u.to_string())
+    .unwrap_or_default()
+}
+
 /// Downloads an avatar at `size` px. Only `avatars.githubusercontent.com` and `github.com` are
 /// contacted (redirects included, at most 3 hops), and the request carries no `Authorization`
 /// header.
@@ -75,6 +87,14 @@ mod tests {
 
     fn img(ct: &str, body: Vec<u8>) -> Response {
         Response { status: 200, headers: vec![("Content-Type".into(), ct.into())], body }
+    }
+
+    #[test]
+    fn email_url_is_encoded() {
+        let u = email_avatar_url(" A+b@x.io ");
+        assert_eq!(u, "https://avatars.githubusercontent.com/u/e?email=A%2Bb%40x.io");
+        assert!(allowed_host(&u));
+        assert!(sized_url(&u, 64).ends_with("&s=64"));
     }
 
     #[tokio::test]

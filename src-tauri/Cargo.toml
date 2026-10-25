@@ -24,6 +24,7 @@ tauri-build = { version = "2", features = [] }
 git-core.workspace = true
 github-api.workspace = true
 base64 = "0.22"
+sha2 = "0.10"
 serde.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
