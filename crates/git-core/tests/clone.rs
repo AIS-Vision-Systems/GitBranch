@@ -83,7 +83,9 @@ async fn failed_clone_leaves_no_dest() {
     let dest = tmp.path().join("nested").join("out");
     let missing = tmp.path().join("no-such-repo");
     let err = clone(&fx.runner(), &args(&missing, &dest), &OpCtx::noop()).await.unwrap_err();
-    assert!(matches!(err.kind, GitErrorKind::ExitCode(_)), "{err:?}");
+    // git 2.39 (Windows): "does not appear to be a git repository" -> ExitCode(128);
+    // git 2.55 (Linux): "repository '...' does not exist" -> NotFound. Both are failures.
+    assert!(matches!(err.kind, GitErrorKind::ExitCode(_) | GitErrorKind::NotFound), "{err:?}");
     assert!(!dest.exists());
 }
 
