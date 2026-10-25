@@ -17,5 +17,9 @@ export const NODE_R = 5;
 export const AVATAR_R = 10;
 /** Radius of the bend in lane curves. */
 export const CURVE_R = LANE_W / 2;
+/** Gap between the row's grid columns in px. Keep in sync with `--space-2`. */
+export const COL_GAP = 8;
+/** Height of the message bar and of the lane band behind it. Keep in sync with `.bar` height. */
+export const BAND_H = 20;
 /** Chips shown before the `+N` pill. */
 export const MAX_CHIPS = 2;

@@ -152,7 +152,7 @@ export const GraphRow = memo(function GraphRow({
             )}
             {!expanded && (
               <span
-                className={`${styles["connector"]} ${styles[`lane${colorIndex(row.color)}`]}`}
+                className={`${styles["connector"]} ${isHead ? "" : styles["connectorThin"]} ${styles[`lane${colorIndex(row.color)}`]}`}
                 aria-hidden
               />
             )}
