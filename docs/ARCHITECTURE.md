@@ -154,7 +154,9 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   `https://avatars.githubusercontent.com/u/e?email=<email>&s=64` (same `fetch_avatar` path, no token, no quota).
   The CDN answers unknown addresses with one fixed default image; the backend fetches it once per process for a
   sentinel `.invalid` address and returns `null` whenever the bytes match (and when the sentinel is unavailable).
-  Disk cache key `e-<32 hex of sha256(email)>`, so the address never reaches the filesystem or the log.
+  Disk cache key `e-<32 hex of sha256(email)>` (the cache holds digests, not addresses; nothing is logged).
+  `resolve_avatar` distinguishes a photo, "no avatar" (cache entry removed, remembered 1 h) and a transient
+  failure (stale entry served, remembered 1 h); at most four downloads run at once.
 - Commit signature (D-034): `git-core::ops::config::identity` reads `user.name` / `user.email` with
   `git config --show-scope -z --get` (value + the scope git reports); `set_identity(scope: local | global, ..)`
   writes both keys after validation. The account panel edits them per repository or globally.

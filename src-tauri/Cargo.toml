@@ -44,5 +44,7 @@ tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 git-core = { workspace = true, features = ["fixtures"] }

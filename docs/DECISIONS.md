@@ -358,8 +358,9 @@ Decision: amends D-035 (1) and D-036. For a repository that has at least one Git
 the lookup-free path cannot map is sent to GitHub's avatar CDN (`/u/e?email=`), which answers with the photo of
 the account owning the address or with one fixed default image. The backend (`github_avatar_email`) fetches the
 default once per process for a sentinel `.invalid` address and reports `null` when the bytes match, so unknown
-authors keep the initials badge. No token, no API quota, disk cache keyed by a SHA-256 of the address, the
-address is never logged. Repos without a GitHub remote keep D-035: no email leaves the machine.
+authors keep the initials badge. No token, no API quota, disk cache keyed by an (unsalted) SHA-256 of the
+address, the address is never logged. At most four downloads run at once; a "no photo" answer drops any stale
+cached photo and is remembered for an hour, the frontend retries a `null` after ten minutes. Repos without a GitHub remote keep D-035: no email leaves the machine.
 Consequences: the privacy argument of D-023 narrows to "no new information": the authors of a GitHub-hosted repo
 are already on GitHub with those addresses. The lookup-free path stays first, so the signed-in user's photo still
 shows offline and in non-GitHub repos. One CDN request per distinct unknown author per hour at most (negative
