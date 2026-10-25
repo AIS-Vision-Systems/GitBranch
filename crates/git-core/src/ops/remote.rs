@@ -14,7 +14,7 @@ use crate::parse::ParseError;
 use crate::parse::progress::{Progress, parse_progress_line};
 pub use crate::parse::remote::{PushedRef, Remote};
 use crate::parse::remote::{parse_push_porcelain, parse_remotes};
-use crate::refname::is_valid_branch_name;
+use crate::refname::{is_valid_branch_name, is_valid_remote_name};
 use crate::{GitError, GitErrorKind, GitOutput, GitRunner, RunOpts};
 use tokio_util::sync::CancellationToken;
 
@@ -103,8 +103,20 @@ pub async fn add_remote(
 /// # Errors
 /// [`GitError`] if the remote does not exist.
 pub async fn remove_remote(runner: &GitRunner, repo: &Path, name: &str) -> Result<(), GitError> {
-    runner.run(repo, &["remote", "remove", "--", name], RunOpts::default()).await?;
+    // Like `rename`: no `--` before git 2.39, so the name is validated instead.
+    if !is_valid_remote_name(name) {
+        return Err(invalid_remote_name(name));
+    }
+    runner.run(repo, &["remote", "remove", name], RunOpts::default()).await?;
     Ok(())
+}
+
+fn invalid_remote_name(name: &str) -> GitError {
+    GitError {
+        kind: GitErrorKind::ExitCode(129),
+        stderr: format!("invalid remote name: {name:?}"),
+        args: Vec::new(),
+    }
 }
 
 /// Renames remote `old` to `new`.
@@ -117,7 +129,14 @@ pub async fn rename_remote(
     old: &str,
     new: &str,
 ) -> Result<(), GitError> {
-    runner.run(repo, &["remote", "rename", "--", old, new], RunOpts::default()).await?;
+    // `git remote rename` took no options before git 2.39 and refuses `--`, so the names are
+    // checked here instead of being shielded by a separator.
+    for name in [old, new] {
+        if !is_valid_remote_name(name) {
+            return Err(invalid_remote_name(name));
+        }
+    }
+    runner.run(repo, &["remote", "rename", old, new], RunOpts::default()).await?;
     Ok(())
 }
 

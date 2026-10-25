@@ -318,6 +318,23 @@ async fn remote_name_with_slash_roundtrips() {
 }
 
 #[tokio::test]
+async fn rename_rejects_option_like_and_invalid_names() {
+    let fx = FixtureRepo::linear(1);
+    let r = fx.runner();
+    add_remote(&r, fx.path(), "origin", "https://example.invalid/o.git").await.unwrap();
+    let before = list_remotes(&r, fx.path()).await.unwrap();
+    for (old, new) in [("origin", "-x"), ("-x", "origin"), ("origin", ""), ("origin", "a b")] {
+        let err = rename_remote(&r, fx.path(), old, new).await.unwrap_err();
+        assert_eq!(err.kind, GitErrorKind::ExitCode(129), "{old:?} -> {new:?}: {err:?}");
+    }
+    assert_eq!(
+        remove_remote(&r, fx.path(), "-x").await.unwrap_err().kind,
+        GitErrorKind::ExitCode(129)
+    );
+    assert_eq!(list_remotes(&r, fx.path()).await.unwrap(), before);
+}
+
+#[tokio::test]
 async fn push_and_pull_reject_refspec_branches_without_spawning_git() {
     let (fx, _other) = upstream_ahead("t1.txt");
     let r = fx.runner();

@@ -112,7 +112,9 @@ async fn run_apply(
 ) -> Result<(), GitError> {
     check_entry(runner, repo, index, oid).await?;
     let sel = format!("stash@{{{index}}}");
-    let mut argv = vec!["stash", sub, "-q"];
+    // No `-q`: before git 2.39 quiet mode also hid the "CONFLICT (...)" lines the error
+    // classifier needs to report `GitErrorKind::Conflict`.
+    let mut argv = vec!["stash", sub];
     if restore_index {
         argv.push("--index");
     }
