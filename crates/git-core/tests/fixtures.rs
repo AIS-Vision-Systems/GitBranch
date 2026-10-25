@@ -50,7 +50,7 @@ fn tags_kinds() {
 fn stash_one_entry_clean_tree() {
     let r = FixtureRepo::with_stash();
     assert_eq!(r.git(&["stash", "list"]).lines().count(), 1);
-    assert!(r.git(&["status", "--porcelain"]).is_empty());
+    assert_eq!(r.git(&["status", "--porcelain"]), "");
 }
 
 #[test]

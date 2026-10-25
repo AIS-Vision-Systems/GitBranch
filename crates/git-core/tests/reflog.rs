@@ -18,7 +18,10 @@ async fn reads_head_reflog() {
     assert_eq!(v[1].oid, r.rev_parse("HEAD~1"));
     assert!(v[0].time >= v[1].time && v[0].time > 0);
     let empty = FixtureRepo::empty();
-    assert!(head_reflog(&empty.runner(), empty.path(), 5).await.unwrap().is_empty());
+    assert_eq!(
+        head_reflog(&empty.runner(), empty.path(), 5).await.unwrap(),
+        [] as [git_core::parse::reflog::ReflogEntry; 0]
+    );
 }
 
 #[tokio::test]

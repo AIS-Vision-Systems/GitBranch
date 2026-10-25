@@ -69,13 +69,13 @@ async fn apply_keeps_pop_and_drop_remove() {
     fx.git(&["checkout", "-q", "--", "f1.txt"]);
     std::fs::remove_file(p.join("untracked.txt")).unwrap();
     stash_pop(&r, p, 0, &top(&fx), false).await.unwrap();
-    assert!(stash_list(&r, p).await.unwrap().is_empty());
+    assert_eq!(stash_list(&r, p).await.unwrap(), [] as [git_core::parse::stash::StashEntry; 0]);
     assert!(p.join("untracked.txt").exists());
 
     std::fs::write(p.join("f1.txt"), "again\n").unwrap();
     stash_push(&r, p, &args(None, false, &[])).await.unwrap();
     stash_drop(&r, p, 0, &top(&fx)).await.unwrap();
-    assert!(stash_list(&r, p).await.unwrap().is_empty());
+    assert_eq!(stash_list(&r, p).await.unwrap(), [] as [git_core::parse::stash::StashEntry; 0]);
     assert!(stash_drop(&r, p, 0, &fx.rev_parse("HEAD")).await.is_err());
 }
 
@@ -111,7 +111,7 @@ async fn wrong_oid_is_refused_and_keeps_entry() {
     assert_eq!(stash_list(&r, p).await.unwrap().len(), 1);
     assert!(!fx.git(&["status", "--porcelain"]).contains("f1.txt"));
     stash_pop(&r, p, 0, &good, false).await.unwrap();
-    assert!(stash_list(&r, p).await.unwrap().is_empty());
+    assert_eq!(stash_list(&r, p).await.unwrap(), [] as [git_core::parse::stash::StashEntry; 0]);
 }
 
 #[tokio::test]
@@ -123,6 +123,6 @@ async fn push_paths_are_literal() {
     std::fs::write(p.join("f2.txt"), "m2\n").unwrap();
     // A glob must not match anything: no such literal file.
     let _ = stash_push(&r, p, &args(None, false, &["f*.txt"])).await;
-    assert!(stash_list(&r, p).await.unwrap().is_empty());
+    assert_eq!(stash_list(&r, p).await.unwrap(), [] as [git_core::parse::stash::StashEntry; 0]);
     assert_eq!(std::fs::read_to_string(p.join("f1.txt")).unwrap(), "m1\n");
 }

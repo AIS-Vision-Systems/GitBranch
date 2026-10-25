@@ -35,7 +35,7 @@ async fn lists_and_resolves_conflicts() {
 
     std::fs::write(r.path().join("f2.txt"), "hand merged\n").unwrap();
     mark_resolved(&runner, r.path(), &["f2.txt".into()]).await.unwrap();
-    assert!(conflicted_files(&runner, r.path()).await.unwrap().is_empty());
+    assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), [] as [String; 0]);
 }
 
 #[tokio::test]
@@ -44,7 +44,7 @@ async fn empty_paths_do_nothing() {
     let runner = r.runner();
     take_side(&runner, r.path(), &[], Side::Theirs).await.unwrap();
     mark_resolved(&runner, r.path(), &[]).await.unwrap();
-    assert!(conflicted_files(&runner, r.path()).await.unwrap().is_empty());
+    assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), [] as [String; 0]);
 }
 
 /// main modified f1.txt, feat deleted it; merging feat into main stops on a modify/delete conflict.
@@ -67,7 +67,7 @@ async fn modify_delete_take_ours_keeps_the_file() {
     assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), ["f1.txt"]);
     take_side(&runner, r.path(), &["f1.txt".into()], Side::Ours).await.unwrap();
     assert_eq!(std::fs::read_to_string(r.path().join("f1.txt")).unwrap(), "main edit\n");
-    assert!(conflicted_files(&runner, r.path()).await.unwrap().is_empty());
+    assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), [] as [String; 0]);
 }
 
 #[tokio::test]
@@ -76,6 +76,6 @@ async fn modify_delete_take_theirs_deletes_the_file() {
     let runner = r.runner();
     take_side(&runner, r.path(), &["f1.txt".into()], Side::Theirs).await.unwrap();
     assert!(!r.path().join("f1.txt").exists());
-    assert!(conflicted_files(&runner, r.path()).await.unwrap().is_empty());
+    assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), [] as [String; 0]);
     assert_eq!(r.git(&["status", "--porcelain"]), "D  f1.txt");
 }

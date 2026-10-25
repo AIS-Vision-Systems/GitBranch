@@ -16,6 +16,6 @@ async fn filters_ignored_paths() {
     let got = ignored(&runner, fx.path(), &paths).await.unwrap();
     assert_eq!(got, vec![PathBuf::from("target/x"), PathBuf::from("target/deep/y")]);
     let none = ignored(&runner, fx.path(), &paths[1..2]).await.unwrap();
-    assert!(none.is_empty());
-    assert!(ignored(&runner, fx.path(), &[]).await.unwrap().is_empty());
+    assert_eq!(none, [] as [std::path::PathBuf; 0]);
+    assert_eq!(ignored(&runner, fx.path(), &[]).await.unwrap(), [] as [std::path::PathBuf; 0]);
 }

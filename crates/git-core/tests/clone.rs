@@ -238,7 +238,7 @@ async fn list_remote_heads_empty_and_detached() {
         .await
         .unwrap();
     assert_eq!(heads.default_branch, None);
-    assert!(heads.branches.is_empty());
+    assert_eq!(heads.branches, [] as [String; 0]);
 
     let oid = fx.rev_parse("HEAD");
     fx.git(&["push", "origin", "HEAD:refs/heads/side"]);

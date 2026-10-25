@@ -63,7 +63,7 @@ async fn rename() {
     create_branch(&r, fx.path(), "old", "HEAD", false).await.unwrap();
     rename_branch(&r, fx.path(), "old", "new").await.unwrap();
     assert_eq!(fx.rev_parse("new"), tip);
-    assert!(fx.git(&["branch", "--list", "old"]).is_empty());
+    assert_eq!(fx.git(&["branch", "--list", "old"]), "");
 }
 
 #[tokio::test]
@@ -82,7 +82,7 @@ async fn delete_safe_and_force() {
     let d = delete_branch(&r, fx.path(), "topic", true).await.unwrap();
     assert_eq!(d.name, "topic");
     assert_eq!(d.tip, tip);
-    assert!(fx.git(&["branch", "--list", "topic"]).is_empty());
+    assert_eq!(fx.git(&["branch", "--list", "topic"]), "");
 }
 
 #[tokio::test]

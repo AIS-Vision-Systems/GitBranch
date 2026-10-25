@@ -74,7 +74,7 @@ async fn classifies_unknown_revision() {
         err.kind,
         err.stderr
     );
-    assert!(!err.stderr.is_empty());
+    assert_ne!(err.stderr, "");
     assert_eq!(err.args[0], "rev-parse");
 }
 

@@ -176,7 +176,7 @@ async fn fixtures_properties() {
     ];
     for r in &repos {
         let commits = load(r).await;
-        assert!(!commits.is_empty());
+        assert_ne!(commits, [] as [git_core::parse::log::Commit; 0]);
         check_all(&commits);
     }
 }

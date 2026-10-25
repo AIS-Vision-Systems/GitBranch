@@ -101,7 +101,7 @@ async fn upstream_ahead_and_gone() {
 async fn empty_repo_is_unborn() {
     let repo = FixtureRepo::empty();
     let r = list_refs(&repo.runner(), repo.path()).await.unwrap();
-    assert!(r.refs.is_empty());
+    assert_eq!(r.refs, [] as [git_core::parse::refs::Ref; 0]);
     assert_eq!(r.head.oid, None);
     assert!(!r.head.detached);
     assert!(r.head.branch.is_some());

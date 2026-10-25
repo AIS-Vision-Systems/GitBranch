@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(w("a\\ b c"), ["a b", "c"]);
         assert_eq!(w("\"a \\\"q\\\" b\""), ["a \"q\" b"]);
         assert_eq!(w("''"), [""]);
-        assert!(w("").is_empty());
+        assert_eq!(w("").len(), 0);
     }
 
     #[test]

@@ -110,4 +110,4 @@ See [`CLAUDE.md`](CLAUDE.md) for architecture rules and workflow conventions, an
 
 ## Credits
 
-Idea and original development by **Xavi Anguera**. A project of **AIS Vision Systems**.
+Original development by **Xavi Anguera**. A project of **AIS Vision Systems**.

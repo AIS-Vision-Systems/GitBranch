@@ -107,7 +107,7 @@ mod tests {
         assert_eq!(got[1].name, "up.stream");
         assert_eq!(got[1].fetch_url, "/x/y");
         assert_eq!(got[1].push_url.as_deref(), Some("ssh://z"));
-        assert!(parse_remotes(b"").unwrap().is_empty());
+        assert_eq!(parse_remotes(b"").unwrap().len(), 0);
         assert!(parse_remotes(b"remote.a.url\0").is_err());
     }
 

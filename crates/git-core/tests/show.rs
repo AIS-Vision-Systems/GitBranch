@@ -26,7 +26,7 @@ fn parses_name_status_bytes() {
     assert_eq!(v[4].similarity, Some(50));
     assert_eq!(v[1].orig_path, None);
     assert!(parse_name_status(b"R087\0old\0").is_err());
-    assert!(parse_name_status(b"").unwrap().is_empty());
+    assert_eq!(parse_name_status(b"").unwrap(), [] as [git_core::parse::show::ChangedFile; 0]);
 }
 
 #[tokio::test]
@@ -81,7 +81,7 @@ async fn orphan_root_lists_added_files() {
     let repo = FixtureRepo::orphan();
     let root = repo.rev_parse("docs");
     let d = commit_details(&repo.runner(), repo.path(), &root).await.unwrap();
-    assert!(d.parents.is_empty());
+    assert_eq!(d.parents, [] as [String; 0]);
     assert_eq!(d.files.len(), 1);
     assert_eq!(d.files[0].path, "docs.md");
     assert_eq!(d.files[0].kind, ChangeKind::Added);
@@ -108,7 +108,7 @@ async fn unknown_oid_errors() {
 async fn co_authors_parsed_and_stripped() {
     let repo = FixtureRepo::linear(1);
     let plain = commit_details(&repo.runner(), repo.path(), &repo.rev_parse("HEAD")).await.unwrap();
-    assert!(plain.co_authors.is_empty());
+    assert_eq!(plain.co_authors, [] as [git_core::parse::show::CoAuthor; 0]);
     repo.git(&[
         "commit",
         "--allow-empty",

@@ -23,7 +23,7 @@ fn parse_hand_written() {
     assert_eq!(v[0].author_email, "ann@x.io");
     assert_eq!((v[0].author_time, v[0].committer_time), (100, 200));
     assert_eq!(v[0].subject, "Merge it");
-    assert!(v[1].parents.is_empty());
+    assert_eq!(v[1].parents, [] as [String; 0]);
     assert_eq!(v[1].subject, "root");
     assert!(parse_log(b"abc\x1fdef\0").is_err());
 }
@@ -109,7 +109,7 @@ async fn all_excludes_stash_commits() {
     let stash = r.rev_parse("refs/stash");
     let p = page(&r, &q(100, 0, true)).await;
     assert!(!p.commits.iter().any(|c| c.oid == stash), "stash commit listed in --all");
-    assert!(!p.commits.is_empty());
+    assert_ne!(p.commits, [] as [git_core::parse::log::Commit; 0]);
 }
 
 fn filtered(f: LogFilter) -> LogQuery {
@@ -170,12 +170,12 @@ async fn filters_author_message_path() {
         }),
     )
     .await;
-    assert!(none.commits.is_empty());
+    assert_eq!(none.commits, [] as [git_core::parse::log::Commit; 0]);
 
     // Pathspec magic characters are literal.
     let star =
         page(&r, &filtered(LogFilter { path: Some("*.txt".into()), ..Default::default() })).await;
-    assert!(star.commits.is_empty());
+    assert_eq!(star.commits, [] as [git_core::parse::log::Commit; 0]);
 
     // Values are trimmed before use.
     let trimmed =

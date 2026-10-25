@@ -161,7 +161,7 @@ mod tests {
             "100644 {OID} 0\ta.txt\0160000 {OID} 0\tvendor/lib\0160000 {OID} 2\tmy lib (v2)\0160000 {OID} 3\tmy lib (v2)\0"
         );
         assert_eq!(parse_gitlinks(bytes.as_bytes()), ["my lib (v2)", "vendor/lib"]);
-        assert!(parse_gitlinks(b"").is_empty());
+        assert_eq!(parse_gitlinks(b"").len(), 0);
     }
 
     #[test]

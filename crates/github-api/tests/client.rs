@@ -150,13 +150,31 @@ struct Flaky {
     fail: AtomicUsize,
 }
 
-impl Transport for Flaky {
-    async fn send(&self, _req: Request) -> Result<Response, Error> {
-        if self.fail.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok()
-        {
-            return Err(Error::Network("down".into()));
+impl Flaky {
+    /// Consumes one planned failure; `false` once they are used up.
+    fn take_failure(&self) -> bool {
+        let mut n = self.fail.load(Ordering::SeqCst);
+        while n > 0 {
+            match self.fail.compare_exchange_weak(n, n - 1, Ordering::SeqCst, Ordering::SeqCst) {
+                Ok(_) => return true,
+                Err(current) => n = current,
+            }
         }
-        Ok(Response::json_body(200, &json!({})))
+        false
+    }
+}
+
+impl Transport for Flaky {
+    // No await inside: answer with a ready future (clippy::unused_async_trait_impl).
+    fn send(
+        &self,
+        _req: Request,
+    ) -> impl std::future::Future<Output = Result<Response, Error>> + Send {
+        std::future::ready(if self.take_failure() {
+            Err(Error::Network("down".into()))
+        } else {
+            Ok(Response::json_body(200, &json!({})))
+        })
     }
 }
 

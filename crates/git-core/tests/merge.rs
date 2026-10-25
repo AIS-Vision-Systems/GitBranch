@@ -107,7 +107,7 @@ async fn conflict_resolve_with_theirs_and_continue() {
     assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), vec!["f1.txt".to_string()]);
 
     take_side(&runner, r.path(), &["f1.txt".to_string()], Side::Theirs).await.unwrap();
-    assert!(conflicted_files(&runner, r.path()).await.unwrap().is_empty());
+    assert_eq!(conflicted_files(&runner, r.path()).await.unwrap(), [] as [String; 0]);
     continue_op(&runner, r.path(), OpKind::Merge).await.unwrap();
 
     assert_eq!(in_progress(&info), None);

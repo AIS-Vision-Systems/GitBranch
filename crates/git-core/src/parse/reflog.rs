@@ -102,6 +102,6 @@ mod tests {
         assert_eq!(v[2].selector, "HEAD@{2}");
         assert_eq!(v[2].time, 100);
         assert!(parse_reflog(b"x\x1fy\0").is_err());
-        assert!(parse_reflog(b"").unwrap().is_empty());
+        assert_eq!(parse_reflog(b"").unwrap().len(), 0);
     }
 }

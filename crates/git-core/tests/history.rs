@@ -22,7 +22,7 @@ async fn reset_modes() {
 
     reset(&r, p, &c3, ResetMode::Hard).await.unwrap();
     assert_eq!(fx.rev_parse("HEAD"), c3);
-    assert!(fx.git(&["status", "--porcelain"]).is_empty());
+    assert_eq!(fx.git(&["status", "--porcelain"]), "");
 
     reset(&r, p, "HEAD~2", ResetMode::Hard).await.unwrap();
     assert!(!p.join("f3.txt").exists());
@@ -42,7 +42,7 @@ async fn revert_creates_inverse_commit() {
     let head = fx.rev_parse("HEAD");
     revert(&r, fx.path(), &[c2], true).await.unwrap();
     assert_eq!(fx.rev_parse("HEAD"), head);
-    assert!(!fx.git(&["status", "--porcelain"]).is_empty());
+    assert_ne!(fx.git(&["status", "--porcelain"]), "");
 }
 
 #[tokio::test]

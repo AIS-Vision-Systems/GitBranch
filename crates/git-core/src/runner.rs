@@ -693,7 +693,7 @@ mod tests {
         let mut line = b"  redirect to https://u:tok@host/x.git ".to_vec();
         emit_line(&mut line, &mut sink);
         assert_eq!(got, ["redirect to https://***@host/x.git"]);
-        assert!(line.is_empty());
+        assert_eq!(line.len(), 0);
     }
 
     #[test]

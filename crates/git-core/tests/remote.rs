@@ -58,7 +58,10 @@ async fn remote_config_roundtrip() {
 
     remove_remote(&r, fx.path(), "mirror").await.unwrap();
     remove_remote(&r, fx.path(), "origin").await.unwrap();
-    assert!(list_remotes(&r, fx.path()).await.unwrap().is_empty());
+    assert_eq!(
+        list_remotes(&r, fx.path()).await.unwrap(),
+        [] as [git_core::ops::remote::Remote; 0]
+    );
     assert!(remove_remote(&r, fx.path(), "origin").await.is_err());
 }
 

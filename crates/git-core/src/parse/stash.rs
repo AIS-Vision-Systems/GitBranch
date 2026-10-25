@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn empty_and_malformed() {
-        assert!(parse_stash_list(b"").unwrap().is_empty());
+        assert_eq!(parse_stash_list(b"").unwrap().len(), 0);
         assert!(parse_stash_list(b"stash@{0}\x1fonly").is_err());
     }
 }

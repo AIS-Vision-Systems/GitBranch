@@ -43,7 +43,10 @@ async fn deinit_is_uninitialized() {
 #[tokio::test]
 async fn no_submodules_is_empty() {
     let fx = FixtureRepo::linear(2);
-    assert!(list_submodules(&fx.runner(), fx.path()).await.unwrap().is_empty());
+    assert_eq!(
+        list_submodules(&fx.runner(), fx.path()).await.unwrap(),
+        [] as [git_core::ops::submodule::Submodule; 0]
+    );
 }
 
 #[tokio::test]

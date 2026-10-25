@@ -194,7 +194,7 @@ branch refs/heads/x
 
     #[test]
     fn errors_and_empty() {
-        assert!(parse_worktree_list(b"").unwrap().is_empty());
+        assert_eq!(parse_worktree_list(b"").unwrap().len(), 0);
         assert!(parse_worktree_list(b"HEAD abc\n").is_err());
     }
 

@@ -56,7 +56,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
           <div className={styles["muted"]}>
             {version !== null ? `Version ${version}` : "Version"}
           </div>
-          <div className={styles["muted"]}>Idea and original development: Xavi Anguera</div>
+          <div className={styles["muted"]}>Original development: Xavi Anguera</div>
           <button
             type="button"
             className={styles["link"]}

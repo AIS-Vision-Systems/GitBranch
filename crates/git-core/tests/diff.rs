@@ -61,7 +61,7 @@ fn empty_and_quoted_and_modes() {
     assert_eq!(d.new_path, d.old_path);
     assert_eq!(d.old_mode.as_deref(), Some("100644"));
     assert_eq!(d.new_mode.as_deref(), Some("100755"));
-    assert!(d.hunks.is_empty());
+    assert_eq!(d.hunks, [] as [git_core::parse::diff::Hunk; 0]);
     assert!(parse_unified(b"@@ nope\n").is_err());
 }
 
@@ -140,7 +140,7 @@ async fn binary_commit() {
     let t = DiffTarget::Commit { oid: repo.rev_parse("HEAD"), path: "b.bin".into() };
     let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
     assert!(d.binary);
-    assert!(d.hunks.is_empty());
+    assert_eq!(d.hunks, [] as [git_core::parse::diff::Hunk; 0]);
     assert_eq!(d.old_path, None);
     assert_eq!(d.new_path.as_deref(), Some("b.bin"));
 }
@@ -214,7 +214,7 @@ async fn merge_commit_diffs_against_first_parent() {
     // Changed only on the first-parent side: absent from the diff against it.
     let t = DiffTarget::Commit { oid: m, path: "f2.txt".into() };
     let d = file_diff(&repo.runner(), repo.path(), &t).await.unwrap();
-    assert!(d.hunks.is_empty());
+    assert_eq!(d.hunks, [] as [git_core::parse::diff::Hunk; 0]);
 }
 
 #[tokio::test]

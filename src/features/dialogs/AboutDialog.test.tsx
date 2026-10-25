@@ -19,7 +19,7 @@ describe("AboutDialog", () => {
     render(<AboutDialog onClose={onClose} />);
     expect(screen.getByText("GitBranch")).toBeInTheDocument();
     expect(await screen.findByText("Version 9.8.7")).toBeInTheDocument();
-    expect(screen.getByText(/Idea and original development: Xavi Anguera/)).toBeInTheDocument();
+    expect(screen.getByText(/Original development: Xavi Anguera/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "User guide" })).toBeInTheDocument();
     fireEvent.click(screen.getByText(/License: free for noncommercial use/));
     expect(openUrl).toHaveBeenCalledWith(LICENSE_URL);

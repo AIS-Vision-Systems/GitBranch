@@ -22,7 +22,10 @@ async fn range_lists_new_commits() {
     let one = commits_between(&run, r.path(), &base, "feature", 1).await.unwrap();
     assert_eq!(one.len(), 1);
     assert_eq!(one[0].subject, "add b");
-    assert!(commits_between(&run, r.path(), "feature", "feature", 5).await.unwrap().is_empty());
+    assert_eq!(
+        commits_between(&run, r.path(), "feature", "feature", 5).await.unwrap(),
+        [] as [git_core::ops::log_range::RangeCommit; 0]
+    );
     assert!(commits_between(&run, r.path(), "--all", "feature", 5).await.is_err());
     assert!(commits_between(&run, r.path(), &base, "", 5).await.is_err());
     assert!(commits_between(&run, r.path(), &base, "-x", 5).await.is_err());
