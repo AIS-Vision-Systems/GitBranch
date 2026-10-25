@@ -386,3 +386,22 @@ tab switch after a minute; the pull after a double-click only runs when the loca
 upstream (a diverged branch gets a toast instead, never an unasked merge or rebase). The window sets
 `dragDropEnabled: false` (tauri.conf.json): Tauri's native drag-drop handler otherwise swallows HTML5 drag events
 in WebView2, which the tab reorder and the branch chip drag rely on; the app has no file-drop feature.
+
+## D-039 · accepted · 2026-10-25 — Public repository, release 1.0.0, Quasidian-style contribution policy
+Context: the owner asked to open the repository to the public and ship 1.0.0, following what Quasidian does
+(dual license, CLA, contributing guide, security policy, code owners, PR template, rulesets, repo metadata).
+Decision: `CLA.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.github/CODEOWNERS` and `.github/PULL_REQUEST_TEMPLATE.md`
+are copied from Quasidian and adapted to the GitBranch rules (git-core layering, no shell, keyring-only tokens,
+fixture tests). `LICENSE.md` gains the CLA paragraph. The README follows the Quasidian layout (features, download,
+license, building, development, publishing, credits). GitHub rulesets: `protect-main` (no deletion, no
+force-push, PRs with green `windows-latest` + `ubuntu-22.04` checks for everyone) and `protect-release-tags`
+(`v*` tags immutable). Unlike Quasidian, repository admins bypass `protect-main` always, not only through pull
+requests, because D-014 merges phases into `main` locally with `--no-ff` and pushes; contributors still go
+through PRs. Private vulnerability reporting on, wiki off, issues on. Versions move from 0.1.0 to 1.0.0 in
+`package.json`, `tauri.conf.json` and the workspace `Cargo.toml` (the release workflow checks the three match
+the tag). The CI clippy error that appeared with stable 1.99 is fixed in the same commit, since a public repo
+must not show a red badge. The commit lands on `main` directly: no phase is open and D-014 allows small
+doc/branding commits between phases.
+Consequences: the GitHub-only integration, the keyring-only token rule and the no-force-push rule are now public
+commitments stated in CONTRIBUTING. Every release needs the three version fields bumped together. External PRs
+cannot merge without the owner's review (CODEOWNERS) and the CLA checkbox.

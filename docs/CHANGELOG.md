@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.0.0 — 2026-10-25
+
+First public release. The repository is public on GitHub under the dual license (PolyForm Noncommercial 1.0.0 +
+commercial), with a CLA, contributing guide, security policy, code owners and a pull request template modelled on
+Quasidian (D-039). Installers for Windows (NSIS) and Ubuntu (deb, AppImage) with signed updater artifacts. The
+entries below are the development log that led to 1.0.0.
+
+- 2026-10-25: Fix the `clippy::unused_async_trait_impl` error (stable 1.99) in the github-api mock transport
+  that turned CI red since the toolchain update.
 - 2026-10-25: Phase 11 (owner feedback 2): the chip connector reaches the node through the column gap and is 1 px
   except on the HEAD row; message bars grow to 20 px with a faint lane-coloured band from the node to the bar;
   author photos resolve by email through GitHub's avatar CDN for repos with a GitHub remote (other authors and

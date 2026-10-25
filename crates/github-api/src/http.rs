@@ -276,7 +276,11 @@ pub mod mock {
     }
 
     impl Transport for MockTransport {
-        async fn send(&self, req: Request) -> Result<Response, Error> {
+        // No await inside: answer with a ready future (clippy::unused_async_trait_impl).
+        fn send(
+            &self,
+            req: Request,
+        ) -> impl std::future::Future<Output = Result<Response, Error>> + Send {
             let found = {
                 let mut routes = self.routes.lock().expect("lock poisoned");
                 routes
@@ -291,7 +295,7 @@ pub mod mock {
                     })
             };
             self.calls.lock().expect("lock poisoned").push(req);
-            found.ok_or_else(|| Error::Network("no route".into()))
+            std::future::ready(found.ok_or_else(|| Error::Network("no route".into())))
         }
     }
 }

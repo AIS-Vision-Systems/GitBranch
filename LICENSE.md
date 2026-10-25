@@ -8,6 +8,7 @@ GitBranch is dual-licensed. You may use it under **either** of the following lic
 
 2. **Commercial license** — any use of GitBranch for commercial purposes requires a separate commercial license granted by AIS Vision Systems. See [`LICENSE-COMMERCIAL.md`](LICENSE-COMMERCIAL.md) for how to obtain one.
 
+Contributions to this repository are accepted under the Contributor License Agreement in [`CLA.md`](CLA.md), which allows AIS Vision Systems to distribute contributed code under both licenses above.
 
 ---
 
