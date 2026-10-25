@@ -183,9 +183,15 @@ pub fn same_path(a: &Path, b: &Path) -> bool {
     components(a) == components(b)
 }
 
-/// The listed non-main worktree whose path equals `path`.
+/// The listed non-main worktree whose path equals `path`: textually first, then by the resolved
+/// paths when both exist (8.3 short names such as `RUNNER~1` on Windows, symlinked temp dirs).
 pub fn find_linked<'a>(list: &'a [Worktree], path: &Path) -> Option<&'a Worktree> {
-    list.iter().find(|w| !w.is_main && same_path(Path::new(&w.path), path))
+    let linked = || list.iter().filter(|w| !w.is_main);
+    if let Some(w) = linked().find(|w| same_path(Path::new(&w.path), path)) {
+        return Some(w);
+    }
+    let want = std::fs::canonicalize(path).ok()?;
+    linked().find(|w| std::fs::canonicalize(&w.path).is_ok_and(|p| same_path(&p, &want)))
 }
 
 /// Suggested location for a worktree of `branch`: a sibling `<repo dir>.<branch>` of the main checkout.

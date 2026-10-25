@@ -13,6 +13,11 @@ entries below are the development log that led to 1.0.0.
   future (`unused_async_trait_impl`), the flaky-transport counter uses `compare_exchange` instead of the
   deprecated `fetch_update`, and 48 `assert!(x.is_empty())` in git-core tests become `assert_eq!`
   (`assert_is_empty`). The About dialog and README credit line reads "Original development: Xavi Anguera".
+- 2026-10-25: First green CI on Linux: a failed clone of a missing path may classify as `NotFound` (git 2.55
+  wording); `stash pop` / `apply` run without `-q` so conflicts are reported on git < 2.39; `remote rename` and
+  `remote remove` pass no `--` (refused before git 2.39) and validate the name instead; `find_linked` also
+  matches a worktree through its canonical path (8.3 short names such as `RUNNER~1` on Windows); CI runs every
+  test binary (`--no-fail-fast`).
 - 2026-10-25: Phase 11 (owner feedback 2): the chip connector reaches the node through the column gap and is 1 px
   except on the HEAD row; message bars grow to 20 px with a faint lane-coloured band from the node to the bar;
   author photos resolve by email through GitHub's avatar CDN for repos with a GitHub remote (other authors and
