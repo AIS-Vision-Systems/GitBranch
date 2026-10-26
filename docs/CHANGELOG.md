@@ -1,7 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-10-26
 
+The commit graph reads like GitKraken: a branch is born sideways, runs straight and ends sideways into the
+branch it came from. Stashes are drawn in the graph.
+
+- 2026-10-26: The node lane among several lanes waiting for one commit is chosen by chain ownership (D-041):
+  the lane opened by a merge keeps the merged branch's tip, so a first-parent chain reaching that tip ends
+  sideways into it. Before, the leftmost lane won and, with stacked pull requests, the merge lane looked like an
+  empty branch born straight up from the next branch's commits. Main stays on its lane when it was merged into a
+  feature branched from it. Stashes become rows placed right above their base commit, on a side lane with a
+  square node and dotted edges; the WIP connector passes through them, and their context menu offers Apply, Pop
+  and Drop. `git stash list` now also reports the base commit and the author.
 - 2026-10-26: The watcher ignores `FETCH_HEAD`, which every fetch rewrites even when it brings nothing, so a
   no-op background fetch (an IDE auto-fetch, the quiet fetch on show) no longer reloads the graph; a real fetch
   still does through `refs/` and `logs/`. The release workflow passes `includeUpdaterJson` to tauri-action
