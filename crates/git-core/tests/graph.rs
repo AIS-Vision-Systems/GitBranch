@@ -316,3 +316,25 @@ fn stash_on_a_waited_commit() {
     assert_eq!(lane_of(&rows, "m1"), 0);
     assert_eq!(rows[1].edges.len(), 2, "stash lane plus the passthrough of main");
 }
+
+/// A stash allocated left of the lane waiting for its base never carries the base.
+#[test]
+fn stash_lane_never_carries_its_base() {
+    let mut c = chain(&[
+        ("t", &["t0"]),
+        ("m2", &["m1"]),
+        ("t0", &[]),
+        ("s", &["m1"]),
+        ("m1", &["m0"]),
+        ("m0", &[]),
+    ]);
+    c[3].stash = true;
+    check_all(&c);
+    let rows = layout(&c);
+    assert_eq!(lane_of(&rows, "s"), 0, "the freed lane left of main");
+    assert_eq!(lane_of(&rows, "m1"), 1, "the base stays on the waiting lane");
+    assert_eq!(lane_of(&rows, "m0"), 1);
+    let m1 = &rows[4];
+    assert!(m1.has_incoming);
+    assert!(m1.edges.iter().all(|e| e.dashed == (e.kind == EdgeKind::MergeIn)));
+}

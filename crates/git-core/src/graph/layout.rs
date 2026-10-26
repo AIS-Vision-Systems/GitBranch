@@ -200,7 +200,8 @@ impl LayoutState {
                 return f;
             }
         }
-        waiting[0]
+        // A stash lane never carries its base (it may sit left of the lane waiting for it).
+        waiting.iter().copied().find(|&i| !self.lane(i).dashed).unwrap_or(waiting[0])
     }
 
     /// Lay out one commit (commits must arrive children before parents).
@@ -249,8 +250,10 @@ impl LayoutState {
             let l = self.lanes[lane].as_mut().expect("node lane is occupied");
             l.fresh = false;
             l.placeholder = false;
-            l.dashed |= commit.stash;
-            (l.color, l.chain, l.ancestors.clone(), l.dashed)
+            l.dashed = commit.stash;
+            // Ancestors are only needed to open lanes for extra parents.
+            let anc = if commit.parents.len() > 1 { l.ancestors.clone() } else { Vec::new() };
+            (l.color, l.chain, anc, l.dashed)
         };
 
         // Continue to the first parent on the same lane.

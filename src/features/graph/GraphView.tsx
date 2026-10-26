@@ -92,9 +92,9 @@ export function GraphView({ repoId }: Props) {
   const loaded = g !== undefined && !g.loading && g.refs !== null && g.status !== null;
   useEffect(() => {
     if (!loaded || prSelected || selectedOid !== null) return;
-    const first = firstRowOid(hasWip, rows);
+    const first = firstRowOid(hasWip, commits);
     if (first !== null) select(first);
-  }, [loaded, prSelected, selectedOid, hasWip, rows, select]);
+  }, [loaded, prSelected, selectedOid, hasWip, commits, select]);
 
   const headRow = headOid !== null ? byOid.get(headOid) : undefined;
   const wipRow = headRow !== undefined ? rows[headRow] : undefined;
@@ -265,6 +265,8 @@ export function GraphView({ repoId }: Props) {
     const commit = i === undefined ? undefined : commits[i];
     if (commit === undefined) return null;
     if (commit.stash) {
+      // The store's own stash_list runs beside load_graph; a stash the cache drew but the store
+      // has not seen yet (or no longer lists) just has no menu.
       const entry = stashes.find((s) => s.oid === commit.oid);
       return entry === undefined ? null : stashMenu(repoId, entry, inProgress);
     }

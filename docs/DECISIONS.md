@@ -426,7 +426,9 @@ a branch is born sideways, runs straight, and ends sideways. Stashes were only l
 Decision: when several lanes wait for one commit the node goes to (1) the placeholder lane reserved for a stash
 base, else (2) the lane opened by a `BranchOut` that has not reached its target yet (the merged branch keeps its
 own lane; the first-parent chains that reach the same commit end sideways into it), unless one of those chains is
-an ancestor of the fresh lane's chain (main merged into a feature: main stays put and the merge lane ends empty),
+an ancestor of the fresh lane's chain (main merged into a feature branched from it: main stays put and the merge
+lane ends empty; a feature with no recorded origin, e.g. its tip is the newest commit, keeps the merged main commit
+on its merge lane, as GitKraken does),
 else (3) the leftmost waiting lane. Each lane records its chain id and the chains it was branched from. Stashes
 become synthetic commits (`Commit::stash`, parents `[base]`) inserted right above their base by
 `graph::with_stashes` in the Tauri layout cache; their lanes are `dashed` and a placeholder lane is reserved for
