@@ -405,3 +405,15 @@ doc/branding commits between phases.
 Consequences: the GitHub-only integration, the keyring-only token rule and the no-force-push rule are now public
 commitments stated in CONTRIBUTING. Every release needs the three version fields bumped together. External PRs
 cannot merge without the owner's review (CODEOWNERS) and the CLA checkbox.
+
+## D-040 · accepted · 2026-10-26 — Every change lands through a pull request
+Context: with the repository public (D-039), the owner asked that from now on every change goes through a pull
+request instead of commits pushed to `main` or local `--no-ff` phase merges.
+Decision: each change gets its own branch off `main` (`fix/<topic>`, `feat/<topic>`; a whole PLAN phase may still
+use `phase/N`). Commits are pushed right away as before (D-014). When the change passes the check ladder, the agent
+opens the PR with `gh pr create` (title in conventional-commit style, body following the PR template) and stops:
+the owner reviews and merges on GitHub, and deletes the branch there. The agent never merges, never pushes to
+`main`, and never tags a release. The `protect-main` ruleset keeps its admin bypass for now, so emergency fixes by
+the owner remain possible.
+Consequences: `main` only moves through reviewed PRs; CI runs on every change before it lands. The D-014 flow
+(local merge, `phase-N` tag, branch deletion by the agent) is superseded.

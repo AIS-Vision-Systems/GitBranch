@@ -124,6 +124,20 @@ function msg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/**
+ * Selection after a reload of one repo. The selection is global, so a reload may only drop it when it was a
+ * commit of this repo (in `before`) that the new page no longer has; a selection in another open repo, or the
+ * WIP row, is left alone.
+ */
+export function nextSelection(
+  selected: string | null,
+  before: Map<string, number> | undefined,
+  after: Map<string, number>,
+): string | null {
+  if (selected === null || selected === WIP_OID || after.has(selected)) return selected;
+  return before?.has(selected) ? null : selected;
+}
+
 // Bumped on every full (re)load so stale responses are dropped.
 const generation = new Map<string, number>();
 const bump = (id: string): number => {
@@ -167,10 +181,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     };
   };
 
-  /** Fetch page 0 + refs + status. `reset` blanks the view first (initial load). */
+  /**
+   * Fetch page 0 + refs + status. `reset` blanks the view first (initial load); otherwise the page is as
+   * long as what is loaded, so rows the user scrolled to (and a selection among them) survive a refresh.
+   */
   const reload = async (repoId: RepoId, reset: boolean): Promise<void> => {
     const gen = bump(repoId);
     const t0 = performance.now();
+    const loaded = reset ? 0 : (get().byRepo[repoId]?.rows.length ?? 0);
+    const limit = Math.max(FIRST_PAGE, loaded);
     if (reset) {
       set((s) => ({ byRepo: { ...s.byRepo, [repoId]: { ...EMPTY_GRAPH, loading: true } } }));
     } else {
@@ -182,7 +201,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         performance.now() - t0,
       ];
       const [[page, tPage], [refs, tRefs], [status, tStatus], stashes, opInfo] = await Promise.all([
-        timed(ipc.loadGraph(repoId, buildQuery(0, FIRST_PAGE, get().filters[repoId]))),
+        timed(ipc.loadGraph(repoId, buildQuery(0, limit, get().filters[repoId]))),
         timed(ipc.listRefs(repoId)),
         timed(ipc.repoStatus(repoId)),
         loadStashes(repoId),
@@ -214,10 +233,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             error: null,
           },
         },
-        selectedOid:
-          s.selectedOid === null || s.selectedOid === WIP_OID || byOid.has(s.selectedOid)
-            ? s.selectedOid
-            : null,
+        selectedOid: nextSelection(s.selectedOid, s.byRepo[repoId]?.byOid, byOid),
       }));
     } catch (e) {
       if (generation.get(repoId) !== gen) return;

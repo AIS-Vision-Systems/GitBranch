@@ -15,8 +15,9 @@ remote integration, worktrees. No link to GitKraken. Owner: Xavi (chat in Catala
 - No libgit2, no bundled git, no telemetry, no GitKraken packages, no Electron.
 - Tokens only in the OS keyring; never log or echo them.
 - Tests use real `git` on temp fixture repos (`crates/git-core/tests/fixtures.rs`). Every git-core op has a test.
-- `git push --force` is forbidden; use `--force-with-lease`. Push after every commit (owner standing order, D-014);
-  never open PRs or release without the owner.
+- `git push --force` is forbidden; use `--force-with-lease`. Push after every commit (owner standing order, D-014).
+  Since 1.0.0 every change lands through a pull request (D-040): open it with `gh pr create`, never merge it, and
+  never release without the owner.
 
 ## Commands (once Phase 0 lands)
 ```
@@ -38,6 +39,8 @@ pnpm tauri build                # phase end only
 - Decide routine things yourself and log them in `docs/DECISIONS.md`. Batch owner questions, each with a default.
 - Commit after each PLAN item passes verification: `feat(graph): ...` / `fix(git-core): ...` style, English, one item per commit.
 - Update the PLAN checkbox in the same commit as the code.
-- One branch per phase: `phase/N` off `main`. All phase commits land there. At phase end merge to `main` with
-  `--no-ff`, tag `phase-N`, delete the branch locally and on origin (D-014). Never commit directly to `main` while a
-  phase is open. Every commit is pushed right away (`git push -u origin phase/N` on the first one).
+- Since 1.0.0 (D-040): one branch per change off `main` (`fix/<topic>`, `feat/<topic>`, or `phase/N` for a whole
+  PLAN phase), every commit pushed right away (`git push -u origin <branch>` on the first one), and a pull request
+  opened with `gh pr create` when the change is verified. The owner reviews and merges on GitHub; never commit to
+  `main` directly and never merge a PR yourself. The pre-1.0 phase flow (local `--no-ff` merge, `phase-N` tag,
+  branch deletion) is history in D-014.

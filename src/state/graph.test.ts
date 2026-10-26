@@ -117,6 +117,42 @@ describe("graph store", () => {
     await useGraphStore.getState().refresh(id, ["head"]);
     expect(useGraphStore.getState().selectedOid).toBe(WIP_OID);
   });
+
+  it("a reload of another open repo leaves the selection alone", async () => {
+    const other = "r2" as RepoId;
+    m.loadGraph.mockResolvedValueOnce(page(["x"], false, 1));
+    await useGraphStore.getState().load(other);
+    m.loadGraph.mockResolvedValueOnce(page(["a", "b"], false, 2));
+    await useGraphStore.getState().load(id);
+    useGraphStore.getState().select("b");
+    // A watcher event (fetch, commit) in the background tab reloads it; "b" is not one of its commits.
+    m.loadGraph.mockResolvedValueOnce(page(["x", "y"], false, 2));
+    await useGraphStore.getState().refresh(other, ["refs"]);
+    expect(useGraphStore.getState().selectedOid).toBe("b");
+    expect(useGraphStore.getState().byRepo[other]!.rows.map((r) => r.oid)).toEqual(["x", "y"]);
+  });
+
+  it("a reload re-fetches every loaded row, so a selection past the first page survives", async () => {
+    const first = Array.from({ length: 2000 }, (_, i) => `c${i}`);
+    const more = Array.from({ length: 500 }, (_, i) => `d${i}`);
+    m.loadGraph.mockResolvedValueOnce(page(first, true, 2000));
+    await useGraphStore.getState().load(id);
+    m.loadGraph.mockResolvedValueOnce(page(more, false, 2500));
+    await useGraphStore.getState().loadMore(id);
+    useGraphStore.getState().select("d400");
+
+    m.loadGraph.mockResolvedValueOnce(page(first.concat(more), false, 2500));
+    await useGraphStore.getState().refresh(id, ["head"]);
+    expect(m.loadGraph).toHaveBeenLastCalledWith(id, {
+      order: "date",
+      skip: 0,
+      limit: 2500,
+      all: true,
+    });
+    const g = useGraphStore.getState().byRepo[id]!;
+    expect(g.rows).toHaveLength(2500);
+    expect(useGraphStore.getState().selectedOid).toBe("d400");
+  });
 });
 
 describe("refsByOid", () => {
