@@ -91,9 +91,6 @@ fn classify_in_git_dir(rel: &[String], own: bool) -> Option<Change> {
                 Some(Change::Refs)
             }
         }
-        // FETCH_HEAD is rewritten by every fetch, also one that brings nothing; what a fetch changes
-        // shows up under refs/ and logs/ anyway.
-        "FETCH_HEAD" => None,
         "ORIG_HEAD" | "MERGE_HEAD" | "CHERRY_PICK_HEAD" | "REBASE_HEAD" | "MERGE_MSG"
         | "REVERT_HEAD" | "AUTO_MERGE" | "BISECT_LOG" | "rebase-merge" | "rebase-apply"
         | "sequencer"
@@ -101,6 +98,8 @@ fn classify_in_git_dir(rel: &[String], own: bool) -> Option<Change> {
         {
             Some(Change::Head)
         }
+        // Also FETCH_HEAD: every fetch rewrites it, even one that brings nothing, and what a fetch
+        // changes shows up under refs/ and logs/ anyway.
         _ => None,
     }
 }
