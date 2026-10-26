@@ -417,3 +417,22 @@ the owner reviews and merges on GitHub, and deletes the branch there. The agent 
 the owner remain possible.
 Consequences: `main` only moves through reviewed PRs; CI runs on every change before it lands. The D-014 flow
 (local merge, `phase-N` tag, branch deletion by the agent) is superseded.
+
+## D-041 · accepted · 2026-10-26 — Node lane by chain ownership; stashes as rows
+Context: with the leftmost-waiting-lane rule, a merged branch whose tip was also the base of a later branch
+(stacked pull requests, the normal flow since D-040) was drawn on the later branch's lane, and the lane opened by
+the merge looked like an empty branch born straight up from that tip. The owner wants the GitKraken reading:
+a branch is born sideways, runs straight, and ends sideways. Stashes were only listed in the sidebar.
+Decision: when several lanes wait for one commit the node goes to (1) the placeholder lane reserved for a stash
+base, else (2) the lane opened by a `BranchOut` that has not reached its target yet (the merged branch keeps its
+own lane; the first-parent chains that reach the same commit end sideways into it), unless one of those chains is
+an ancestor of the fresh lane's chain (main merged into a feature branched from it: main stays put and the merge
+lane ends empty; a feature with no recorded origin, e.g. its tip is the newest commit, keeps the merged main commit
+on its merge lane, as GitKraken does),
+else (3) the leftmost waiting lane. Each lane records its chain id and the chains it was branched from. Stashes
+become synthetic commits (`Commit::stash`, parents `[base]`) inserted right above their base by
+`graph::with_stashes` in the Tauri layout cache; their lanes are `dashed` and a placeholder lane is reserved for
+the base so the stash sits beside it. The UI draws them as a square node with dotted edges, and the WIP connector
+passes through stash rows that sit between the WIP row and HEAD. Filtered logs show no stashes.
+Consequences: `Edge` carries `dashed`, `Commit` carries `stash`, `StashEntry` carries `base` and the author.
+Pages served to the UI contain more rows than git returned, so the cache tracks the git count separately.

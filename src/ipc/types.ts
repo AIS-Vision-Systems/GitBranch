@@ -49,6 +49,8 @@ export interface Commit {
   authorTime: number;
   committerTime: number;
   subject: string;
+  /** Synthetic stash row: its only parent is the base commit. */
+  stash: boolean;
 }
 export type EdgeKind = "straight" | "mergeIn" | "branchOut";
 export interface Edge {
@@ -56,6 +58,8 @@ export interface Edge {
   toLane: number;
   kind: EdgeKind;
   color: number;
+  /** On a stash lane: drawn dotted. */
+  dashed: boolean;
 }
 export interface Row {
   oid: string;

@@ -16,6 +16,7 @@ export function menuItemsFor(repoId: RepoId, ref: Ref): MenuItem[] {
     authorTime: 0,
     committerTime: 0,
     subject: "",
+    stash: false,
   };
   const ctx: MenuContext = {
     repoId,

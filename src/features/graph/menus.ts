@@ -17,6 +17,7 @@ import { shortOid, useOpsStore } from "../../state/ops";
 import { remotesOf, useRemotesStore } from "../../state/remotes";
 import { useWipStore } from "../../state/wip";
 import { wipItems } from "../commit/items";
+import type { StashEntry } from "../../ipc/stash";
 import type { MenuItem } from "../shell/ContextMenu";
 
 export interface MenuContext {
@@ -138,6 +139,35 @@ export function commitMenu(ctx: MenuContext): MenuItem[] {
     },
     SEP,
     { kind: "item", id: "copy-id", label: "Copy commit id", onSelect: () => copyId(oid) },
+  ];
+}
+
+/** Apply, pop and drop for a stash row. */
+export function stashMenu(repoId: RepoId, entry: StashEntry, inProgress = false): MenuItem[] {
+  const ops = (): ReturnType<typeof useOpsStore.getState> => useOpsStore.getState();
+  return [
+    {
+      kind: "item",
+      id: "stash-apply",
+      label: "Apply stash",
+      disabled: inProgress,
+      onSelect: () => void ops().stashApply(repoId, entry),
+    },
+    {
+      kind: "item",
+      id: "stash-pop",
+      label: "Pop stash",
+      disabled: inProgress,
+      onSelect: () => void ops().stashPop(repoId, entry),
+    },
+    SEP,
+    {
+      kind: "item",
+      id: "stash-drop",
+      label: "Drop stash",
+      danger: true,
+      onSelect: () => void ops().stashDrop(repoId, entry),
+    },
   ];
 }
 

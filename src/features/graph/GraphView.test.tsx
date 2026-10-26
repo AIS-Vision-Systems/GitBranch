@@ -77,6 +77,39 @@ describe("GraphView", () => {
     expect(useGraphStore.getState().selectedOid).toBe("c0");
   });
 
+  it("keeps the WIP connector when only a stash row sits above HEAD", () => {
+    seed(2, {
+      branch: null,
+      entries: [
+        {
+          path: "a.txt",
+          origPath: null,
+          staged: "unmodified",
+          unstaged: "modified",
+          conflicted: false,
+          submodule: false,
+        },
+      ],
+    });
+    const st = useGraphStore.getState().byRepo[id]!;
+    useGraphStore.setState({
+      byRepo: {
+        [id]: {
+          ...st,
+          commits: [commit("c0", ["c1"], "WIP on main", { stash: true }), commit("c1")],
+          refs: { head: { oid: "c1", branch: "main", detached: false }, refs: [] },
+        },
+      },
+    });
+    const { container } = render(<GraphView repoId={id} />);
+    expect(container.querySelectorAll("path[data-wip-through]")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-node='stash']")).toHaveLength(1);
+    // WipRow connector + HEAD row incoming path are dashed "3 3".
+    expect(
+      container.querySelectorAll("path[stroke-dasharray='3 3']").length,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
   it("shows a WIP row first when the tree is dirty and keyboard reaches it", () => {
     seed(3, {
       branch: null,

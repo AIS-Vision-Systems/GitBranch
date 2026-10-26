@@ -1,6 +1,11 @@
 import type { Commit, Refs, Row, Status } from "../ipc/types";
 
-export function commit(oid: string, parents: string[] = [], subject = `commit ${oid}`): Commit {
+export function commit(
+  oid: string,
+  parents: string[] = [],
+  subject = `commit ${oid}`,
+  over: Partial<Commit> = {},
+): Commit {
   return {
     oid,
     parents,
@@ -9,6 +14,8 @@ export function commit(oid: string, parents: string[] = [], subject = `commit ${
     authorTime: 1_700_000_000,
     committerTime: 1_700_000_000,
     subject,
+    stash: false,
+    ...over,
   };
 }
 

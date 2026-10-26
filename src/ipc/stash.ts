@@ -6,6 +6,10 @@ export interface StashEntry {
   oid: string;
   branch: string | null;
   message: string;
+  /** Base commit oid. */
+  base: string;
+  authorName: string;
+  authorEmail: string;
   /** Unix seconds. */
   time: number;
 }

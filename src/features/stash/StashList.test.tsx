@@ -22,8 +22,26 @@ beforeEach(() => {
       [id]: {
         ...EMPTY_GRAPH,
         stashes: [
-          { index: 0, oid: "s0", branch: "main", message: "WIP on main", time: now - 120 },
-          { index: 1, oid: "s1", branch: null, message: "other", time: now - 7200 },
+          {
+            index: 0,
+            oid: "s0",
+            branch: "main",
+            message: "WIP on main",
+            time: now - 120,
+            base: "b0",
+            authorName: "A",
+            authorEmail: "a@x",
+          },
+          {
+            index: 1,
+            oid: "s1",
+            branch: null,
+            message: "other",
+            time: now - 7200,
+            base: "b0",
+            authorName: "A",
+            authorEmail: "a@x",
+          },
         ],
       },
     },

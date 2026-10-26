@@ -176,6 +176,11 @@
   min-width: 0;
 }
 
+.stashSubject {
+  font-style: italic;
+  color: var(--color-fg-muted);
+}
+
 .mergeSubject {
   opacity: 0.75;
 }

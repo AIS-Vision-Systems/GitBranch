@@ -99,8 +99,12 @@ Row { oid, lane: u16, color: u8, has_incoming: bool, edges: Vec<Edge> }   // Edg
 Algorithm (standard "active lanes" sweep, as used by git-graph tools):
 
 1. Keep `lanes: Vec<Option<Oid>>` = the commit each lane is waiting for.
-2. For commit C: find the first lane waiting for C; that is C's lane (if none, allocate the first free lane). All other
-   lanes waiting for C are merge-in edges ending at C's lane and are freed.
+2. For commit C: among the lanes waiting for C pick the node lane (the others are merge-in edges ending at it and
+   are freed; none waiting = allocate the first free lane). The pick (D-041): the placeholder lane reserved for a
+   stash base; else the *fresh* lane (opened by a branch-out and not yet at its target: the merged branch keeps its
+   lane) unless another waiting lane's chain is an ancestor of the fresh lane's chain (upstream merged into
+   downstream: upstream stays); else the leftmost. A chain starts at a tip or a branch-out and follows first
+   parents; each lane records its chain id and ancestor chains.
 3. Replace C's lane target with `parents[0]`. For each extra parent P: if some lane already waits for P, draw a
    branch-out edge to it; else allocate a free lane for P. A lane whose target is `None` is free.
 4. Colors: assigned per lane *segment* (a lane keeps its color from allocation to being freed), palette of 12.
@@ -117,6 +121,10 @@ Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to t
 with one path per edge and one circle for the node. Refs are overlaid as chips on the row of their target oid.
 
 Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended on HEAD's lane with a dashed edge.
+Stash rows: the Tauri cache inserts one synthetic `Commit { stash: true, parents: [base] }` per stash entry right
+above its base (`graph::with_stashes`, filtered logs excepted). The layout reserves a placeholder lane for the base
+when nothing waits for it, so the stash sits beside the base and joins it from the side; its lane is `dashed`
+(`Edge.dashed`), drawn dotted, and the node is a square. The WIP connector passes through stash rows above HEAD.
 Rows are 28 px (`ROW_H` = `--graph-row-h`); chips clip long names at 180 px (`.chipText`, full name in the title)
 and the chip-to-node connector runs flush from the last chip to the node edge. `checkout(<remote>/<branch>)`
 with an existing local branch switches and then pulls that branch (D-037).
