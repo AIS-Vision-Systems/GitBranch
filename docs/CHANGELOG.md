@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 2026-10-26: The watcher ignores `FETCH_HEAD`, which every fetch rewrites even when it brings nothing, so a
+  no-op background fetch (an IDE auto-fetch, the quiet fetch on show) no longer reloads the graph; a real fetch
+  still does through `refs/` and `logs/`. The release workflow passes `includeUpdaterJson` to tauri-action
+  (`uploadUpdaterJson` was not an input; `latest.json` was uploaded only by the default).
+
 ## 1.0.1 — 2026-10-26
 
 Bug-fix release: a background refresh no longer loses the commit or diff being inspected. First release to

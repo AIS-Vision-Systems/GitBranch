@@ -91,13 +91,15 @@ fn classify_in_git_dir(rel: &[String], own: bool) -> Option<Change> {
                 Some(Change::Refs)
             }
         }
-        "ORIG_HEAD" | "FETCH_HEAD" | "MERGE_HEAD" | "CHERRY_PICK_HEAD" | "REBASE_HEAD"
-        | "MERGE_MSG" | "REVERT_HEAD" | "AUTO_MERGE" | "BISECT_LOG" | "rebase-merge"
-        | "rebase-apply" | "sequencer"
+        "ORIG_HEAD" | "MERGE_HEAD" | "CHERRY_PICK_HEAD" | "REBASE_HEAD" | "MERGE_MSG"
+        | "REVERT_HEAD" | "AUTO_MERGE" | "BISECT_LOG" | "rebase-merge" | "rebase-apply"
+        | "sequencer"
             if own =>
         {
             Some(Change::Head)
         }
+        // Also FETCH_HEAD: every fetch rewrites it, even one that brings nothing, and what a fetch
+        // changes shows up under refs/ and logs/ anyway.
         _ => None,
     }
 }
@@ -359,6 +361,7 @@ mod tests {
             ("/r/.git/sequencer/todo", Some(Change::Head)),
             ("/r/.git/logs/refs/heads/main", Some(Change::Refs)),
             ("/r/.git/ORIG_HEAD", Some(Change::Head)),
+            ("/r/.git/FETCH_HEAD", None),
             ("/r/.git/rebase-merge/done", Some(Change::Head)),
             ("/r/.git/worktrees/other/HEAD", Some(Change::Worktrees)),
             ("/r/.git/worktrees/other/index", None),
