@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- 2026-10-26: A background refresh no longer throws the user out of the commit or diff being inspected. The
+  selection is global, and a reload of any open repository (a watcher event after a quiet fetch, a commit from
+  another tool) dropped it whenever the commit was not in that repository's first page, which cleared the
+  details pane and reselected the top row. A reload now only drops a selection that was a commit of the
+  reloaded repository and is gone from it, and it re-fetches as many rows as were loaded, so a commit the user
+  scrolled to past the first 2000 rows stays loaded and selected. From this entry on, changes land through pull
+  requests (D-040).
+
 ## 1.0.0 — 2026-10-25
 
 First public release. The repository is public on GitHub under the dual license (PolyForm Noncommercial 1.0.0 +
