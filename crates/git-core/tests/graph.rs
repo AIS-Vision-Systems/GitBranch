@@ -17,6 +17,7 @@ fn commit(oid: String, parents: Vec<String>) -> Commit {
         author_time: 0,
         committer_time: 0,
         subject: String::new(),
+        stash: false,
     }
 }
 
@@ -146,7 +147,8 @@ fn check_all(commits: &[Commit]) {
         }
     }
 
-    // (f) has_incoming is false exactly for commits that are not a parent of any earlier row.
+    // (f) has_incoming is false exactly for commits that are not a parent of any earlier
+    // non-stash row (stashes join their base from the side).
     let mut parents_seen: BTreeSet<&str> = BTreeSet::new();
     for (c, row) in commits.iter().zip(&rows) {
         assert_eq!(
@@ -155,7 +157,9 @@ fn check_all(commits: &[Commit]) {
             "has_incoming {}",
             c.oid
         );
-        parents_seen.extend(c.parents.iter().map(String::as_str));
+        if !c.stash {
+            parents_seen.extend(c.parents.iter().map(String::as_str));
+        }
     }
 
     // (e) incremental == batch.
@@ -204,4 +208,111 @@ fn perf_100k() {
     if cfg!(not(debug_assertions)) {
         assert!(ms < 300, "layout took {ms} ms");
     }
+}
+
+/// `oid <- parents...` lines into commits (children first).
+fn chain(spec: &[(&str, &[&str])]) -> Vec<Commit> {
+    spec.iter()
+        .map(|(o, ps)| commit((*o).to_owned(), ps.iter().map(|p| (*p).to_owned()).collect()))
+        .collect()
+}
+
+fn lane_of(rows: &[Row], oid: &str) -> u16 {
+    rows.iter().find(|r| r.oid == oid).unwrap().lane
+}
+
+/// Stacked pull requests: `fb` was branched from the tip of `fa` and both were merged into main.
+/// The tip of `fa` must stay on the lane opened by its merge, so `fb`'s lane ends sideways into it
+/// instead of the merge lane looking like an empty branch.
+#[test]
+fn merged_tip_keeps_the_merge_lane() {
+    let c = chain(&[
+        ("m2", &["m1", "fb2"]),
+        ("m1", &["m0", "fa2"]),
+        ("fb2", &["fb1"]),
+        ("fb1", &["fa2"]),
+        ("fa2", &["fa1"]),
+        ("fa1", &["m0"]),
+        ("m0", &[]),
+    ]);
+    check_all(&c);
+    let rows = layout(&c);
+    assert_eq!(lane_of(&rows, "fb2"), 1);
+    assert_eq!(lane_of(&rows, "fa2"), 2, "fa2 stays on the lane opened by m1");
+    assert_eq!(lane_of(&rows, "fa1"), 2);
+    assert_eq!(lane_of(&rows, "m0"), 0);
+    let fa2 = rows.iter().find(|r| r.oid == "fa2").unwrap();
+    assert!(
+        fa2.edges.iter().any(|e| e.kind == EdgeKind::MergeIn && e.from_lane == 1 && e.to_lane == 2),
+        "fb's lane ends into fa2"
+    );
+}
+
+/// Main merged into a feature branch, then the feature merged back: main keeps lane 0 and the
+/// lane opened for the pulled-in commit ends with no commits of its own.
+#[test]
+fn upstream_commit_stays_on_its_lane() {
+    let c = chain(&[
+        ("m3", &["m2", "f2"]),
+        ("f2", &["f1", "m1"]),
+        ("m2", &["m1"]),
+        ("f1", &["m0"]),
+        ("m1", &["m0"]),
+        ("m0", &[]),
+    ]);
+    check_all(&c);
+    let rows = layout(&c);
+    for oid in ["m3", "m2", "m1", "m0"] {
+        assert_eq!(lane_of(&rows, oid), 0, "{oid} on main's lane");
+    }
+    assert_eq!(lane_of(&rows, "f2"), 1);
+    assert_eq!(lane_of(&rows, "f1"), 1);
+}
+
+/// A merge whose second parent is on its own first-parent chain draws an empty side lane.
+#[test]
+fn empty_branch_merge_keeps_main_straight() {
+    let c = chain(&[("m2", &["m1", "m0"]), ("m1", &["m0"]), ("m0", &[])]);
+    check_all(&c);
+    let rows = layout(&c);
+    assert_eq!(lane_of(&rows, "m1"), 0);
+    assert_eq!(lane_of(&rows, "m0"), 0);
+}
+
+/// A stash sits beside the lane its base takes, linked by dotted edges.
+#[test]
+fn stash_beside_its_base() {
+    let mut c = chain(&[("s1", &["m1"]), ("s0", &["m1"]), ("m1", &["m0"]), ("m0", &[])]);
+    c[0].stash = true;
+    c[1].stash = true;
+    check_all(&c);
+    let rows = layout(&c);
+    assert_eq!(lane_of(&rows, "s1"), 1);
+    assert_eq!(lane_of(&rows, "s0"), 2);
+    assert_eq!(lane_of(&rows, "m1"), 0, "the base takes the lane reserved for it");
+    assert_eq!(lane_of(&rows, "m0"), 0);
+    assert!(rows[0].edges.iter().all(|e| e.dashed), "stash edges are dotted");
+    assert!(rows[0].edges.iter().all(|e| e.from_lane != 0), "placeholder draws nothing");
+    let m1 = &rows[2];
+    assert!(!m1.has_incoming, "stashes join from the side, nothing continues from above");
+    let merges: Vec<&git_core::graph::Edge> =
+        m1.edges.iter().filter(|e| e.kind == EdgeKind::MergeIn).collect();
+    assert_eq!(merges.len(), 2);
+    assert!(merges.iter().all(|e| e.dashed && e.to_lane == 0));
+    assert!(m1.edges.iter().filter(|e| e.kind == EdgeKind::Straight).all(|e| !e.dashed));
+    let mut st = LayoutState::new();
+    st.push_all(&c);
+    assert_eq!(st.active_lanes(), 0);
+}
+
+/// A stash on a commit some lane already waits for takes a free lane next to it.
+#[test]
+fn stash_on_a_waited_commit() {
+    let mut c = chain(&[("m2", &["m1"]), ("s0", &["m1"]), ("m1", &["m0"]), ("m0", &[])]);
+    c[1].stash = true;
+    check_all(&c);
+    let rows = layout(&c);
+    assert_eq!(lane_of(&rows, "s0"), 1);
+    assert_eq!(lane_of(&rows, "m1"), 0);
+    assert_eq!(rows[1].edges.len(), 2, "stash lane plus the passthrough of main");
 }

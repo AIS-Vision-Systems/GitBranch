@@ -20,6 +20,10 @@ interface Props {
   connector?: boolean;
   /** Author photo (data URL); replaces the initials inside the ring. */
   avatarUrl?: string | null;
+  /** Stash rows draw a small rounded square instead of an avatar. */
+  isStash?: boolean;
+  /** The WIP connector passes through this (stash) row on this lane. */
+  wipThrough?: { lane: number; color: number };
 }
 
 export const LaneStrip = memo(function LaneStrip({
@@ -32,6 +36,8 @@ export const LaneStrip = memo(function LaneStrip({
   avatarIdx = 0,
   connector = false,
   avatarUrl = null,
+  isStash = false,
+  wipThrough,
 }: Props) {
   const clipId = `avclip-${useId().replace(/:/g, "")}`;
   const paths = lanePaths(row, row.hasIncoming || (isHead && wipAbove));
@@ -40,7 +46,8 @@ export const LaneStrip = memo(function LaneStrip({
   const laneCls = styles[`lane${colorIndex(row.color)}`];
   // The strip spills COL_GAP px into the grid gaps on both sides (negative margins in CSS) so the
   // chip connector and the lane band run flush to the neighbouring columns.
-  const bandX = cx + (isMerge ? NODE_R + 1 : AVATAR_R);
+  const small = isMerge || isStash;
+  const bandX = cx + (small ? NODE_R + 1 : AVATAR_R);
   // 1 px lines sit on a half pixel so they stay crisp.
   const connY = isHead ? cy : cy - 0.5;
   return (
@@ -67,11 +74,22 @@ export const LaneStrip = memo(function LaneStrip({
             data-connector=""
             x1={-COL_GAP}
             y1={connY}
-            x2={isMerge ? cx - NODE_R : cx - (AVATAR_R - 1)}
+            x2={small ? cx - NODE_R : cx - (AVATAR_R - 1)}
             y2={connY}
             className={laneCls}
             stroke="currentColor"
             strokeWidth={isHead ? 2 : 1}
+          />
+        )}
+        {wipThrough !== undefined && (
+          <path
+            data-wip-through=""
+            d={`M ${laneX(wipThrough.lane)} 0 L ${laneX(wipThrough.lane)} ${ROW_H}`}
+            className={styles[`lane${colorIndex(wipThrough.color)}`]}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeDasharray="3 3"
           />
         )}
         {paths.map((p, i) => (
@@ -82,10 +100,24 @@ export const LaneStrip = memo(function LaneStrip({
             fill="none"
             stroke="currentColor"
             strokeWidth={1.5}
-            strokeDasharray={wipAbove && p.kind === "incoming" ? "3 3" : undefined}
+            strokeDasharray={
+              p.dashed ? "2 3" : wipAbove && p.kind === "incoming" ? "3 3" : undefined
+            }
+            strokeLinecap={p.dashed ? "round" : undefined}
           />
         ))}
-        {isMerge ? (
+        {isStash ? (
+          <rect
+            data-node="stash"
+            x={cx - (NODE_R + 1)}
+            y={cy - (NODE_R + 1)}
+            width={2 * NODE_R + 2}
+            height={2 * NODE_R + 2}
+            rx={2}
+            className={laneCls}
+            fill="currentColor"
+          />
+        ) : isMerge ? (
           <>
             {isHead && (
               <circle

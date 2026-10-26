@@ -30,6 +30,9 @@ pub struct Commit {
     pub committer_time: i64,
     /// Subject line.
     pub subject: String,
+    /// Synthetic stash row (`parents[0]` is the base commit), see `graph::stash`.
+    #[serde(default)]
+    pub stash: bool,
 }
 
 /// Commit ordering.
@@ -159,6 +162,7 @@ pub fn parse_log(stdout: &[u8]) -> Result<Vec<Commit>, ParseError> {
             author_time,
             committer_time,
             subject,
+            stash: false,
         });
     }
     Ok(out)

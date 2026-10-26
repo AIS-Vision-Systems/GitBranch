@@ -3,9 +3,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use git_core::graph::{LayoutState, Row};
+use git_core::graph::{LayoutState, Row, with_stashes};
 use git_core::parse::log::{Commit, LogFilter, LogOrder, LogPage, LogQuery, log_page};
 use git_core::parse::refs::Refs;
+use git_core::parse::stash::StashEntry;
 use git_core::parse::status::Status;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -71,6 +72,10 @@ pub struct Entry {
     served: usize,
     /// True when git reported nothing after the fetched commits.
     complete: bool,
+    /// Stash entries woven into the log as synthetic rows (empty for filtered logs).
+    stashes: Vec<StashEntry>,
+    /// Number of commits git has returned so far (rows also hold stash rows git never counted).
+    fetched: usize,
 }
 
 impl Entry {
@@ -89,6 +94,8 @@ impl Entry {
             rows: Vec::new(),
             served: 0,
             complete: false,
+            stashes: Vec::new(),
+            fetched: 0,
         }
     }
 
@@ -172,7 +179,7 @@ fn plan(e: &mut Entry, q: &GraphQuery) -> Result<Need, AppError> {
         return Err(out_of_order());
     }
     if q.skip == e.rows.len() && !e.complete {
-        return Ok(Need::Fetch { skip: e.rows.len(), limit: REMAINDER_LIMIT });
+        return Ok(Need::Fetch { skip: e.fetched, limit: REMAINDER_LIMIT });
     }
     Ok(Need::Serve)
 }
@@ -184,6 +191,10 @@ fn finish(e: &mut Entry, q: &GraphQuery, page: Option<LogPage>) -> GraphPage {
             // Git keeps the true parents, so those outside the filtered set are pruned,
             // otherwise every match would open a dangling lane.
             prune_parents(&mut p.commits);
+        }
+        e.fetched += p.commits.len();
+        if !e.stashes.is_empty() {
+            p.commits = with_stashes(std::mem::take(&mut p.commits), &e.stashes);
         }
         let rows = e.layout.push_all(&p.commits);
         e.rows.extend(rows);
@@ -259,6 +270,16 @@ pub async fn load_graph(
     let page = match plan(&mut e, &query)? {
         Need::Serve => None,
         Need::Fetch { skip, limit } => {
+            if skip == 0 && !e.filter.is_active() {
+                match git_core::parse::stash::stash_list(&state.runner, &repo.info.work_tree).await
+                {
+                    Ok(list) => e.stashes = list,
+                    Err(err) => {
+                        tracing::warn!(target: "graph", repo = %repo_id, error = %err, "stash_list failed");
+                        e.stashes = Vec::new();
+                    }
+                }
+            }
             let q = LogQuery {
                 order: query.order,
                 skip,
@@ -313,6 +334,7 @@ mod tests {
             author_time: 0,
             committer_time: 0,
             subject: oid.into(),
+            stash: false,
         };
         vec![
             mk("c3", &["c2", "c1b"]),
@@ -333,6 +355,7 @@ mod tests {
             author_time: 0,
             committer_time: 0,
             subject: oid.into(),
+            stash: false,
         };
         // Matches m3, m2, m1 of a longer linear history; true parents skip unmatched commits.
         let mut v = vec![mk("m3", "x2"), mk("m2", "x1"), mk("m1", "x0")];
@@ -446,5 +469,35 @@ mod tests {
         assert!(e.rows.is_empty() && e.commits.is_empty());
         let err = serve(&mut e, &q(LogOrder::Date, 2, 2), &mut f).unwrap_err();
         assert_eq!(err.code, "graph.out_of_order");
+    }
+
+    #[test]
+    fn stash_rows_do_not_shift_the_fetch_offset() {
+        let all = commits(); // c3 c2 c1b c1 c0
+        let calls = RefCell::new(Vec::new());
+        let mut f = fake(&all, &calls);
+        let mut e = Entry::new(LogOrder::Date, true);
+        let a = serve(&mut e, &q(LogOrder::Date, 0, 2), &mut f).unwrap();
+        assert_eq!(a.rows.len(), 2);
+        assert!(a.commits.iter().all(|c| !c.stash));
+        // `load_graph` fills the stashes after `plan` reset the entry; c1 arrives in the second fetch.
+        e.stashes = vec![StashEntry {
+            index: 0,
+            oid: "s0".into(),
+            base: "c1".into(),
+            branch: None,
+            message: "On main: wip".into(),
+            time: 1,
+            author_name: "a".into(),
+            author_email: "a@x".into(),
+        }];
+        let b = serve(&mut e, &q(LogOrder::Date, 2, 10), &mut f).unwrap();
+        assert_eq!(*calls.borrow(), vec![(0, 2), (2, REMAINDER_LIMIT)]);
+        let oids: Vec<&str> = b.commits.iter().map(|c| c.oid.as_str()).collect();
+        assert_eq!(oids, ["c1b", "s0", "c1", "c0"]);
+        assert!(b.commits[1].stash);
+        assert_eq!(b.rows.len(), b.commits.len());
+        assert_eq!(b.next_skip, 6);
+        assert!(!b.has_more);
     }
 }

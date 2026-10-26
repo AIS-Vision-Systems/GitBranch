@@ -214,7 +214,16 @@ describe("refsByOid", () => {
   });
 
   it("loads stashes with the graph, reloads them on refs, and survives a failure", async () => {
-    const entry = { index: 0, oid: "s0", branch: "main", message: "wip", time: 1 };
+    const entry = {
+      index: 0,
+      oid: "s0",
+      branch: "main",
+      message: "wip",
+      time: 1,
+      base: "b0",
+      authorName: "A",
+      authorEmail: "a@x",
+    };
     m.loadGraph.mockResolvedValue(page(["a"], false, 1));
     stashes.stashList.mockResolvedValueOnce([entry]);
     await useGraphStore.getState().load(id);

@@ -45,6 +45,28 @@ describe("LaneStrip node", () => {
     expect(line?.getAttribute("stroke-width")).toBe("1");
     expect(line?.getAttribute("y1")).toBe("13.5");
   });
+  it("stash row draws a square node, no avatar and a dashed path", () => {
+    const row: Row = {
+      ...base,
+      hasIncoming: false,
+      edges: [{ fromLane: 1, toLane: 1, kind: "straight", color: 2, dashed: true }],
+    };
+    const { container } = render(<LaneStrip row={row} lanes={2} isHead={false} isStash />);
+    expect(container.querySelector("[data-node='stash']")?.tagName).toBe("rect");
+    expect(container.querySelector("[data-node='avatar']")).toBeNull();
+    expect(container.querySelector("text")).toBeNull();
+    const path = container.querySelector("path");
+    expect(path?.getAttribute("stroke-dasharray")).toBe("2 3");
+    expect(path?.getAttribute("stroke-linecap")).toBe("round");
+  });
+  it("wipThrough draws a full-height dashed path", () => {
+    const { container } = render(
+      <LaneStrip row={base} lanes={2} isHead={false} wipThrough={{ lane: 0, color: 1 }} />,
+    );
+    expect(container.querySelector("path[data-wip-through]")?.getAttribute("d")).toBe(
+      "M 11 0 L 11 28",
+    );
+  });
   it("draws a faint band from the node to the message bar", () => {
     const { container } = render(<LaneStrip row={base} lanes={2} isHead={false} />);
     const band = container.querySelector("rect[data-band]");
@@ -73,7 +95,7 @@ describe("lanePaths", () => {
       lane: 1,
       color: 2,
       hasIncoming: false,
-      edges: [{ fromLane: 1, toLane: 1, kind: "straight", color: 2 }],
+      edges: [{ fromLane: 1, toLane: 1, kind: "straight", color: 2, dashed: false }],
     });
     expect(lanePaths(row, row.hasIncoming)).toMatchSnapshot();
   });
@@ -82,8 +104,8 @@ describe("lanePaths", () => {
     const row = r({
       lane: 0,
       edges: [
-        { fromLane: 0, toLane: 0, kind: "straight", color: 0 },
-        { fromLane: 1, toLane: 1, kind: "straight", color: 3 },
+        { fromLane: 0, toLane: 0, kind: "straight", color: 0, dashed: false },
+        { fromLane: 1, toLane: 1, kind: "straight", color: 3, dashed: false },
       ],
     });
     expect(lanePaths(row, true)).toMatchSnapshot();
@@ -93,8 +115,8 @@ describe("lanePaths", () => {
     const row = r({
       lane: 0,
       edges: [
-        { fromLane: 2, toLane: 0, kind: "mergeIn", color: 4 },
-        { fromLane: 0, toLane: 0, kind: "straight", color: 0 },
+        { fromLane: 2, toLane: 0, kind: "mergeIn", color: 4, dashed: false },
+        { fromLane: 0, toLane: 0, kind: "straight", color: 0, dashed: false },
       ],
     });
     expect(lanePaths(row, true)).toMatchSnapshot();
@@ -104,8 +126,8 @@ describe("lanePaths", () => {
     const row = r({
       lane: 0,
       edges: [
-        { fromLane: 0, toLane: 0, kind: "straight", color: 0 },
-        { fromLane: 0, toLane: 1, kind: "branchOut", color: 5 },
+        { fromLane: 0, toLane: 0, kind: "straight", color: 0, dashed: false },
+        { fromLane: 0, toLane: 1, kind: "branchOut", color: 5, dashed: false },
       ],
     });
     expect(lanePaths(row, true)).toMatchSnapshot();

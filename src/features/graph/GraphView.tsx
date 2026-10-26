@@ -24,7 +24,7 @@ import { rowDomId } from "./domId";
 import { FilterBar } from "./FilterBar";
 import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
-import { commitMenu, refMenu, remoteTrackingName, wipMenu } from "./menus";
+import { commitMenu, refMenu, remoteTrackingName, stashMenu, wipMenu } from "./menus";
 import { WipRow } from "./WipRow";
 import { worktreeMarksByOid, type WorktreeMark } from "./worktreeMarks";
 import styles from "./Graph.module.css";
@@ -70,7 +70,7 @@ export function GraphView({ repoId }: Props) {
 
   useEffect(() => installDragCleanup(), []);
 
-  const { rows, commits, refs, status, byOid, hasMore, inProgress: op } = g ?? EMPTY_GRAPH;
+  const { rows, commits, refs, status, byOid, hasMore, inProgress: op, stashes } = g ?? EMPTY_GRAPH;
   const inProgress = op !== null;
   const worktrees = useWorktreesStore((s) => worktreesOf(s, repoId));
   const ownPath = useReposStore((s) => s.open.find((r) => r.repoId === repoId)?.path ?? null);
@@ -98,6 +98,21 @@ export function GraphView({ repoId }: Props) {
 
   const headRow = headOid !== null ? byOid.get(headOid) : undefined;
   const wipRow = headRow !== undefined ? rows[headRow] : undefined;
+  // The WIP connector reaches HEAD when only stash rows sit above it; they get a through path.
+  const wipConnected = useMemo(() => {
+    if (headRow === undefined) return false;
+    for (let i = 0; i < headRow; i++) if (commits[i]?.stash !== true) return false;
+    return true;
+  }, [headRow, commits]);
+  const wipLane = wipRow?.lane;
+  const wipColor = wipRow?.color;
+  const wipThrough = useMemo(
+    () =>
+      wipLane !== undefined && wipColor !== undefined
+        ? { lane: wipLane, color: wipColor }
+        : undefined,
+    [wipLane, wipColor],
+  );
 
   // TanStack Virtual returns unmemoizable functions; React Compiler skips this component, which is fine.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -249,6 +264,10 @@ export function GraphView({ repoId }: Props) {
     const i = byOid.get(data.oid);
     const commit = i === undefined ? undefined : commits[i];
     if (commit === undefined) return null;
+    if (commit.stash) {
+      const entry = stashes.find((s) => s.oid === commit.oid);
+      return entry === undefined ? null : stashMenu(repoId, entry, inProgress);
+    }
     const ctx = {
       repoId,
       commit,
@@ -290,7 +309,7 @@ export function GraphView({ repoId }: Props) {
                   lane={wipRow?.lane ?? 0}
                   color={wipRow?.color ?? 0}
                   lanes={lanes}
-                  connected={headRow === 0}
+                  connected={wipConnected}
                   top={v.start}
                   selected={selectedOid === WIP_OID}
                   hovered={hoverOid === WIP_OID}
@@ -317,7 +336,15 @@ export function GraphView({ repoId }: Props) {
                 selected={selectedOid === row.oid}
                 hovered={hoverOid === row.oid}
                 isHead={row.oid === headOid}
-                wipAbove={hasWip && headRow === 0 && i === 0}
+                wipAbove={hasWip && wipConnected && i === headRow}
+                {...(hasWip &&
+                wipConnected &&
+                commit.stash &&
+                headRow !== undefined &&
+                i < headRow &&
+                wipThrough !== undefined
+                  ? { wipThrough }
+                  : {})}
                 expanded={expandedOid === row.oid}
                 onExpand={onExpand}
                 onSelect={onSelect}

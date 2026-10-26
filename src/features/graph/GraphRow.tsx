@@ -31,6 +31,8 @@ export interface GraphRowProps {
   hovered: boolean;
   isHead: boolean;
   wipAbove?: boolean;
+  /** Stable object: the WIP connector crosses this stash row. */
+  wipThrough?: { lane: number; color: number };
   /** All of this row's chips are shown (the `+N` pill was clicked). */
   expanded?: boolean;
   /** Stable callback: expand this row's chips. */
@@ -57,6 +59,7 @@ export const GraphRow = memo(function GraphRow({
   hovered,
   isHead,
   wipAbove = false,
+  wipThrough,
   expanded = false,
   onExpand,
   onSelect,
@@ -75,7 +78,8 @@ export const GraphRow = memo(function GraphRow({
     hovered ? styles["hovered"] : "",
     expanded ? styles["expandedRow"] : "",
   ];
-  const isMerge = commit.parents.length > 1;
+  const isStash = commit.stash;
+  const isMerge = !isStash && commit.parents.length > 1;
   const avatarUrl = useAuthorAvatar(commit.authorEmail, repoId);
   const items = useMemo(() => chipItems(refs), [refs]);
   const shown = expanded ? items : items.slice(0, MAX_CHIPS);
@@ -164,6 +168,8 @@ export const GraphRow = memo(function GraphRow({
         lanes={lanes}
         isHead={isHead}
         wipAbove={wipAbove}
+        isStash={isStash}
+        {...(wipThrough !== undefined ? { wipThrough } : {})}
         isMerge={isMerge}
         initials={initials(commit.authorName)}
         avatarIdx={avatarColor(commit.authorEmail)}
@@ -173,7 +179,13 @@ export const GraphRow = memo(function GraphRow({
       <span className={styles["messageCell"]}>
         <span className={`${styles["bar"]} ${styles[`lane${colorIndex(row.color)}`]}`} />
         <span
-          className={isMerge ? `${styles["subject"]} ${styles["mergeSubject"]}` : styles["subject"]}
+          className={
+            isStash
+              ? `${styles["subject"]} ${styles["stashSubject"]}`
+              : isMerge
+                ? `${styles["subject"]} ${styles["mergeSubject"]}`
+                : styles["subject"]
+          }
         >
           {commit.subject}
         </span>

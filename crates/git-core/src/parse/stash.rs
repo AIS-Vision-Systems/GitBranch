@@ -15,12 +15,18 @@ pub struct StashEntry {
     pub index: usize,
     /// Stash commit oid (first parent is the base commit).
     pub oid: String,
+    /// Base commit: the first parent of the stash commit.
+    pub base: String,
     /// Branch the stash was made on; `None` when detached or unknown.
     pub branch: Option<String>,
     /// Reflog subject, e.g. `WIP on main: abc1234 Subject` or `On main: my message`.
     pub message: String,
     /// Committer time, unix seconds.
     pub time: i64,
+    /// Name of the stash commit's author.
+    pub author_name: String,
+    /// Email of the stash commit's author.
+    pub author_email: String,
 }
 
 /// Error from [`stash_list`].
@@ -41,7 +47,7 @@ fn branch_of(subject: &str) -> Option<String> {
     if branch.is_empty() || branch.starts_with('(') { None } else { Some(branch.to_string()) }
 }
 
-/// Parses `git stash list -z --format=%gd%x1f%H%x1f%gs%x1f%ct`.
+/// Parses `git stash list -z --format=%gd%x1f%H%x1f%gs%x1f%ct%x1f%P%x1f%an%x1f%ae`.
 ///
 /// # Errors
 /// [`ParseError`] on a malformed record.
@@ -54,7 +60,7 @@ pub fn parse_stash_list(stdout: &[u8]) -> Result<Vec<StashEntry>, ParseError> {
             continue;
         }
         let f: Vec<&str> = rec.split('\x1f').collect();
-        if f.len() != 4 {
+        if f.len() != 7 {
             return Err(ParseError(format!("stash record has {} fields", f.len())));
         }
         let index = f[0]
@@ -63,12 +69,20 @@ pub fn parse_stash_list(stdout: &[u8]) -> Result<Vec<StashEntry>, ParseError> {
             .and_then(|s| s.parse::<usize>().ok())
             .ok_or_else(|| ParseError(format!("bad stash selector {:?}", f[0])))?;
         let time = f[3].trim().parse::<i64>().map_err(|e| ParseError(format!("bad time: {e}")))?;
+        let base = f[4]
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| ParseError("stash record has no parent".to_string()))?
+            .to_string();
         entries.push(StashEntry {
             index,
             oid: f[1].to_string(),
+            base,
             branch: branch_of(f[2]),
             message: f[2].trim().to_string(),
             time,
+            author_name: f[5].to_string(),
+            author_email: f[6].to_string(),
         });
     }
     Ok(entries)
@@ -79,7 +93,7 @@ pub fn parse_stash_list(stdout: &[u8]) -> Result<Vec<StashEntry>, ParseError> {
 /// # Errors
 /// [`StashError::Git`] if git fails, [`StashError::Parse`] on unexpected output.
 pub async fn stash_list(runner: &GitRunner, repo: &Path) -> Result<Vec<StashEntry>, StashError> {
-    let args = ["stash", "list", "-z", "--format=%gd%x1f%H%x1f%gs%x1f%ct"];
+    let args = ["stash", "list", "-z", "--format=%gd%x1f%H%x1f%gs%x1f%ct%x1f%P%x1f%an%x1f%ae"];
     let out = runner.run(repo, &args, RunOpts::default()).await?;
     Ok(parse_stash_list(&out.stdout)?)
 }
@@ -91,9 +105,9 @@ mod tests {
 
     #[test]
     fn parses_wip_custom_and_detached() {
-        let s = "stash@{0}\x1faaaa111\x1fOn main: my message\x1f1767225700\0\
-                 stash@{1}\x1fbbbb222\x1fWIP on feat/x: abc1234 Subject\x1f1767225600\0\
-                 stash@{2}\x1fcccc333\x1fOn (no branch): x\x1f1767225500\0";
+        let s = "stash@{0}\x1faaaa111\x1fOn main: my message\x1f1767225700\x1fbase0 side0\x1fAda\x1fada@x\0\
+                 stash@{1}\x1fbbbb222\x1fWIP on feat/x: abc1234 Subject\x1f1767225600\x1fbase1\x1fBob\x1fbob@x\0\
+                 stash@{2}\x1fcccc333\x1fOn (no branch): x\x1f1767225500\x1fbase2\x1fCy\x1fcy@x\0";
         let v = parse_stash_list(s.as_bytes()).unwrap();
         assert_eq!(v.len(), 3);
         assert_eq!(v[0].index, 0);
@@ -104,11 +118,14 @@ mod tests {
         assert_eq!(v[1].message, "WIP on feat/x: abc1234 Subject");
         assert_eq!(v[2].branch, None);
         assert_eq!(v[2].time, 1_767_225_500);
+        assert_eq!(v[0].base, "base0");
+        assert_eq!((v[1].author_name.as_str(), v[1].author_email.as_str()), ("Bob", "bob@x"));
     }
 
     #[test]
     fn empty_and_malformed() {
         assert_eq!(parse_stash_list(b"").unwrap().len(), 0);
         assert!(parse_stash_list(b"stash@{0}\x1fonly").is_err());
+        assert!(parse_stash_list(b"stash@{0}\x1fa\x1fOn m: x\x1f1\x1f\x1fn\x1fe").is_err());
     }
 }

@@ -55,7 +55,16 @@ const err = (code: string): IpcError => new IpcError({ code, message: code });
 
 type ConfirmSpec = Parameters<typeof confirm>[0];
 
-const entry = { index: 0, oid: "o0", branch: null, message: "m", time: 0 };
+const entry = {
+  index: 0,
+  oid: "o0",
+  branch: null,
+  message: "m",
+  time: 0,
+  base: "b0",
+  authorName: "A",
+  authorEmail: "a@x",
+};
 
 beforeEach(() => {
   vi.resetAllMocks();

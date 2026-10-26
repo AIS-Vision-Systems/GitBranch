@@ -5,6 +5,7 @@ export interface LanePath {
   d: string;
   color: number;
   kind: EdgeKind | "incoming";
+  dashed: boolean;
 }
 
 export const laneX = (lane: number): number => lane * LANE_W + LANE_W / 2;
@@ -39,7 +40,7 @@ export function lanePaths(row: Row, hasIncoming: boolean): LanePath[] {
   const out: LanePath[] = [];
   const nx = laneX(row.lane);
   if (hasIncoming) {
-    out.push({ d: `M ${nx} 0 L ${nx} ${CY}`, color: row.color, kind: "incoming" });
+    out.push({ d: `M ${nx} 0 L ${nx} ${CY}`, color: row.color, kind: "incoming", dashed: false });
   }
   for (const e of row.edges) {
     const fx = laneX(e.fromLane);
@@ -53,6 +54,7 @@ export function lanePaths(row: Row, hasIncoming: boolean): LanePath[] {
               : `M ${fx} 0 L ${fx} ${ROW_H}`,
           color: e.color,
           kind: e.kind,
+          dashed: e.dashed,
         });
         break;
       case "mergeIn":
@@ -60,6 +62,7 @@ export function lanePaths(row: Row, hasIncoming: boolean): LanePath[] {
           d: mergeInPath(fx, nx),
           color: e.color,
           kind: e.kind,
+          dashed: e.dashed,
         });
         break;
       case "branchOut":
@@ -67,6 +70,7 @@ export function lanePaths(row: Row, hasIncoming: boolean): LanePath[] {
           d: branchOutPath(nx, tx),
           color: e.color,
           kind: e.kind,
+          dashed: e.dashed,
         });
         break;
     }
