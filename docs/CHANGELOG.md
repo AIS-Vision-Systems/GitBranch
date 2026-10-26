@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.1 — 2026-10-26
+
+Bug-fix release: a background refresh no longer loses the commit or diff being inspected. First release to
+land through a pull request (D-040).
+
 - 2026-10-26: A background refresh no longer throws the user out of the commit or diff being inspected. The
   selection is global, and a reload of any open repository (a watcher event after a quiet fetch, a commit from
   another tool) dropped it whenever the commit was not in that repository's first page, which cleared the
