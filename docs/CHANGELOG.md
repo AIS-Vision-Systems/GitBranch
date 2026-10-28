@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 — 2026-10-28
+
+The repository on screen keeps itself up to date, and a status bar at the bottom of the window hosts the progress
+of network operations and the app version.
+
+- 2026-10-28: The shown repository is fetched silently (`git fetch --all --prune`, no progress bar, no toasts) on
+  show, every 10 seconds and when the window regains focus (D-042). The interval is a new setting
+  (Settings › Git › Auto-fetch interval; 0 turns it off, otherwise 5-3600 s); other tabs and a hidden window are
+  never fetched. The `fetch` command compares a `for-each-ref` snapshot before and after and only signals a
+  change when a ref moved, so an empty fetch does not reload the graph and a real one reloads it in place. Fetch
+  all (ribbon, palette, `Ctrl+Shift+F`) now prunes, so remote branches deleted upstream disappear; the separate
+  "Prune remote branches" item is gone. The progress strip under the ribbon moved into a new bottom status bar,
+  which shows the version on the right.
+
 ## 1.1.0 — 2026-10-26
 
 The commit graph reads like GitKraken: a branch is born sideways, runs straight and ends sideways into the
