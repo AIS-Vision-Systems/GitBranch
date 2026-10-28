@@ -19,7 +19,7 @@ import { remotesOf, useRemotesStore } from "../state/remotes";
 import { useReposStore } from "../state/repos";
 import { useUpdaterStore } from "../state/updater";
 
-const FETCH_ALL = { remote: null, prune: false, tags: false };
+const FETCH_ALL = { remote: null, prune: true, tags: false };
 
 /** Build the palette entries for the current app state. Commands needing a repo are omitted without one. */
 export function buildCommands(): Command[] {

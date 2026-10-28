@@ -180,9 +180,11 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
   persisted in `session.json` (`aliases`, D-037) and shown by `tabName()` in the tabs, the dropdown and the ribbon
   repository button. Tabs are draggable (`application/x-gitbranch-tab`); `moveTab` reorders the `open` array,
   `orderTabs` still keeps a worktree next to its main checkout (a group moves as one). `dragDropEnabled: false` in
-  tauri.conf.json keeps WebView2 from eating HTML5 drag events (D-037). Showing a repo (open, restore, tab switch) runs
-  `ops.fetchQuiet` (all remotes, prune; progress bar, no toasts, 60 s throttle per repo, skipped when busy or
-  without remotes); when nothing is selected after a load, `GraphView` selects the WIP row or the first commit
+  tauri.conf.json keeps WebView2 from eating HTML5 drag events (D-037). The shown repo only is kept fresh by
+  `state/autoFetch.ts`: `ops.fetchQuiet` on show, every minute and on window focus, never while hidden (all remotes,
+  prune; silent: no progress bar, no toasts; 60 s throttle per repo, skipped when busy or without remotes). The
+  `fetch` command emits `repo-changed` only when a `for-each-ref` snapshot differs, so an empty fetch reloads
+  nothing (D-042). The bottom `StatusBar` hosts the progress of user network operations and the app version; when nothing is selected after a load, `GraphView` selects the WIP row or the first commit
   (`lib/firstRow.ts`) unless a pull request is being viewed. Theme lives in Settings; the sidebar state lives in `useUiStore` (`Ctrl+B`, palette, ribbon
   overflow), persisted under `gitbranch.sidebar`.
 - Ribbon (`features/shell/Ribbon.tsx`, replaces the toolbar): left = repository dropdown › branch dropdown

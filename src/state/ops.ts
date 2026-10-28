@@ -135,7 +135,7 @@ interface OpsState {
   undoLast: (repoId: RepoId, info: UndoInfo) => Promise<boolean>;
   clone: (args: CloneArgs) => Promise<string | null>;
   fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
-  /** Background fetch of all remotes: progress bar only, never a toast. Throttled per repo. */
+  /** Silent background fetch + prune of all remotes: no progress bar, no toast. Throttled per repo. */
   fetchQuiet: (repoId: RepoId) => Promise<boolean>;
   pull: (repoId: RepoId, args: PullArgs) => Promise<boolean>;
   push: (repoId: RepoId, args: PushArgs) => Promise<boolean>;
@@ -147,7 +147,7 @@ interface OpsState {
   setRemoteUrl: (repoId: RepoId, name: string, url: string, push: boolean) => Promise<boolean>;
 }
 
-/** Minimum gap between two quiet fetches of the same repo. */
+/** Minimum gap between two quiet fetches of the same repo; also the auto-fetch period (D-042). */
 export const QUIET_FETCH_GAP_MS = 60_000;
 const lastQuietFetch = new Map<RepoId, number>();
 
@@ -380,7 +380,6 @@ export const useOpsStore = create<OpsState>((set, get) => {
       const opId = crypto.randomUUID();
       const op = { repoId, opId, done: Promise.resolve() };
       quietOp = op;
-      useProgressStore.getState().start({ opId, repoId, title: "Fetching all remotes" });
       const result = (async (): Promise<boolean> => {
         try {
           await remoteIpc.fetch(repoId, { remote: null, prune: true, tags: false }, opId);
@@ -394,7 +393,6 @@ export const useOpsStore = create<OpsState>((set, get) => {
         } finally {
           lastQuietFetch.set(repoId, Date.now());
           if (quietOp === op) quietOp = null;
-          useProgressStore.getState().finish(opId);
         }
       })();
       op.done = result.then(() => undefined);

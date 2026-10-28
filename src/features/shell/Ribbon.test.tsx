@@ -163,7 +163,7 @@ describe("Ribbon fetch menu", () => {
   it("main click fetches all remotes", () => {
     setup(null);
     fireEvent.click(screen.getByRole("button", { name: "Fetch" }));
-    expect(fetch).toHaveBeenCalledWith(id, { remote: null, prune: false, tags: false });
+    expect(fetch).toHaveBeenCalledWith(id, { remote: null, prune: true, tags: false });
   });
 
   it("caret menu dispatches fetch and pull strategies", () => {
@@ -178,11 +178,9 @@ describe("Ribbon fetch menu", () => {
     expect(pull).toHaveBeenLastCalledWith(id, { remote: null, branch: null, mode: "rebase" });
     run("Pull (merge)");
     expect(pull).toHaveBeenLastCalledWith(id, { remote: null, branch: null, mode: "merge" });
-    run("Prune remote branches");
-    expect(fetch).toHaveBeenLastCalledWith(id, { remote: null, prune: true, tags: false });
     run("Fetch all");
-    expect(fetch).toHaveBeenLastCalledWith(id, { remote: null, prune: false, tags: false });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenLastCalledWith(id, { remote: null, prune: true, tags: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 

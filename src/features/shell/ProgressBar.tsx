@@ -3,7 +3,7 @@ import { useDialogsStore } from "../../state/dialogs";
 import { useProgressStore } from "../../state/progress";
 import styles from "./ProgressBar.module.css";
 
-/** Slim progress strip for the running fetch/pull/push, with Cancel. */
+/** Inline progress of the running fetch/pull/push, with Cancel; lives in the status bar. */
 export function ProgressBar() {
   const active = useProgressStore((s) => s.active);
   const cancelling = useProgressStore((s) => s.cancelling);
@@ -34,27 +34,13 @@ export function ProgressBar() {
 
   return (
     <div className={styles["root"]}>
-      <div className={styles["row"]}>
-        <span className={styles["text"]}>
-          <span aria-live="polite">
-            <span className={styles["title"]}>
-              {cancelling ? `${active.title} (cancelling)` : active.title}
-            </span>
-            {active.phase !== "" && <span className={styles["phase"]}>{active.phase}</span>}
-          </span>
-          {pct !== null && <span className={styles["phase"]}>{`${pct}%`}</span>}
+      <span className={styles["text"]} aria-live="polite">
+        <span className={styles["title"]}>
+          {cancelling ? `${active.title} (cancelling)` : active.title}
         </span>
-        <span className={styles["elapsed"]}>{`${elapsed}s`}</span>
-        <button
-          type="button"
-          className={styles["button"]}
-          disabled={cancelling}
-          title="Cancel (Esc)"
-          onClick={() => void cancel()}
-        >
-          Cancel
-        </button>
-      </div>
+        {active.phase !== "" && <span className={styles["phase"]}>{active.phase}</span>}
+        {pct !== null && <span className={styles["phase"]}>{`${pct}%`}</span>}
+      </span>
       <div
         className={styles["track"]}
         role="progressbar"
@@ -68,7 +54,19 @@ export function ProgressBar() {
           style={pct === null ? undefined : { width: `${pct}%` }}
         />
       </div>
-      {active.msg !== "" && <div className={styles["msg"]}>{active.msg}</div>}
+      <span className={styles["msg"]} title={active.msg}>
+        {active.msg}
+      </span>
+      <span className={styles["elapsed"]}>{`${elapsed}s`}</span>
+      <button
+        type="button"
+        className={styles["button"]}
+        disabled={cancelling}
+        title="Cancel (Esc)"
+        onClick={() => void cancel()}
+      >
+        Cancel
+      </button>
     </div>
   );
 }
