@@ -1,20 +1,21 @@
 import type { RepoId } from "../ipc/types";
 import { useOpsStore } from "./ops";
 
-/** How often the shown repo is checked; `fetchQuiet` throttles to one fetch per minute (D-042). */
-export const AUTO_FETCH_TICK_MS = 15_000;
-
 /**
- * Keeps the shown repo's remote refs fresh: a silent fetch now, then whenever the throttle allows it,
- * and when the window regains focus. Skipped while the window is hidden. Returns the stop function.
+ * Keeps the shown repo's remote refs fresh (D-042): a silent fetch now, then every `seconds`, and when
+ * the window regains focus. Skipped while the window is hidden; `seconds <= 0` turns it off. A fetch
+ * is skipped when the previous one finished less than half an interval ago (timer jitter, focus
+ * bursts) or is still running. Returns the stop function.
  */
-export function startAutoFetch(repoId: RepoId): () => void {
+export function startAutoFetch(repoId: RepoId, seconds: number): () => void {
+  if (!(seconds > 0)) return () => undefined;
+  const intervalMs = seconds * 1000;
   const tick = (): void => {
     if (document.visibilityState === "hidden") return;
-    void useOpsStore.getState().fetchQuiet(repoId);
+    void useOpsStore.getState().fetchQuiet(repoId, intervalMs / 2);
   };
   tick();
-  const timer = setInterval(tick, AUTO_FETCH_TICK_MS);
+  const timer = setInterval(tick, intervalMs);
   window.addEventListener("focus", tick);
   return () => {
     clearInterval(timer);

@@ -442,14 +442,15 @@ Context: owner feedback: remote changes only appeared after a manual Fetch, and 
 deleted upstream (only `fetch origin` from the remote menu pruned). The view must refresh on its own without
 re-initialising the graph on every change, only for the repo being shown, and silently. The owner also asked for a
 bottom status bar with the app version on the right that hosts the progress bar.
-Decision: (1) `state/autoFetch.ts` runs `ops.fetchQuiet` for the shown repo on show, then on a 15 s tick and on
-window focus; the 60 s per-repo throttle of D-037 makes it one fetch a minute at most. Nothing runs while the
-window is hidden, and other open tabs are not fetched. (2) `fetchQuiet` no longer shows the progress bar (it is
+Decision: (1) `state/autoFetch.ts` runs `ops.fetchQuiet` for the shown repo on show, then every
+`autoFetchSeconds` (setting, default 10 s, 0 = off, otherwise clamped to 5..3600 by the backend) and on window
+focus; a fetch is skipped when the previous one finished less than half an interval ago or is still running.
+Nothing runs while the window is hidden, and other open tabs are not fetched. (2) `fetchQuiet` no longer shows the progress bar (it is
 still cancelled first by any user operation). (3) Fetch all (ribbon, palette, `Ctrl+Shift+F`) passes `--prune`;
 the separate "Prune remote branches" item is gone. (4) The `fetch` command snapshots `for-each-ref` before and
 after and emits `repo-changed` only when it differs, so a fetch that brings nothing does not reload the graph;
 real changes reload with `reset = false` (rows, scroll and selection kept). Local changes keep coming from the
 watcher. (5) A `StatusBar` (`--statusbar-h`) at the bottom of the window shows the progress of user network
 operations on the left and `v<version>` on the right; the strip under the ribbon is gone.
-Consequences: an idle app does one `git fetch --all --prune` per minute on the shown repo; offline errors only
-go to the console. Every fetch costs two extra `for-each-ref` calls. Amends D-037 (2).
+Consequences: an idle app does one `git fetch --all --prune` every 10 s on the shown repo by default (owner's
+choice; GitHub has no problem with that rate for one user); offline errors only go to the console. Every fetch costs two extra `for-each-ref` calls. Amends D-037 (2).

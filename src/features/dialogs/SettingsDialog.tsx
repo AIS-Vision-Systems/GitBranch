@@ -29,6 +29,12 @@ function clampContext(n: number): number {
   return Math.min(100, Math.max(0, Math.trunc(n)));
 }
 
+/** 0 turns auto-fetch off; any other value must lie in 5..3600 (the backend clamps the same way). */
+function validAutoFetch(s: string): boolean {
+  const n = Number(s);
+  return s.trim() !== "" && Number.isInteger(n) && (n === 0 || (n >= 5 && n <= 3600));
+}
+
 const orNull = (s: string): string | null => (s.trim() === "" ? null : s.trim());
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
@@ -44,9 +50,15 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [terminal, setTerminal] = useState(current.terminal ?? "");
   const [difftool, setDifftool] = useState(current.difftool ?? "");
   const [auto, setAuto] = useState(current.autoUpdateCheck);
+  const [fetchSecs, setFetchSecs] = useState(String(current.autoFetchSeconds));
   const selectRef = useRef<HTMLSelectElement>(null);
   const ctxNum = Number(ctx);
-  const valid = ctx.trim() !== "" && Number.isInteger(ctxNum) && ctxNum >= 0 && ctxNum <= 100;
+  const valid =
+    ctx.trim() !== "" &&
+    Number.isInteger(ctxNum) &&
+    ctxNum >= 0 &&
+    ctxNum <= 100 &&
+    validAutoFetch(fetchSecs);
 
   const submit = async (): Promise<boolean> => {
     useSettingsStore.getState().clearError();
@@ -59,6 +71,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       terminal: orNull(terminal),
       difftool: orNull(difftool),
       autoUpdateCheck: auto,
+      autoFetchSeconds: Number(fetchSecs),
     };
     const diffChanged =
       next.diffContextLines !== current.diffContextLines ||
@@ -121,6 +134,21 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <span className={styles["radioText"]}>{m.label}</span>
         </label>
       ))}
+      <label className={styles["field"]}>
+        <span className={styles["label"]}>Auto-fetch interval (seconds)</span>
+        <input
+          className={styles["input"]}
+          type="number"
+          min={0}
+          max={3600}
+          value={fetchSecs}
+          aria-invalid={!validAutoFetch(fetchSecs)}
+          onChange={(e) => setFetchSecs(e.target.value)}
+        />
+        <span className={styles["hint"]}>
+          Silent fetch of the repository on screen; 0 turns it off, otherwise 5-3600.
+        </span>
+      </label>
       <strong>Diff</strong>
       <label className={styles["field"]}>
         <span className={styles["label"]}>Context lines (0-100)</span>

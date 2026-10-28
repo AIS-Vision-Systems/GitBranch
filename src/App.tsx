@@ -62,7 +62,11 @@ export default function App() {
   }, [currentId]);
 
   // Only the shown repo is kept fresh; the watcher covers local changes (D-042).
-  useEffect(() => (currentId !== null ? startAutoFetch(currentId) : undefined), [currentId]);
+  const autoFetchSeconds = useSettingsStore((s) => s.settings.autoFetchSeconds);
+  useEffect(
+    () => (currentId !== null ? startAutoFetch(currentId, autoFetchSeconds) : undefined),
+    [currentId, autoFetchSeconds],
+  );
 
   useEffect(() => {
     let cancelled = false;
