@@ -52,12 +52,12 @@ describe("fetchQuiet", () => {
     expect(useOpsStore.getState().busy).toBe(false);
   });
 
-  it("never sets the store-wide busy flag", async () => {
+  it("never sets the store-wide busy flag nor shows the progress bar", async () => {
     let release: () => void = () => undefined;
     vi.mocked(remote.fetch).mockReturnValue(new Promise<void>((r) => (release = r)));
     const p = useOpsStore.getState().fetchQuiet(id);
     expect(useOpsStore.getState().busy).toBe(false);
-    expect(useProgressStore.getState().active?.repoId).toBe(id);
+    expect(useProgressStore.getState().active).toBeNull();
     release();
     expect(await p).toBe(true);
     expect(useOpsStore.getState().busy).toBe(false);
@@ -75,11 +75,10 @@ describe("fetchQuiet", () => {
     });
     vi.mocked(remote.pull).mockResolvedValue({ changed: true });
     const quiet = useOpsStore.getState().fetchQuiet(id);
-    const quietOpId = useProgressStore.getState().active?.opId;
     const pulled = await useOpsStore
       .getState()
       .pull(id, { remote: "origin", branch: "main", mode: "config" });
-    expect(progress.cancelOp).toHaveBeenCalledWith(quietOpId);
+    expect(progress.cancelOp).toHaveBeenCalledWith(vi.mocked(remote.fetch).mock.calls[0]?.[2]);
     expect(await quiet).toBe(false);
     expect(pulled).toBe(true);
     expect(remote.pull).toHaveBeenCalledTimes(1);

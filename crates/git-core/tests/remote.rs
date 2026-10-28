@@ -5,7 +5,7 @@ use git_core::GitErrorKind;
 use git_core::fixtures::{FixtureRepo, commit_file_in, git_in};
 use git_core::ops::remote::{
     FetchArgs, OpCtx, PullArgs, PullMode, PushArgs, add_remote, default_pull_mode, fetch,
-    list_remotes, pull, push, remove_remote, rename_remote, set_remote_url,
+    list_remotes, pull, push, ref_snapshot, remove_remote, rename_remote, set_remote_url,
 };
 
 fn pull_args(mode: PullMode) -> PullArgs {
@@ -124,6 +124,27 @@ async fn fetch_prune_removes_stale_tracking_branch() {
     fx.rev_parse("origin/topic"); // still there without --prune
     fetch(&r, fx.path(), &fetch_args(Some("origin"), true), &OpCtx::noop()).await.unwrap();
     assert!(!fx.git(&["branch", "-r"]).contains("origin/topic"));
+}
+
+#[tokio::test]
+async fn ref_snapshot_changes_only_when_a_fetch_moves_refs() {
+    let fx = FixtureRepo::with_remote();
+    let r = fx.runner();
+    let other = fx.clone_of("other");
+    // Newer git (2.48+) creates `origin/HEAD` on the first fetch, so settle that first.
+    fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
+    let s0 = ref_snapshot(&r, fx.path()).await.unwrap();
+    fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
+    assert_eq!(ref_snapshot(&r, fx.path()).await.unwrap(), s0, "empty fetch");
+
+    git_in(&other, &["push", "-q", "origin", "main:topic"]);
+    fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
+    let s1 = ref_snapshot(&r, fx.path()).await.unwrap();
+    assert_ne!(s1, s0, "new remote branch");
+
+    git_in(&other, &["push", "-q", "origin", "--delete", "topic"]);
+    fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
+    assert_eq!(ref_snapshot(&r, fx.path()).await.unwrap(), s0, "pruned remote branch");
 }
 
 #[tokio::test]

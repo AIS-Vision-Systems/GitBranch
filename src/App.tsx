@@ -15,7 +15,7 @@ import { DetailsPane } from "./features/commit/DetailsPane";
 import { onOpenRepoRequest, onRepoChanged } from "./ipc/events";
 import { onOpProgress } from "./ipc/progress";
 import { useProgressStore } from "./state/progress";
-import { ProgressBar } from "./features/shell/ProgressBar";
+import { StatusBar } from "./features/shell/StatusBar";
 import { useGraphStore } from "./state/graph";
 import { useIdentityStore } from "./state/identity";
 import { useDetailsWidth } from "./features/shell/detailsWidth";
@@ -28,6 +28,7 @@ import { isEditableTarget } from "./lib/keys";
 import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
+import { startAutoFetch } from "./state/autoFetch";
 import { openAddWorktree, openClone } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
@@ -60,9 +61,12 @@ export default function App() {
     if (currentId !== null) void useIdentityStore.getState().load(currentId);
   }, [currentId]);
 
-  useEffect(() => {
-    if (currentId !== null) void useOpsStore.getState().fetchQuiet(currentId);
-  }, [currentId]);
+  // Only the shown repo is kept fresh; the watcher covers local changes (D-042).
+  const autoFetchSeconds = useSettingsStore((s) => s.settings.autoFetchSeconds);
+  useEffect(
+    () => (currentId !== null ? startAutoFetch(currentId, autoFetchSeconds) : undefined),
+    [currentId, autoFetchSeconds],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -271,7 +275,6 @@ export default function App() {
         </div>
       </header>
       {current !== null && <Ribbon repoId={current.repoId} />}
-      <ProgressBar />
       {current !== null && <OpBanner repoId={current.repoId} />}
       <main className={current !== null ? styles["bodyGraph"] : styles["body"]}>
         {current !== null ? (
@@ -311,6 +314,7 @@ export default function App() {
           </>
         )}
       </main>
+      <StatusBar version={info?.version ?? null} />
       <WorktreeChoice />
       <DialogHost />
       <CommandPalette />

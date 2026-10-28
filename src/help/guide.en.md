@@ -10,7 +10,9 @@ GitBranch works on repositories that already exist on disk and drives the `git` 
 
 ## The ribbon
 
-The row under the tabs holds the everyday actions. Left: the current repository and branch (open the branch list to check out another one; the counters show how far ahead or behind its upstream it is). Centre: **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`), **Fetch** (the caret offers fetch all, pull fast-forward / rebase / merge, and prune), **Push**, **Branch**, **Stash**, **Pop** and **Terminal** (opens a terminal at the working tree). Right: the **Actions** menu (Clone, Remotes, Stashes, Toggle sidebar, Settings) and **Search**.
+The row under the tabs holds the everyday actions. Left: the current repository and branch (open the branch list to check out another one; the counters show how far ahead or behind its upstream it is). Centre: **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`), **Fetch** (fetches every remote and prunes branches deleted there; the caret offers fetch all and pull fast-forward / rebase / merge), **Push**, **Branch**, **Stash**, **Pop** and **Terminal** (opens a terminal at the working tree). Right: the **Actions** menu (Clone, Remotes, Stashes, Toggle sidebar, Settings) and **Search**.
+
+The status bar at the bottom shows the progress of a running fetch, pull, push or clone (with **Cancel**, or `Esc`) and the GitBranch version on the right. The repository you are looking at refreshes by itself: local changes show up at once, and a silent fetch every 10 seconds (and when the window regains focus) brings new and deleted remote branches. Change the interval, or set it to 0 to turn it off, under **Settings › Git › Auto-fetch interval**.
 
 Every action is also in the **command palette** (`Ctrl+K`), which lists its shortcut.
 
@@ -53,7 +55,7 @@ The sidebar (`Ctrl+B`) has four collapsible sections with a filter box on top: *
 
 ## Settings and updates
 
-The gear (`Ctrl+,`) opens Settings: theme, path of the git executable (applies after a restart), default pull strategy, diff context and whitespace, external editor, difftool, terminal, and the automatic update check. The log folder holds a daily `gitbranch.log` for seven days; GitBranch sends no telemetry.
+The gear (`Ctrl+,`) opens Settings: theme, path of the git executable (applies after a restart), default pull strategy, auto-fetch interval, diff context and whitespace, external editor, difftool, terminal, and the automatic update check. The log folder holds a daily `gitbranch.log` for seven days; GitBranch sends no telemetry.
 
 Updates are checked at startup and once a day; the card offers "Update and restart". "Check for updates" is also in this window and in the palette.
 

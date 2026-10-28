@@ -213,9 +213,15 @@ pub async fn fetch(
     }
     let repo = state.get(&repo_id).ok_or_else(not_open)?;
     let (ctx, _guard) = op_ctx(&app, &state, &op_id, &repo_id)?;
-    let res = remote::fetch(&state.runner, &repo.info.work_tree, &args, &ctx).await;
-    // A failed fetch may still have updated some refs.
-    emit_changed(&app, &repo_id, &[Change::Refs]);
+    let work = &repo.info.work_tree;
+    let before = remote::ref_snapshot(&state.runner, work).await.ok();
+    let res = remote::fetch(&state.runner, work, &args, &ctx).await;
+    // A failed fetch may still have updated some refs; one that moved nothing must not reload the
+    // graph (the background fetch runs every minute, D-042). Unknown snapshots count as changed.
+    let after = remote::ref_snapshot(&state.runner, work).await.ok();
+    if before.is_none() || before != after {
+        emit_changed(&app, &repo_id, &[Change::Refs]);
+    }
     Ok(res?)
 }
 

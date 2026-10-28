@@ -12,6 +12,8 @@ export interface Settings {
   terminal: string | null;
   difftool: string | null;
   autoUpdateCheck: boolean;
+  /** Seconds between silent fetches of the shown repo; 0 = off, otherwise 5..3600. */
+  autoFetchSeconds: number;
 }
 
 export function getSettings(): Promise<Settings> {

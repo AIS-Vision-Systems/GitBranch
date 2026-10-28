@@ -210,6 +210,18 @@ pub async fn fetch(
     Ok(())
 }
 
+/// Opaque snapshot of every ref and its target; two equal snapshots mean no ref moved, appeared or
+/// went away. Used to tell a fetch that brought nothing from one that changed the graph.
+///
+/// # Errors
+/// [`GitError`] when `for-each-ref` fails.
+pub async fn ref_snapshot(runner: &GitRunner, repo: &Path) -> Result<Vec<u8>, GitError> {
+    let out = runner
+        .run(repo, &["for-each-ref", "--format=%(objectname)%00%(refname)"], RunOpts::default())
+        .await?;
+    Ok(out.stdout)
+}
+
 /// How `pull` integrates the upstream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

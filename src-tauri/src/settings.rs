@@ -9,6 +9,13 @@ use crate::AppError;
 
 /// Largest accepted number of diff context lines.
 pub const MAX_CONTEXT_LINES: u32 = 100;
+/// Shortest and longest accepted auto-fetch interval in seconds; 0 turns auto-fetch off (D-042).
+pub const AUTO_FETCH_SECS: std::ops::RangeInclusive<u32> = 5..=3600;
+
+/// Keeps 0 (off) and clamps any other interval into [`AUTO_FETCH_SECS`].
+fn clamp_auto_fetch(secs: u32) -> u32 {
+    if secs == 0 { 0 } else { secs.clamp(*AUTO_FETCH_SECS.start(), *AUTO_FETCH_SECS.end()) }
+}
 
 /// How `pull` integrates remote changes by default.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,6 +52,8 @@ pub struct Settings {
     pub difftool: Option<String>,
     /// Check for a new release at startup.
     pub auto_update_check: bool,
+    /// Seconds between silent fetches of the shown repo; 0 disables them.
+    pub auto_fetch_seconds: u32,
 }
 
 impl Default for Settings {
@@ -58,6 +67,7 @@ impl Default for Settings {
             terminal: None,
             difftool: None,
             auto_update_check: true,
+            auto_fetch_seconds: 10,
         }
     }
 }
@@ -78,6 +88,7 @@ impl Settings {
         self.terminal = blank_to_none(self.terminal);
         self.difftool = blank_to_none(self.difftool);
         self.diff_context_lines = self.diff_context_lines.min(MAX_CONTEXT_LINES);
+        self.auto_fetch_seconds = clamp_auto_fetch(self.auto_fetch_seconds);
         if let Some(p) = &self.git_path {
             let path = Path::new(p);
             if !path.is_absolute() {
@@ -123,6 +134,7 @@ pub fn load(file: &Path) -> Settings {
         Ok(b) => match serde_json::from_slice::<Settings>(&b) {
             Ok(mut s) => {
                 s.diff_context_lines = s.diff_context_lines.min(MAX_CONTEXT_LINES);
+                s.auto_fetch_seconds = clamp_auto_fetch(s.auto_fetch_seconds);
                 s
             }
             Err(e) => {
@@ -172,6 +184,22 @@ mod tests {
         assert!(!off.auto_update_check);
         let json = serde_json::to_string(&off).unwrap();
         assert!(json.contains(r#""autoUpdateCheck":false"#));
+    }
+
+    #[test]
+    fn auto_fetch_defaults_to_ten_seconds_and_is_clamped() {
+        assert_eq!(Settings::default().auto_fetch_seconds, 10);
+        let old: Settings = serde_json::from_str(r#"{"diffContextLines": 5}"#).unwrap();
+        assert_eq!(old.auto_fetch_seconds, 10);
+        let secs = |n: u32| Settings { auto_fetch_seconds: n, ..Settings::default() };
+        assert_eq!(secs(0).validated().unwrap().auto_fetch_seconds, 0);
+        assert_eq!(secs(1).validated().unwrap().auto_fetch_seconds, 5);
+        assert_eq!(secs(90).validated().unwrap().auto_fetch_seconds, 90);
+        assert_eq!(secs(99_999).validated().unwrap().auto_fetch_seconds, 3600);
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("settings.json");
+        std::fs::write(&f, br#"{"autoFetchSeconds": 2}"#).unwrap();
+        assert_eq!(load(&f).auto_fetch_seconds, 5);
     }
 
     #[test]

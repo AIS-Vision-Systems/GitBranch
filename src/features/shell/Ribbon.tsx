@@ -45,7 +45,7 @@ interface Props {
   repoId: RepoId;
 }
 
-const FETCH_ALL = { remote: null, prune: false, tags: false };
+const FETCH_ALL = { remote: null, prune: true, tags: false };
 const ICON = 18;
 
 type MenuKind = "repo" | "fetch" | "actions";
@@ -269,14 +269,6 @@ export function Ribbon({ repoId }: Props) {
             label: "Pull (merge)",
             disabled: pullBlocked,
             onSelect: () => doPull("merge"),
-          },
-          { kind: "separator" },
-          {
-            kind: "item",
-            id: "prune",
-            label: "Prune remote branches",
-            disabled: busy || !hasRemotes,
-            onSelect: () => void fetchAll(repoId, { remote: null, prune: true, tags: false }),
           },
         ];
       case "actions":

@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   terminal: null,
   difftool: null,
   autoUpdateCheck: true,
+  autoFetchSeconds: 10,
 };
 
 interface SettingsState {

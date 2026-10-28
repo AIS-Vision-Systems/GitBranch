@@ -135,8 +135,11 @@ interface OpsState {
   undoLast: (repoId: RepoId, info: UndoInfo) => Promise<boolean>;
   clone: (args: CloneArgs) => Promise<string | null>;
   fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
-  /** Background fetch of all remotes: progress bar only, never a toast. Throttled per repo. */
-  fetchQuiet: (repoId: RepoId) => Promise<boolean>;
+  /**
+   * Silent background fetch + prune of all remotes: no progress bar, no toast. Skipped when the last
+   * one for this repo finished less than `minGapMs` ago.
+   */
+  fetchQuiet: (repoId: RepoId, minGapMs?: number) => Promise<boolean>;
   pull: (repoId: RepoId, args: PullArgs) => Promise<boolean>;
   push: (repoId: RepoId, args: PushArgs) => Promise<boolean>;
   /** Resolves with the local branch name, or null on failure/cancel. */
@@ -147,14 +150,18 @@ interface OpsState {
   setRemoteUrl: (repoId: RepoId, name: string, url: string, push: boolean) => Promise<boolean>;
 }
 
-/** Minimum gap between two quiet fetches of the same repo. */
+/** Default minimum gap between two quiet fetches of the same repo. */
 export const QUIET_FETCH_GAP_MS = 60_000;
 const lastQuietFetch = new Map<RepoId, number>();
 
-/** True when no quiet fetch of `repoId` finished within the last minute. */
-export function quietFetchDue(repoId: RepoId, now: number = Date.now()): boolean {
+/** True when no quiet fetch of `repoId` finished within the last `gapMs`. */
+export function quietFetchDue(
+  repoId: RepoId,
+  now: number = Date.now(),
+  gapMs: number = QUIET_FETCH_GAP_MS,
+): boolean {
   const last = lastQuietFetch.get(repoId);
-  return last === undefined || now - last >= QUIET_FETCH_GAP_MS;
+  return last === undefined || now - last >= gapMs;
 }
 
 /** The running background fetch, if any. It never sets `busy`; user operations cancel it first. */
@@ -368,19 +375,19 @@ export const useOpsStore = create<OpsState>((set, get) => {
           ),
       ),
 
-    fetchQuiet: async (repoId) => {
-      if (get().busy || quietOp !== null || !quietFetchDue(repoId)) return false;
+    fetchQuiet: async (repoId, minGapMs = QUIET_FETCH_GAP_MS) => {
+      const due = (): boolean => quietFetchDue(repoId, Date.now(), minGapMs);
+      if (get().busy || quietOp !== null || !due()) return false;
       if (useRemotesStore.getState().byRepo[repoId] === undefined) {
         await useRemotesStore.getState().load(repoId);
       }
       if (remotesOf(useRemotesStore.getState(), repoId).length === 0) return false;
-      if (get().busy || quietOp !== null || !quietFetchDue(repoId)) return false;
+      if (get().busy || quietOp !== null || !due()) return false;
       // Claim the slot now so concurrent callers (tab switches) do not start a second fetch.
       lastQuietFetch.set(repoId, Date.now());
       const opId = crypto.randomUUID();
       const op = { repoId, opId, done: Promise.resolve() };
       quietOp = op;
-      useProgressStore.getState().start({ opId, repoId, title: "Fetching all remotes" });
       const result = (async (): Promise<boolean> => {
         try {
           await remoteIpc.fetch(repoId, { remote: null, prune: true, tags: false }, opId);
@@ -394,7 +401,6 @@ export const useOpsStore = create<OpsState>((set, get) => {
         } finally {
           lastQuietFetch.set(repoId, Date.now());
           if (quietOp === op) quietOp = null;
-          useProgressStore.getState().finish(opId);
         }
       })();
       op.done = result.then(() => undefined);
