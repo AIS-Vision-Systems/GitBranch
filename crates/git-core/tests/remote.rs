@@ -131,6 +131,8 @@ async fn ref_snapshot_changes_only_when_a_fetch_moves_refs() {
     let fx = FixtureRepo::with_remote();
     let r = fx.runner();
     let other = fx.clone_of("other");
+    // Newer git (2.48+) creates `origin/HEAD` on the first fetch, so settle that first.
+    fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
     let s0 = ref_snapshot(&r, fx.path()).await.unwrap();
     fetch(&r, fx.path(), &fetch_args(None, true), &OpCtx::noop()).await.unwrap();
     assert_eq!(ref_snapshot(&r, fx.path()).await.unwrap(), s0, "empty fetch");
