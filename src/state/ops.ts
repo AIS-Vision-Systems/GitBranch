@@ -24,9 +24,9 @@ import type { RepoId } from "../ipc/types";
 import { pushSummary } from "../lib/pushTarget";
 import { githubHttpsUrlOf } from "../lib/remoteUrl";
 import { quotePath, quotePaths } from "../lib/shellQuote";
+import { openSshFix } from "../features/dialogs/open";
 import { cloneNameFromUrl } from "../features/dialogs/validate";
 import { confirm } from "./dialogs";
-import { useGithubStore } from "./github";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
 import { useReposStore } from "./repos";
 import { remotesOf, useRemotesStore } from "./remotes";
@@ -190,9 +190,8 @@ export const AUTH_REQUIRED_TITLE =
   "Authentication required. Sign in to GitHub for HTTPS remotes; SSH remotes use your agent.";
 export const SSH_AUTH_TITLE = "SSH key rejected by the remote";
 export const SSH_AUTH_HINT =
-  "GitBranch runs ssh without a terminal, so it cannot ask for a key passphrase: load the key into your SSH agent " +
-  "(ssh-add). On Windows, Git's own ssh does not see the Windows OpenSSH agent; " +
-  "git config --global core.sshCommand C:/Windows/System32/OpenSSH/ssh.exe makes git use it.";
+  "GitBranch runs ssh without a terminal, so it cannot ask for a key passphrase. Fix SSH checks the agent and " +
+  "your keys, and can load a key for you.";
 export const PUSH_REJECTED_HINT = "Pull first, or push again with --force-with-lease.";
 
 /** git.auth_required: one explanatory toast instead of the raw error. */
@@ -203,59 +202,44 @@ function authRequired(e: unknown): boolean {
 }
 
 /**
- * git.ssh_auth: explain why ssh had no key and, for a github.com SSH remote while signed in, offer to
- * switch it to HTTPS so the app's token is used. `remote` null = every remote of the repo (fetch all).
+ * git.ssh_auth: explain why ssh had no key and offer the Fix SSH dialog. `remote` null = every remote of the
+ * repo (fetch all); `repoId` "" = clone (no repository yet).
  */
 function sshAuth(repoId: RepoId, remote: string | null): (e: unknown) => boolean {
   return (e) => {
     if (!isIpcError(e) || e.error.code !== "git.ssh_auth") return false;
-    const remotes = remotesOf(useRemotesStore.getState(), repoId).filter(
-      (r) => (remote === null || r.name === remote) && githubHttpsUrlOf(r.fetchUrl) !== null,
-    );
-    const target = remotes.length === 1 ? remotes[0] : undefined;
-    const account = useGithubStore.getState().account;
-    const signedIn = account !== null && account !== undefined;
     const raw = e.error.detail ?? e.error.message;
-    const alt =
-      target === undefined
-        ? ""
-        : signedIn
-          ? `
-Or switch ${target.name} to HTTPS to use your GitHub sign-in.`
-          : `
-Or sign in to GitHub and switch ${target.name} to HTTPS.`;
+    const names = repoId === "" ? [] : remotesOf(useRemotesStore.getState(), repoId);
+    const only = remote ?? (names.length === 1 ? (names[0]?.name ?? null) : null);
     useUiStore.getState().pushToast({
       kind: "error",
       title: SSH_AUTH_TITLE,
-      detail: `${SSH_AUTH_HINT}${alt}
+      detail: `${SSH_AUTH_HINT}
 
 ${raw}`,
-      ...(target !== undefined && signedIn
-        ? {
-            action: {
-              label: `Use HTTPS for ${target.name}`,
-              run: () => void switchToHttps(repoId, target),
-            },
-          }
-        : {}),
+      action: {
+        label: "Fix SSH…",
+        run: () => openSshFix(repoId === "" ? null : repoId, only),
+      },
     });
     return true;
   };
 }
 
 /** Points a github.com SSH remote (fetch and, when set, push URL) at its HTTPS URL. */
-async function switchToHttps(repoId: RepoId, r: Remote): Promise<void> {
+export async function switchToHttps(repoId: RepoId, r: Remote): Promise<boolean> {
   const ops = useOpsStore.getState();
   const fetchUrl = githubHttpsUrlOf(r.fetchUrl);
-  if (fetchUrl === null || !(await ops.setRemoteUrl(repoId, r.name, fetchUrl, false))) return;
+  if (fetchUrl === null || !(await ops.setRemoteUrl(repoId, r.name, fetchUrl, false))) return false;
   const pushUrl = r.pushUrl === null ? null : githubHttpsUrlOf(r.pushUrl);
-  if (pushUrl !== null && !(await ops.setRemoteUrl(repoId, r.name, pushUrl, true))) return;
+  if (pushUrl !== null && !(await ops.setRemoteUrl(repoId, r.name, pushUrl, true))) return false;
   useUiStore.getState().pushToast({
     kind: "success",
     title: `${r.name} now uses HTTPS`,
     detail: `${fetchUrl}
 Run the operation again.`,
   });
+  return true;
 }
 
 function pushRejected(e: unknown): boolean {

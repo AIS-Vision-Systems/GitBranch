@@ -16,8 +16,8 @@ vi.mock("../ipc/commit", () => ({
 import * as commitIpc from "../ipc/commit";
 import * as remoteIpc from "../ipc/remote";
 import { useCommitFormStore } from "./commitForm";
-import type { GithubAccount } from "../ipc/github";
-import { useGithubStore } from "./github";
+import { useDialogsStore } from "./dialogs";
+import { DIALOG } from "../features/dialogs/ids";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
 import { AUTH_REQUIRED_TITLE, SSH_AUTH_TITLE, useOpsStore } from "./ops";
 import { useRemotesStore } from "./remotes";
@@ -61,7 +61,7 @@ beforeEach(() => {
   useCommitFormStore.getState().reset();
   useGraphStore.setState({ byRepo: {} });
   useRemotesStore.setState({ byRepo: {} });
-  useGithubStore.setState({ account: null });
+  useDialogsStore.setState({ current: null, busy: false });
 });
 
 describe("ops.push", () => {
@@ -99,33 +99,22 @@ describe("ops.push", () => {
       });
     const last = (): Toast | undefined => useUiStore.getState().toasts.at(-1);
 
-    it("explains the agent and offers HTTPS when signed in", async () => {
+    it("points to the Fix SSH dialog", async () => {
       sshOrigin();
-      useGithubStore.setState({ account: { offline: false } as GithubAccount });
       vi.mocked(remoteIpc.listRemotes).mockResolvedValue([]);
       push.mockRejectedValue(sshError);
       expect(await useOpsStore.getState().push(id, args)).toBe(false);
       const t = last();
       expect(t).toMatchObject({ kind: "error", title: SSH_AUTH_TITLE });
-      expect(t?.detail).toContain("ssh-add");
+      expect(t?.detail).toContain("Fix SSH");
       expect(t?.detail).toContain("Permission denied (publickey)");
-      expect(t?.action?.label).toBe("Use HTTPS for origin");
+      expect(t?.action?.label).toBe("Fix SSH…");
       t?.action?.run();
-      await vi.waitFor(() => expect(last()?.title).toBe("origin now uses HTTPS"));
-      expect(remoteIpc.setRemoteUrl).toHaveBeenCalledWith(
-        id,
-        "origin",
-        "https://github.com/octo/repo.git",
-        false,
-      );
-    });
-
-    it("offers no action when signed out", async () => {
-      sshOrigin();
-      push.mockRejectedValue(sshError);
-      await useOpsStore.getState().push(id, args);
-      expect(last()?.action).toBeUndefined();
-      expect(last()?.detail).toContain("sign in to GitHub");
+      expect(useDialogsStore.getState().current).toMatchObject({
+        kind: "custom",
+        id: DIALOG.sshFix,
+        props: { repoId: id, remote: "origin" },
+      });
     });
   });
 

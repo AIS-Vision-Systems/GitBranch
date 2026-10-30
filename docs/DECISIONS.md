@@ -486,5 +486,16 @@ raw stderr. (3) When the operation's remote (or the only one, for fetch all) is 
 is signed in, the toast gets a "Use HTTPS for <remote>" button that sets the fetch URL, and an SSH push URL if
 there is one, to `https://github.com/<owner>/<repo>.git`; the user then runs the operation again (no automatic
 retry). Toasts gained one optional action button for this.
-Consequences: the app still never prompts for passphrases or ships its own ssh; switching is opt-in per remote.
+Consequences: the app still never ships its own ssh; switching is opt-in per remote.
+Amendment (2026-10-30, owner): the toast's action opens a **Fix SSH** dialog instead, and GitBranch asks the key
+passphrase itself. `git_core::ops::ssh` reports the Windows `ssh-agent` service state (`sc.exe`; labels are localized,
+so only the English values are matched), the effective `core.sshCommand`, the agent's keys and the keys in `~/.ssh`
+(encrypted or not, loaded or not). Buttons: enable the service (fixed PowerShell `Start-Process -Verb RunAs`, the only
+shell use; UAC declined = exit 1223 → `ssh.cancelled`), set `core.sshCommand` globally to the Windows client (after a
+confirm showing the command), load a key, test the remote with `git ls-remote`, or switch to HTTPS. On Windows the
+target agent is always the Windows service (keys added there survive reboots), elsewhere the inherited
+`SSH_AUTH_SOCK`. The passphrase goes webview → command → `ssh-add` env (`GITBRANCH_SSH_PASSPHRASE`, read by the app exe
+in `GITBRANCH_ASKPASS=ssh-add` mode, which answers only `Enter passphrase for` prompts so a wrong one ends ssh-add
+instead of looping); it is zeroized after the call and never stored, logged or put in argv. Verified: native Windows
+OpenSSH 9.5 and Git's 9.1 both honour `SSH_ASKPASS` with `SSH_ASKPASS_REQUIRE=force`.
 
