@@ -348,12 +348,62 @@ pub fn parse_unified(stdout: &[u8]) -> Result<FileDiff, ParseError> {
 /// Largest untracked file whose content is read for a synthetic diff.
 const MAX_UNTRACKED_BYTES: u64 = 8 * 1024 * 1024;
 
-fn untracked_diff(repo: &Path, path: &str) -> Result<FileDiff, ParseError> {
+/// Join `path` to the work tree, refusing anything that is not a plain relative path.
+fn checked_work_path(repo: &Path, path: &str) -> Result<std::path::PathBuf, ParseError> {
     let rel = Path::new(path);
     if rel.as_os_str().is_empty() || !rel.components().all(|c| matches!(c, Component::Normal(_))) {
         return Err(ParseError(format!("path escapes the repository: {path}")));
     }
-    let full = repo.join(rel);
+    Ok(repo.join(rel))
+}
+
+/// Full text of the new side of a file diff, or `None` when there is none to show: the file is
+/// absent on that side (deleted), binary, or larger than the size cap. Raw content, lossy UTF-8,
+/// CR and trailing newline kept.
+///
+/// # Errors
+/// [`DiffError::Parse`] for a path escaping the repository or an unreadable work-tree file.
+pub async fn new_side_text(
+    runner: &GitRunner,
+    repo: &Path,
+    target: &DiffTarget,
+) -> Result<Option<String>, DiffError> {
+    let spec = match target {
+        DiffTarget::Commit { oid, path } => format!("{oid}:{path}"),
+        DiffTarget::Staged { path } => format!(":0:{path}"),
+        DiffTarget::Unstaged { path } | DiffTarget::Untracked { path } => {
+            let full = checked_work_path(repo, path)?;
+            let meta = match std::fs::symlink_metadata(&full) {
+                Ok(m) => m,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(e) => return Err(ParseError(format!("cannot read {path}: {e}")).into()),
+            };
+            if !meta.is_file() || meta.len() > MAX_UNTRACKED_BYTES {
+                return Ok(None);
+            }
+            let bytes =
+                std::fs::read(&full).map_err(|e| ParseError(format!("cannot read {path}: {e}")))?;
+            return Ok(text_unless_binary(&bytes));
+        }
+    };
+    // A missing object (file absent on that side) makes `cat-file -s` fail: nothing to show.
+    let Ok(size) = runner.run(repo, &["cat-file", "-s", &spec], opts()).await else {
+        return Ok(None);
+    };
+    let size: u64 = String::from_utf8_lossy(&size.stdout).trim().parse().unwrap_or(u64::MAX);
+    if size > MAX_UNTRACKED_BYTES {
+        return Ok(None);
+    }
+    let out = runner.run(repo, &["cat-file", "blob", &spec], opts()).await?;
+    Ok(text_unless_binary(&out.stdout))
+}
+
+fn text_unless_binary(bytes: &[u8]) -> Option<String> {
+    if bytes[..bytes.len().min(8192)].contains(&0) { None } else { Some(text(bytes)) }
+}
+
+fn untracked_diff(repo: &Path, path: &str) -> Result<FileDiff, ParseError> {
+    let full = checked_work_path(repo, path)?;
     let meta = std::fs::symlink_metadata(&full)
         .map_err(|e| ParseError(format!("cannot read {path}: {e}")))?;
     if !meta.is_file() {

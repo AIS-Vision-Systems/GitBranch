@@ -266,3 +266,46 @@ async fn context_and_whitespace_options() {
     assert_eq!(ctx(&w), 2); // the trailing-space-only change on line10 disappears
     assert_eq!(file_diff(&r, repo.path(), &t).await.unwrap(), d3);
 }
+
+#[tokio::test]
+async fn new_side_text_targets() {
+    use git_core::parse::diff::new_side_text;
+    let repo = FixtureRepo::linear(1);
+    let r = repo.runner();
+    let p = repo.path();
+    repo.commit_file("a[1].txt", "one\r\ntwo\n", "glob");
+    let c1 = repo.rev_parse("HEAD");
+    let commit = DiffTarget::Commit { oid: c1.clone(), path: "a[1].txt".into() };
+    assert_eq!(new_side_text(&r, p, &commit).await.unwrap().as_deref(), Some("one\r\ntwo\n"));
+
+    repo.git(&["rm", "-q", "a[1].txt"]);
+    repo.git(&["commit", "-q", "-m", "rm"]);
+    let c2 = repo.rev_parse("HEAD");
+    let del = DiffTarget::Commit { oid: c2, path: "a[1].txt".into() };
+    assert_eq!(new_side_text(&r, p, &del).await.unwrap(), None);
+
+    std::fs::write(p.join("f1.txt"), "staged\n").unwrap();
+    repo.git(&["add", "f1.txt"]);
+    std::fs::write(p.join("f1.txt"), "working\nno newline").unwrap();
+    let staged = DiffTarget::Staged { path: "f1.txt".into() };
+    assert_eq!(new_side_text(&r, p, &staged).await.unwrap().as_deref(), Some("staged\n"));
+    let unstaged = DiffTarget::Unstaged { path: "f1.txt".into() };
+    assert_eq!(
+        new_side_text(&r, p, &unstaged).await.unwrap().as_deref(),
+        Some("working\nno newline")
+    );
+
+    std::fs::write(p.join("new.txt"), "x\n").unwrap();
+    let untracked = DiffTarget::Untracked { path: "new.txt".into() };
+    assert_eq!(new_side_text(&r, p, &untracked).await.unwrap().as_deref(), Some("x\n"));
+
+    std::fs::write(p.join("bin.dat"), [1u8, 0, 2]).unwrap();
+    let bin = DiffTarget::Untracked { path: "bin.dat".into() };
+    assert_eq!(new_side_text(&r, p, &bin).await.unwrap(), None);
+    repo.git(&["add", "bin.dat"]);
+    let sbin = DiffTarget::Staged { path: "bin.dat".into() };
+    assert_eq!(new_side_text(&r, p, &sbin).await.unwrap(), None);
+
+    let bad = DiffTarget::Untracked { path: "../x".into() };
+    assert!(new_side_text(&r, p, &bad).await.is_err());
+}

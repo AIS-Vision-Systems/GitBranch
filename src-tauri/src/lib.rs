@@ -154,6 +154,7 @@ pub fn run() {
             commands::graph::repo_status,
             commands::commit::commit_details,
             commands::commit::file_diff,
+            commands::commit::file_new_text,
             commands::stage::stage_files,
             commands::stage::unstage_files,
             commands::stage::discard_files,

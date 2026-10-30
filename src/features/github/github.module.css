@@ -315,11 +315,22 @@
 }
 
 .prBody {
-  margin: 0;
-  white-space: pre-wrap;
+  max-width: none;
+  max-height: 40vh;
+  overflow: auto;
   overflow-wrap: anywhere;
-  font: inherit;
   font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.prBody h1,
+.prBody h2,
+.prBody h3,
+.prBody h4,
+.prBody h5,
+.prBody h6 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 1em;
 }
 
 .prSectionTitle {

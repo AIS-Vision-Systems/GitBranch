@@ -6,6 +6,7 @@ export {
   ArrowUp,
   BrushCleaning,
   Check,
+  FileText,
   ArchiveRestore,
   ChevronDown,
   ChevronRight,

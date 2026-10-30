@@ -100,6 +100,11 @@ interface PullsState {
   setFilter: (repoId: RepoId, filter: PullFilter) => Promise<void>;
   select: (repoId: RepoId, number: number | null) => Promise<void>;
   refresh: (repoId: RepoId) => Promise<void>;
+  /**
+   * Background reload (auto-refresh timer): no spinner, keeps the visible list on errors, throttled to
+   * one run per `minGapMs` (floored at 15 s) per repo. No-op until the list was loaded once.
+   */
+  refreshQuiet: (repoId: RepoId, minGapMs: number) => Promise<void>;
   /** Resolves with the local branch name, or null on failure. */
   checkout: (repoId: RepoId, pull: PullSummary) => Promise<string | null>;
   clearAll: () => void;
@@ -115,6 +120,10 @@ export function pullsOf(s: Pick<PullsState, "byRepo">, repoId: RepoId): PullsRep
 }
 
 const UNAUTHORIZED = "github.unauthorized";
+/** Lowest allowed gap between two quiet refreshes of the same repo. */
+const QUIET_FLOOR_MS = 15_000;
+const lastQuiet = new Map<RepoId, number>();
+const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 export const usePullsStore = create<PullsState>((set, get) => {
   // Per-repo request counters: a newer request for the same repo supersedes the older reply.
@@ -265,6 +274,40 @@ export const usePullsStore = create<PullsState>((set, get) => {
       if (sel !== null) await get().select(repoId, sel);
       await list;
       await get().loadChecks(repoId, true);
+    },
+
+    refreshQuiet: async (repoId, minGapMs) => {
+      const cur = pullsOf(get(), repoId);
+      const account = useGithubStore.getState().account;
+      if (!cur.loaded || cur.loading || cur.errorCode !== null) return;
+      if (cur.slug === null || cur.slug === undefined) return;
+      if (account === null || account === undefined) return;
+      const now = Date.now();
+      const last = lastQuiet.get(repoId);
+      if (last !== undefined && now - last < Math.max(minGapMs, QUIET_FLOOR_MS)) return;
+      lastQuiet.set(repoId, now); // claim the slot before awaiting
+      const login = account.user.login;
+      const filter = cur.filter;
+      const sel = cur.selected;
+      const gen = listGen.get(repoId) ?? 0;
+      const dgen = detailGen.get(repoId) ?? 0;
+      try {
+        let pulls = await ipc.githubPulls(repoId, STATE_OF[filter]);
+        if (gen !== (listGen.get(repoId) ?? 0)) return;
+        if (filter === "mine") pulls = pulls.filter((p) => p.author === login);
+        if (!same(pulls, pullsOf(get(), repoId).pulls)) patch(repoId, { pulls });
+        useGithubStore.getState().noteSuccess();
+        void get().loadChecks(repoId);
+        if (sel !== null) {
+          const detail = await ipc.githubPull(repoId, sel);
+          const now2 = pullsOf(get(), repoId);
+          if (dgen !== (detailGen.get(repoId) ?? 0) || now2.selected !== sel) return;
+          if (!same(detail, now2.detail)) patch(repoId, { detail, detailError: null });
+        }
+      } catch (e) {
+        if (codeOf(e) === UNAUTHORIZED) return unauthorized();
+        console.debug("quiet pull request refresh failed", e);
+      }
     },
 
     checkout: (repoId, pull) => {
