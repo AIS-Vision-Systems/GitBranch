@@ -454,3 +454,22 @@ watcher. (5) A `StatusBar` (`--statusbar-h`) at the bottom of the window shows t
 operations on the left and `v<version>` on the right; the strip under the ribbon is gone.
 Consequences: an idle app does one `git fetch --all --prune` every 10 s on the shown repo by default (owner's
 choice; GitHub has no problem with that rate for one user); offline errors only go to the console. Every fetch costs two extra `for-each-ref` calls. Amends D-037 (2).
+
+## D-043 · accepted · 2026-10-30 — Pull requests refresh with the auto-fetch; whole-file diffs; Markdown PR bodies
+Context: owner feedback after D-042: the graph refreshes on its own but the pull request list only on the Refresh
+button; the diff view shows only the hunks, while the user wants to read the whole file and land on the first
+change; PR descriptions are shown as raw text.
+Decision: (1) Each `startAutoFetch` tick also calls `pulls.refreshQuiet` for the shown repo, at most every
+max(interval / 2, 15 s): only once the list is loaded and healthy, no spinner, a failure keeps the visible list,
+and a selected PR's detail is re-fetched too. Checks stay on their Rust-side TTL cache. The GitHub client's ETag
+cache makes unchanged lists 304s, which do not count against the rate limit. (2) The diff is not widened with a
+huge `-U`, which would merge the file into one hunk and break hunk/line staging (D-019). A new `file_new_text`
+command (`git cat-file` for commit and index sides, the work tree otherwise; none when deleted, binary or over
+8 MiB) gives the new side's text, and the UI renders the unchanged lines between and around the hunks as
+non-selectable context rows. A "Whole file" toggle (default on) restores the hunks-only view. Showing a new file
+scrolls to its first changed line; re-fetches of the same file keep the scroll. (3) PR bodies use the in-house
+Markdown renderer (no dependency, no raw HTML), extended with blockquotes, rules, task lists, strikethrough,
+images as links, autolinks, h4-h6 and stripped HTML comments; single newlines are line breaks, as on GitHub.
+Consequences: one extra `cat-file`/file read per shown diff; one more GitHub list call (usually a 304) per tick.
+For unstaged diffs the context rows come from the raw work-tree file, so a clean filter that changes lines (Git
+LFS pointers) shows the real file around pointer hunks; accepted as rare.

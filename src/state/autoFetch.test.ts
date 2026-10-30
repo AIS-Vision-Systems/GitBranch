@@ -2,15 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepoId } from "../ipc/types";
 import { startAutoFetch } from "./autoFetch";
 import { useOpsStore } from "./ops";
+import { usePullsStore } from "./pulls";
 
 type FetchQuiet = (repoId: RepoId, minGapMs?: number) => Promise<boolean>;
 const id = "r1" as RepoId;
+type RefreshQuiet = (repoId: RepoId, minGapMs: number) => Promise<void>;
 let fetchQuiet: ReturnType<typeof vi.fn<FetchQuiet>>;
+let refreshQuiet: ReturnType<typeof vi.fn<RefreshQuiet>>;
 
 beforeEach(() => {
   vi.useFakeTimers();
   fetchQuiet = vi.fn<FetchQuiet>().mockResolvedValue(false);
   useOpsStore.setState({ fetchQuiet });
+  refreshQuiet = vi.fn<RefreshQuiet>().mockResolvedValue(undefined);
+  usePullsStore.setState({ refreshQuiet });
 });
 
 afterEach(() => {
@@ -49,5 +54,20 @@ describe("startAutoFetch", () => {
     vi.advanceTimersByTime(60_000);
     expect(fetchQuiet).not.toHaveBeenCalled();
     stop();
+  });
+
+  it("also refreshes pull requests with a gap of at least 15 s, and not while hidden", () => {
+    const stop = startAutoFetch(id, 10);
+    expect(refreshQuiet).toHaveBeenLastCalledWith(id, 15_000);
+    stop();
+    const stop2 = startAutoFetch(id, 60);
+    expect(refreshQuiet).toHaveBeenLastCalledWith(id, 30_000);
+    stop2();
+    refreshQuiet.mockClear();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const stop3 = startAutoFetch(id, 10);
+    vi.advanceTimersByTime(60_000);
+    expect(refreshQuiet).not.toHaveBeenCalled();
+    stop3();
   });
 });

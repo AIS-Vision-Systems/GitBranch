@@ -188,3 +188,142 @@ describe("checks and prMarks", () => {
     expect(prMarks(repo)).toBe(m);
   });
 });
+describe("refreshQuiet", () => {
+  let n = 0;
+  let rid = id;
+  const seed = (over: Partial<typeof EMPTY_PULLS> = {}): void => {
+    n += 1;
+    rid = `quiet${n}` as RepoId;
+    usePullsStore.setState({
+      byRepo: {
+        [rid]: {
+          ...EMPTY_PULLS,
+          slug: { remote: "origin", owner: "o", name: "r" },
+          loaded: true,
+          pulls: [pull({ number: 1 })],
+          ...over,
+        },
+      },
+    });
+  };
+  const nums = (): number[] => pullsOf(usePullsStore.getState(), rid).pulls.map((p) => p.number);
+
+  it("reloads without a spinner, then refreshes checks", async () => {
+    seed();
+    const seen: boolean[] = [];
+    const unsub = usePullsStore.subscribe((s) => seen.push(pullsOf(s, rid).loading));
+    vi.mocked(ipc.githubPulls).mockResolvedValue([pull({ number: 1 }), pull({ number: 2 })]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    unsub();
+    expect(nums()).toEqual([1, 2]);
+    expect(seen.every((l) => !l)).toBe(true);
+    expect(ipc.githubChecks).toHaveBeenCalledWith(rid, ["abc"], false);
+  });
+
+  it("keeps the same list reference when nothing changed", async () => {
+    seed();
+    const before = pullsOf(usePullsStore.getState(), rid).pulls;
+    vi.mocked(ipc.githubPulls).mockResolvedValue([pull({ number: 1 })]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    expect(pullsOf(usePullsStore.getState(), rid).pulls).toBe(before);
+  });
+
+  it("keeps the list and sets no error when the reload fails", async () => {
+    seed();
+    vi.mocked(ipc.githubPulls).mockRejectedValue(new Error("offline"));
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    const r = pullsOf(usePullsStore.getState(), rid);
+    expect(r.error).toBeNull();
+    expect(r.errorCode).toBeNull();
+    expect(nums()).toEqual([1]);
+  });
+
+  it("a 401 signs out", async () => {
+    seed();
+    vi.mocked(ipc.githubPulls).mockRejectedValue(
+      new IpcError({ code: "github.unauthorized", message: "no" }),
+    );
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    expect(useGithubStore.getState().account).toBeNull();
+  });
+
+  it("throttles per repo, with a 15 s floor", async () => {
+    seed();
+    vi.mocked(ipc.githubPulls).mockResolvedValue([pull({ number: 1 })]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    let now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    now += 14_000;
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    expect(ipc.githubPulls).toHaveBeenCalledTimes(1);
+    now += 2_000;
+    await usePullsStore.getState().refreshQuiet(rid, 60_000);
+    expect(ipc.githubPulls).toHaveBeenCalledTimes(1);
+    now += 60_000;
+    await usePullsStore.getState().refreshQuiet(rid, 60_000);
+    expect(ipc.githubPulls).toHaveBeenCalledTimes(2);
+    vi.restoreAllMocks();
+  });
+
+  it("is a no-op when not loaded, loading, errored, not a slug or signed out", async () => {
+    for (const over of [
+      { loaded: false },
+      { loading: true },
+      { errorCode: "github.network" },
+      { slug: null },
+      { slug: undefined },
+    ]) {
+      seed(over);
+      await usePullsStore.getState().refreshQuiet(rid, 0);
+    }
+    seed();
+    useGithubStore.setState({ account: null });
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    expect(ipc.githubPulls).not.toHaveBeenCalled();
+  });
+
+  it("a filter change in between wins", async () => {
+    seed();
+    let resolveOld: (v: PullSummary[]) => void = () => undefined;
+    vi.mocked(ipc.githubPulls)
+      .mockImplementationOnce(() => new Promise((r) => (resolveOld = r)))
+      .mockResolvedValueOnce([pull({ number: 8, state: "closed" })]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    const q = usePullsStore.getState().refreshQuiet(rid, 0);
+    await usePullsStore.getState().setFilter(rid, "closed");
+    resolveOld([pull({ number: 99 })]);
+    await q;
+    expect(nums()).toEqual([8]);
+  });
+
+  it("applies the mine filter", async () => {
+    seed({ filter: "mine" });
+    vi.mocked(ipc.githubPulls).mockResolvedValue([
+      pull({ number: 1, author: "me" }),
+      pull({ number: 2, author: "you" }),
+    ]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    expect(nums()).toEqual([1]);
+  });
+
+  it("refreshes the selected detail without a spinner", async () => {
+    seed({
+      selected: 1,
+      detail: { ...pull({ number: 1 }), title: "old" } as PullDetail,
+    });
+    vi.mocked(ipc.githubPulls).mockResolvedValue([pull({ number: 1 })]);
+    vi.mocked(ipc.githubChecks).mockResolvedValue({});
+    vi.mocked(ipc.githubPull).mockResolvedValue({
+      ...pull({ number: 1 }),
+      title: "new",
+    } as PullDetail);
+    await usePullsStore.getState().refreshQuiet(rid, 0);
+    const r = pullsOf(usePullsStore.getState(), rid);
+    expect(r.detail?.title).toBe("new");
+    expect(r.detailLoading).toBe(false);
+  });
+});
