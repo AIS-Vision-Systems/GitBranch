@@ -55,7 +55,7 @@ The sidebar (`Ctrl+B`) has four collapsible sections with a filter box on top: *
 
 ## Settings and updates
 
-The gear (`Ctrl+,`) opens Settings: theme, path of the git executable (applies after a restart), default pull strategy, auto-fetch interval, diff context and whitespace, external editor, difftool, terminal, and the automatic update check. The log folder holds a daily `gitbranch.log` for seven days; GitBranch sends no telemetry.
+The gear (`Ctrl+,`) opens Settings: theme, path of the git executable (applies after a restart; when empty GitBranch uses the `git` on `PATH`, or on Windows a standard Git for Windows install; GitBranch does not ship git), default pull strategy, auto-fetch interval, diff context and whitespace, external editor, difftool, terminal, and the automatic update check. The log folder holds a daily `gitbranch.log` for seven days; GitBranch sends no telemetry.
 
 Updates are checked at startup and once a day; the card offers "Update and restart". "Check for updates" is also in this window and in the palette.
 

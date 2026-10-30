@@ -99,6 +99,8 @@ async fn spawn_failure_is_typed() {
         .await
         .expect_err("spawn fails");
     assert_eq!(err.kind, GitErrorKind::Spawn);
+    assert!(err.stderr.contains("was not found"), "stderr: {}", err.stderr);
+    assert!(err.stderr.contains("Git executable path"), "stderr: {}", err.stderr);
 }
 
 #[tokio::test]
