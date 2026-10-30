@@ -375,6 +375,15 @@ impl GitRunner {
 
         match cmd.spawn() {
             Ok(child) => Ok((child, argv)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(GitError {
+                kind: GitErrorKind::Spawn,
+                stderr: format!(
+                    "{} was not found. Install Git from https://git-scm.com/downloads, or set \
+                     \"Git executable path\" in Settings, then restart GitBranch.",
+                    self.git_path.display()
+                ),
+                args: argv,
+            }),
             Err(e) => Err(GitError {
                 kind: GitErrorKind::Spawn,
                 stderr: format!("{}: {e}", self.git_path.display()),
@@ -675,16 +684,66 @@ pub(crate) async fn kill_tree(child: &mut Child) {
     }
     let _ = child.kill().await;
 }
-/// `GITBRANCH_GIT` when set and non-empty, else `git` from `PATH`.
+/// `GITBRANCH_GIT` when set and non-empty, else `git` from `PATH`, else a standard Git for Windows
+/// install that is not on `PATH`, else plain `git` (so the spawn error names it).
 pub(crate) fn git_path_from_env() -> PathBuf {
-    std::env::var_os("GITBRANCH_GIT")
-        .filter(|p| !p.is_empty())
-        .map_or_else(|| PathBuf::from("git"), PathBuf::from)
+    if let Some(p) = std::env::var_os("GITBRANCH_GIT").filter(|p| !p.is_empty()) {
+        return PathBuf::from(p);
+    }
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    resolve_git(&path, &well_known_git_paths())
+}
+
+const GIT_EXE: &str = if cfg!(windows) { "git.exe" } else { "git" };
+
+/// `git` when some `PATH` entry holds the executable, else the first existing `fallbacks` entry.
+fn resolve_git(path_var: &OsStr, fallbacks: &[PathBuf]) -> PathBuf {
+    if std::env::split_paths(path_var).any(|dir| dir.join(GIT_EXE).is_file()) {
+        return PathBuf::from("git");
+    }
+    fallbacks.iter().find(|p| p.is_file()).cloned().unwrap_or_else(|| PathBuf::from("git"))
+}
+
+/// Where the Git for Windows installer puts `git.exe` (machine-wide and per-user).
+fn well_known_git_paths() -> Vec<PathBuf> {
+    if !cfg!(windows) {
+        return Vec::new();
+    }
+    [
+        ("ProgramW6432", r"Git\cmd\git.exe"),
+        ("ProgramFiles", r"Git\cmd\git.exe"),
+        ("LOCALAPPDATA", r"Programs\Git\cmd\git.exe"),
+        ("ProgramFiles(x86)", r"Git\cmd\git.exe"),
+    ]
+    .into_iter()
+    .filter_map(|(var, rel)| {
+        std::env::var_os(var).filter(|b| !b.is_empty()).map(|b| PathBuf::from(b).join(rel))
+    })
+    .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_git_prefers_path_then_fallbacks() {
+        let on_path = tempfile::tempdir().expect("tempdir");
+        let installed = tempfile::tempdir().expect("tempdir");
+        let empty = tempfile::tempdir().expect("tempdir");
+        std::fs::write(on_path.path().join(GIT_EXE), b"").expect("write");
+        let fallback = installed.path().join(GIT_EXE);
+        std::fs::write(&fallback, b"").expect("write");
+        let missing = empty.path().join(GIT_EXE);
+        let fallbacks = [missing, fallback.clone()];
+
+        let path = std::env::join_paths([empty.path(), on_path.path()]).expect("join");
+        assert_eq!(resolve_git(&path, &fallbacks), PathBuf::from("git"));
+        let path = std::env::join_paths([empty.path()]).expect("join");
+        assert_eq!(resolve_git(&path, &fallbacks), fallback);
+        assert_eq!(resolve_git(&path, &fallbacks[..1]), PathBuf::from("git"));
+        assert_eq!(resolve_git(OsStr::new(""), &[]), PathBuf::from("git"));
+    }
 
     #[test]
     fn emit_line_redacts_credentials() {
