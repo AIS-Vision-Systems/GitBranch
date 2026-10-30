@@ -31,6 +31,22 @@ pub async fn commit_details(
     Ok(git_core::parse::show::commit_details(&state.runner, &repo.info.work_tree, &oid).await?)
 }
 
+/// Full text of the new side of a file diff; `None` when absent, binary or too large.
+#[tauri::command]
+pub async fn file_new_text(
+    state: State<'_, AppState>,
+    repo_id: String,
+    target: DiffTarget,
+) -> Result<Option<String>, AppError> {
+    if let DiffTarget::Commit { oid, .. } = &target {
+        if !valid_oid(oid) {
+            return Err(bad_oid());
+        }
+    }
+    let repo = state.get(&repo_id).ok_or_else(not_open)?;
+    Ok(git_core::parse::diff::new_side_text(&state.runner, &repo.info.work_tree, &target).await?)
+}
+
 /// Hunks of one file for a commit, the index, the work tree, or an untracked file.
 #[tauri::command]
 pub async fn file_diff(

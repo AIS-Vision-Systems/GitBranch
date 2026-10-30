@@ -10,9 +10,10 @@ vi.mock("../../ipc/commit", () => ({
   headMessage: vi.fn(),
   commitDetails: vi.fn(),
   fileDiff: vi.fn(),
+  fileNewText: vi.fn(),
 }));
 
-import { sameTarget, useDetailsStore } from "../../state/details";
+import { sameTarget, useDetailsStore, WHOLE_FILE_KEY } from "../../state/details";
 import { useWipStore } from "../../state/wip";
 import { CenterDiff } from "./CenterDiff";
 
@@ -74,5 +75,15 @@ describe("CenterDiff", () => {
     finish(true);
     await act(() => Promise.resolve());
     expect(reloadFile).not.toHaveBeenCalled();
+  });
+
+  it("whole-file toggle shows the full text and persists the choice", () => {
+    useDetailsStore.setState({ fullText: "const a = 1;\nconst b = 3;\ntail\n", wholeFile: true });
+    render(<CenterDiff repoId={id} />);
+    expect(screen.getByText("tail")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Whole file" }));
+    expect(screen.queryByText("tail")).toBeNull();
+    expect(localStorage.getItem(WHOLE_FILE_KEY)).toBe("false");
+    useDetailsStore.setState({ wholeFile: true });
   });
 });

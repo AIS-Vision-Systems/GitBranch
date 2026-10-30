@@ -29,6 +29,9 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
   const diff = useDetailsStore((s) => s.diff);
   const loading = useDetailsStore((s) => s.loadingDiff);
   const view = useDetailsStore((s) => s.view);
+  const fullText = useDetailsStore((s) => s.fullText);
+  const wholeFile = useDetailsStore((s) => s.wholeFile);
+  const setWholeFile = useDetailsStore((s) => s.setWholeFile);
   const setView = useDetailsStore((s) => s.setView);
   const reloadFile = useDetailsStore((s) => s.reloadFile);
   const clear = useDetailsStore((s) => s.clear);
@@ -94,6 +97,9 @@ export function CenterDiff({ repoId }: { repoId: RepoId }) {
         hideLabel
         view={view}
         onViewChange={setView}
+        fullText={fullText}
+        wholeFile={wholeFile}
+        onWholeFileChange={setWholeFile}
         target={selectedFile.target}
         {...(ignoreWs ? {} : { onHunkOp })}
       />

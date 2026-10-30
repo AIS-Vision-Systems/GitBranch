@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { FileText } from "../../lib/icons";
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import type { DiffLine, DiffTarget, FileDiff } from "../../ipc/commit";
 import type { HunkSelection, PatchOp } from "../../ipc/stage";
@@ -18,7 +19,7 @@ import { confirm } from "../../state/dialogs";
 import { useWipStore } from "../../state/wip";
 import type { DiffViewMode } from "../../state/details";
 import { highlight, langFor, type Lang } from "./highlight";
-import { buildRows, hunkPatch, type DiffRow } from "./buildRows";
+import { buildRows, firstChangeIndex, hunkPatch, type DiffRow } from "./buildRows";
 import { overviewMarks } from "./overview";
 import { loadWrap, pairHeights, WRAP_BELOW, WRAP_KEY } from "./wrap";
 import styles from "./Diff.module.css";
@@ -26,6 +27,8 @@ import styles from "./Diff.module.css";
 /** Keep in sync with `--diff-line-h`. */
 export const LINE_H = 20;
 export const VIRTUALIZE_ABOVE = 2000;
+/** Rows kept above the first change when a file is opened. */
+const CONTEXT_ABOVE = 3;
 
 const MARKER: Record<DiffLine["kind"], string> = { context: " ", add: "+", del: "-" };
 const LINE_CLASS: Record<DiffLine["kind"], string> = {
@@ -219,6 +222,23 @@ const RowView = memo(function RowView({
         </div>
       );
     }
+    case "ctx":
+      return (
+        <div role="row" className={`${styles["row"]} ${styles["unified"]}`}>
+          <span role="cell" className={gutterClass("", false, false)}>
+            {row.line.oldNo ?? ""}
+          </span>
+          <span role="cell" className={gutterClass("", false, false)}>
+            {row.line.newNo ?? ""}
+          </span>
+          <span role="cell" className={styles["marker"]}>
+            {" "}
+          </span>
+          <span role="cell" className={styles["code"]}>
+            <Code text={row.line.text} lang={lang} />
+          </span>
+        </div>
+      );
     case "split":
       return null;
   }
@@ -232,7 +252,8 @@ interface Selection {
 }
 
 function rowSel(row: DiffRow, s: Selection | null): ReadonlySet<number> | null {
-  if (s === null || row.type === "nonl" || row.hunkIndex !== s.hunk) return null;
+  if (s === null || row.type === "nonl" || row.type === "ctx" || row.hunkIndex !== s.hunk)
+    return null;
   return s.lines;
 }
 
@@ -290,6 +311,12 @@ const PaneRowView = memo(function PaneRowView({
         </div>
       );
     }
+    case "ctx":
+      return (
+        <div role="row" className={`${styles["row"]} ${styles["pane"]}`}>
+          <Side line={row.line} side={side} lang={lang} selected={false} onGutter={null} />
+        </div>
+      );
     case "line":
       return null;
   }
@@ -418,9 +445,12 @@ function Rows({
   lang,
   selection,
   handlers,
+  scrollKey,
 }: {
   rows: DiffRow[];
   view: DiffViewMode;
+  /** Identity of the shown file; a new key scrolls to the first change once. */
+  scrollKey: string;
   wrap: boolean;
   lang: Lang | null;
   selection: Selection | null;
@@ -501,6 +531,24 @@ function Rows({
   useLayoutEffect(() => {
     updateViewport();
   }, [rows, updateViewport]);
+
+  const scrolledFor = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (scrolledFor.current === scrollKey) return;
+    scrolledFor.current = scrollKey;
+    const first = firstChangeIndex(rows);
+    if (first < 0) return;
+    const target = Math.max(0, first - CONTEXT_ABOVE);
+    if (virtual) {
+      leftV.scrollToIndex(target, { align: "start" });
+      return;
+    }
+    const l = leftRef.current;
+    const row = l?.querySelectorAll<HTMLElement>("[role=table] > [role=row]")[target];
+    if (l === null || row === undefined) return;
+    l.scrollTop = row.offsetTop;
+    if (rightRef.current !== null) rightRef.current.scrollTop = row.offsetTop;
+  }, [rows, scrollKey, virtual, leftV]);
 
   const aligned = split && wrapActive;
   useLayoutEffect(() => {
@@ -593,6 +641,10 @@ export interface DiffViewProps {
   onViewChange: (v: DiffViewMode) => void;
   /** With `onHunkOp`, enables hunk and line staging for `staged` / `unstaged` targets. */
   target?: DiffTarget;
+  /** New-side text of the file: unchanged lines outside the hunks are shown when `wholeFile`. */
+  fullText?: string | null;
+  wholeFile?: boolean;
+  onWholeFileChange?: (v: boolean) => void;
   onHunkOp?: (sel: HunkSelection, op: PatchOp) => void | Promise<void>;
 }
 
@@ -604,9 +656,17 @@ export function DiffView({
   view,
   onViewChange,
   target,
+  fullText = null,
+  wholeFile = true,
+  onWholeFileChange,
   onHunkOp,
 }: DiffViewProps) {
-  const rows = useMemo(() => (diff === null ? [] : buildRows(diff, view)), [diff, view]);
+  const text = wholeFile ? fullText : null;
+  const rows = useMemo(
+    () => (diff === null ? [] : buildRows(diff, view, text)),
+    [diff, view, text],
+  );
+  const scrollKey = target === undefined ? label : JSON.stringify(target);
   const kind =
     target !== undefined &&
     onHunkOp !== undefined &&
@@ -743,6 +803,18 @@ export function DiffView({
             </button>
           ))}
         </div>
+        {onWholeFileChange !== undefined && (
+          <button
+            type="button"
+            aria-pressed={wholeFile}
+            aria-label="Whole file"
+            className={`${wholeFile ? styles["toggleOn"] : styles["toggleOff"]} ${styles["wrapButton"]}`}
+            title="Show the whole file, not only the changed hunks"
+            onClick={() => onWholeFileChange(!wholeFile)}
+          >
+            <FileText size={14} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           aria-pressed={wrap}
@@ -759,6 +831,7 @@ export function DiffView({
         <Rows
           rows={rows}
           view={view}
+          scrollKey={scrollKey}
           wrap={wrap}
           lang={lang}
           selection={selection}

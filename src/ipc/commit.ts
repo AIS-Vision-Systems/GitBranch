@@ -77,6 +77,11 @@ export function fileDiff(repoId: RepoId, target: DiffTarget): Promise<FileDiff> 
   return call<FileDiff>("file_diff", { repoId, target });
 }
 
+/** The new side of a diff as text; null when it is missing (deleted), binary or too large. */
+export function fileNewText(repoId: RepoId, target: DiffTarget): Promise<string | null> {
+  return call<string | null>("file_new_text", { repoId, target });
+}
+
 export interface CommitArgs {
   message: string;
   amend: boolean;

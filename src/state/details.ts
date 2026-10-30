@@ -6,6 +6,7 @@ import { reportError, useUiStore } from "./ui";
 
 export type DiffViewMode = "unified" | "split";
 export const VIEW_KEY = "gitbranch.diffView";
+export const WHOLE_FILE_KEY = "gitbranch.diffWholeFile";
 
 export interface SelectedFile {
   target: DiffTarget;
@@ -17,13 +18,18 @@ interface DetailsState {
   loadingDetails: boolean;
   selectedFile: SelectedFile | null;
   diff: FileDiff | null;
+  /** New-side text of `diff` for the whole-file view; null = hunks only. */
+  fullText: string | null;
   loadingDiff: boolean;
   view: DiffViewMode;
+  /** Show unchanged lines between and around hunks (default on). */
+  wholeFile: boolean;
   loadDetails: (repoId: RepoId, oid: string) => Promise<void>;
   selectFile: (repoId: RepoId, target: DiffTarget, label: string) => Promise<void>;
   /** Like selectFile but never toggles: (re)loads the diff of this file. */
   reloadFile: (repoId: RepoId, target: DiffTarget, label: string) => Promise<void>;
   setView: (v: DiffViewMode) => void;
+  setWholeFile: (v: boolean) => void;
   clear: () => void;
 }
 
@@ -32,6 +38,37 @@ function readView(): DiffViewMode {
     return localStorage.getItem(VIEW_KEY) === "split" ? "split" : "unified";
   } catch {
     return "unified";
+  }
+}
+
+function readWholeFile(): boolean {
+  try {
+    return localStorage.getItem(WHOLE_FILE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+/** The whole-file text is only useful for a text diff with hunks and an existing new side. */
+async function loadFullText(
+  repoId: RepoId,
+  target: DiffTarget,
+  diff: FileDiff,
+): Promise<string | null> {
+  if (
+    diff.binary ||
+    diff.tooLarge === true ||
+    diff.combined === true ||
+    diff.hunks.length === 0 ||
+    diff.newPath === null ||
+    target.kind === "untracked"
+  ) {
+    return null;
+  }
+  try {
+    return (await ipc.fileNewText(repoId, target)) ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -52,8 +89,10 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   loadingDetails: false,
   selectedFile: null,
   diff: null,
+  fullText: null,
   loadingDiff: false,
   view: readView(),
+  wholeFile: readWholeFile(),
 
   loadDetails: async (repoId, oid) => {
     const gen = ++detailsGen;
@@ -65,6 +104,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
       loadingDetails: true,
       selectedFile: null,
       diff: null,
+      fullText: null,
       loadingDiff: false,
     });
     try {
@@ -83,7 +123,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     if (cur !== null && sameTarget(cur.target, target)) {
       // Clicking the open file again closes the diff (commit details stay).
       ++diffGen;
-      set({ selectedFile: null, diff: null, loadingDiff: false });
+      set({ selectedFile: null, diff: null, fullText: null, loadingDiff: false });
       useUiStore.getState().showGraph();
       return;
     }
@@ -93,14 +133,23 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   reloadFile: async (repoId, target, label) => {
     useUiStore.getState().showDiff();
     const gen = ++diffGen;
-    set({ selectedFile: { target, label }, diff: null, loadingDiff: true });
+    // Re-fetching the open file (after a stage, a live refresh) keeps the current diff on screen
+    // so the scroll position survives; a different file starts from scratch.
+    const cur = get().selectedFile;
+    if (cur !== null && sameTarget(cur.target, target) && get().diff !== null) {
+      set({ selectedFile: { target, label } });
+    } else {
+      set({ selectedFile: { target, label }, diff: null, fullText: null, loadingDiff: true });
+    }
     try {
       const diff = await ipc.fileDiff(repoId, target);
       if (gen !== diffGen) return;
-      set({ diff, loadingDiff: false });
+      const fullText = await loadFullText(repoId, target, diff);
+      if (gen !== diffGen) return;
+      set({ diff, fullText, loadingDiff: false });
     } catch (e) {
       if (gen !== diffGen) return;
-      set({ loadingDiff: false });
+      set({ diff: null, fullText: null, loadingDiff: false });
       reportError(e, "Could not load diff");
     }
   },
@@ -109,6 +158,15 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     if (get().view !== v) set({ view: v });
     try {
       localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+
+  setWholeFile: (v) => {
+    if (get().wholeFile !== v) set({ wholeFile: v });
+    try {
+      localStorage.setItem(WHOLE_FILE_KEY, String(v));
     } catch {
       /* storage unavailable */
     }
@@ -123,6 +181,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
       loadingDetails: false,
       selectedFile: null,
       diff: null,
+      fullText: null,
       loadingDiff: false,
     });
   },

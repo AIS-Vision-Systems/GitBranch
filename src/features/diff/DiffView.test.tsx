@@ -306,4 +306,35 @@ describe("DiffView", () => {
       useWipStore.setState({ busy: false });
     });
   });
+
+  it("shows unchanged lines from the full text and toggles the whole-file view", () => {
+    const onWholeFileChange = vi.fn();
+    const { rerender } = render(
+      <DiffView
+        {...base}
+        diff={sampleDiff()}
+        view="unified"
+        fullText={"const a = 1;\nconst b = 3;\nafter\n"}
+        wholeFile
+        onWholeFileChange={onWholeFileChange}
+      />,
+    );
+    // hunk, context, del, nonl, add + trailing ctx row
+    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.getByText("after")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Whole file" }));
+    expect(onWholeFileChange).toHaveBeenCalledWith(false);
+    rerender(
+      <DiffView
+        {...base}
+        diff={sampleDiff()}
+        view="unified"
+        fullText={"const a = 1;\nconst b = 3;\nafter\n"}
+        wholeFile={false}
+        onWholeFileChange={onWholeFileChange}
+      />,
+    );
+    expect(screen.getAllByRole("row")).toHaveLength(5);
+    expect(screen.queryByText("after")).toBeNull();
+  });
 });

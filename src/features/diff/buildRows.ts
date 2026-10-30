@@ -1,4 +1,4 @@
-import type { DiffLine, FileDiff } from "../../ipc/commit";
+import type { DiffLine, FileDiff, Hunk } from "../../ipc/commit";
 import type { DiffViewMode } from "../../state/details";
 import { pairHunk } from "./pairHunk";
 
@@ -17,11 +17,65 @@ export type DiffRow =
       leftIndex: number | null;
       rightIndex: number | null;
     }
-  | { type: "nonl"; key: string };
+  | { type: "nonl"; key: string }
+  /** An unchanged line outside every hunk (whole-file view); never selectable. */
+  | { type: "ctx"; key: string; line: DiffLine };
 
-export function buildRows(diff: FileDiff, view: DiffViewMode): DiffRow[] {
+/** First new-side line a hunk covers (git reports the line BEFORE a pure deletion). */
+function firstNew(h: Hunk): number {
+  return h.newLines === 0 ? h.newStart + 1 : h.newStart;
+}
+
+/** Old and new line numbers of the first unchanged line after a hunk. */
+function afterHunk(h: Hunk): { old: number; new: number } {
+  return {
+    old: h.oldLines === 0 ? h.oldStart + 1 : h.oldStart + h.oldLines,
+    new: h.newLines === 0 ? h.newStart + 1 : h.newStart + h.newLines,
+  };
+}
+
+/** The new-side text as lines: split on "\n" like the diff parser, dropping the final empty piece. */
+function splitText(text: string): string[] {
+  const parts = text.split("\n");
+  if (parts[parts.length - 1] === "") parts.pop();
+  return parts;
+}
+
+/** Context rows for new-side lines `from..=to` (1-based), old number = new + offset. */
+function gap(rows: DiffRow[], lines: string[], from: number, to: number, offset: number): void {
+  for (let n = from; n <= to; n++) {
+    const text = lines[n - 1];
+    if (text === undefined) return;
+    rows.push({
+      type: "ctx",
+      key: `c${n}`,
+      line: { kind: "context", text, oldNo: n + offset, newNo: n, noNewline: false },
+    });
+  }
+}
+
+/** Index of the first added/deleted row, or -1 when there is none. */
+export function firstChangeIndex(rows: readonly DiffRow[]): number {
+  return rows.findIndex((r) =>
+    r.type === "line"
+      ? r.line.kind !== "context"
+      : r.type === "split" && (r.left?.kind === "del" || r.right?.kind === "add"),
+  );
+}
+
+export function buildRows(diff: FileDiff, view: DiffViewMode, fullText?: string | null): DiffRow[] {
   const rows: DiffRow[] = [];
+  const lines = fullText === null || fullText === undefined ? null : splitText(fullText);
   diff.hunks.forEach((h, hi) => {
+    if (lines !== null) {
+      if (hi === 0) {
+        const oldFirst = h.oldLines === 0 ? h.oldStart + 1 : h.oldStart;
+        gap(rows, lines, 1, firstNew(h) - 1, oldFirst - firstNew(h));
+      } else {
+        const prev = afterHunk(diff.hunks[hi - 1]!);
+        gap(rows, lines, prev.new, firstNew(h) - 1, prev.old - prev.new);
+      }
+    }
     rows.push({ type: "hunk", key: `h${hi}`, header: h.header, hunkIndex: hi });
     if (view === "unified") {
       h.lines.forEach((line, li) => {
@@ -47,6 +101,11 @@ export function buildRows(diff: FileDiff, view: DiffViewMode): DiffRow[] {
       });
     }
   });
+  const last = diff.hunks[diff.hunks.length - 1];
+  if (lines !== null && last !== undefined) {
+    const a = afterHunk(last);
+    gap(rows, lines, a.new, lines.length, a.old - a.new);
+  }
   return rows;
 }
 

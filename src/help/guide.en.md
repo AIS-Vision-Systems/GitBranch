@@ -34,7 +34,7 @@ The commit box supports amend, sign-off and the repository's commit template. **
 
 ## Diffs and blame
 
-Unified or split view, a **Wrap** toggle, and a change ruler at the right edge (click a mark to jump). **Blame** (right-click a file, or the button in the diff header) shows who last touched each line. "Open in difftool" sends both sides to the external tool from Settings.
+Unified or split view, a **Wrap** toggle, and a change ruler at the right edge (click a mark to jump). The **Whole file** toggle (on by default) shows the entire file with the unchanged lines between and around the hunks; the diff opens scrolled to the first change, and the toggle off returns to hunks only. **Blame** (right-click a file, or the button in the diff header) shows who last touched each line. "Open in difftool" sends both sides to the external tool from Settings.
 
 ## Branches, stashes, remotes
 

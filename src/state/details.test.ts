@@ -3,7 +3,11 @@ import type { CommitDetails, DiffTarget } from "../ipc/commit";
 import type { RepoId } from "../ipc/types";
 import { sampleDiff } from "../test/diffFixtures";
 
-vi.mock("../ipc/commit", () => ({ commitDetails: vi.fn(), fileDiff: vi.fn() }));
+vi.mock("../ipc/commit", () => ({
+  commitDetails: vi.fn(),
+  fileDiff: vi.fn(),
+  fileNewText: vi.fn(),
+}));
 
 import * as ipc from "../ipc/commit";
 import { useDetailsStore, VIEW_KEY } from "./details";
@@ -118,6 +122,41 @@ describe("details store", () => {
     s = useDetailsStore.getState();
     expect(s.selectedFile).toBeNull();
     expect(s.diff).toBeNull();
+  });
+
+  it("loads the new-side text with the diff and falls back to hunks only on failure", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    m.fileNewText.mockResolvedValue("x\ny\n");
+    await useDetailsStore.getState().reloadFile(id, target, "f.ts");
+    expect(useDetailsStore.getState().fullText).toBe("x\ny\n");
+
+    m.fileNewText.mockRejectedValue(new Error("boom"));
+    await useDetailsStore.getState().reloadFile(id, { ...target, path: "g.ts" }, "g.ts");
+    const s = useDetailsStore.getState();
+    expect(s.fullText).toBeNull();
+    expect(s.diff).not.toBeNull();
+  });
+
+  it("skips the text call for untracked targets and binary diffs", async () => {
+    m.fileNewText.mockClear();
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    await useDetailsStore.getState().reloadFile(id, { kind: "untracked", path: "n.ts" }, "n.ts");
+    m.fileDiff.mockResolvedValue({ ...sampleDiff(), binary: true });
+    await useDetailsStore.getState().reloadFile(id, target, "f.ts");
+    expect(m.fileNewText).not.toHaveBeenCalled();
+  });
+
+  it("clears the kept diff when a same-target re-fetch fails", async () => {
+    m.fileDiff.mockResolvedValue(sampleDiff());
+    m.fileNewText.mockResolvedValue(null);
+    await useDetailsStore.getState().reloadFile(id, target, "f.ts");
+    expect(useDetailsStore.getState().diff).not.toBeNull();
+    m.fileDiff.mockRejectedValue(new Error("boom"));
+    await useDetailsStore.getState().reloadFile(id, target, "f.ts");
+    const s = useDetailsStore.getState();
+    expect(s.diff).toBeNull();
+    expect(s.fullText).toBeNull();
+    expect(s.loadingDiff).toBe(false);
   });
 
   it("drops a stale diff", async () => {
