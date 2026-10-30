@@ -143,7 +143,13 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 - The same token feeds `git` over HTTPS through the askpass bridge (the app exe as `GIT_ASKPASS`, selected by `GITBRANCH_ASKPASS=1` + a prompt-shaped argument, D-024): when git asks "Username for https://github.com"
   answer `x-access-token`, for "Password" answer the token. Any other host: fail fast (exit 1); git asks credential helpers
   *before* askpass, and with `GIT_TERMINAL_PROMPT=0` an exit 1 ends in `AuthRequired`, which the UI reports.
-- SSH remotes are untouched (system `ssh`, agent, keys).
+- SSH remotes are untouched (system `ssh`, agent, keys). ssh's `Permission denied (publickey)` becomes
+  `git.ssh_auth`, whose toast opens the Fix SSH dialog (D-044). `git_core::ops::ssh` diagnoses the setup (Windows
+  `ssh-agent` service via `sc.exe`, effective `core.sshCommand`, `ssh-add -l`, keys in `~/.ssh` via `ssh-keygen`) and
+  fixes it: enable the service (UAC), point `core.sshCommand` at `System32\OpenSSH\ssh.exe`, load a key, test with
+  `git ls-remote`, or switch a github.com remote to HTTPS. A key passphrase is typed in the dialog and handed to
+  `ssh-add` through the app exe as `SSH_ASKPASS` (`GITBRANCH_ASKPASS=ssh-add`, `GITBRANCH_SSH_PASSPHRASE` in the
+  child env only); it is never stored, logged or put in argv.
 - API client (D-027): `github-api::http::Transport` is the only seam (`ReqwestTransport` with rustls in the app,
   `MockTransport` in tests); one `GitHub<T>::send()` path adds `Authorization: Bearer`, `Accept`, the API version,
   `If-None-Match` from a bounded ETag cache (304 serves the cached body), reads `x-ratelimit-*` into a status the

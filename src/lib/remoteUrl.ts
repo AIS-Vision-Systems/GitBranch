@@ -26,6 +26,14 @@ function finish(scheme: string, host: string, rawPath: string): string | null {
   return `${scheme}://${host}/${path}`;
 }
 
+/** HTTPS clone URL for a github.com SSH remote (scp-like or ssh://), or null for anything else. */
+export function githubHttpsUrlOf(fetchUrl: string): string | null {
+  if (/^https?:\/\//i.test(fetchUrl.trim())) return null;
+  const web = webUrlOf(fetchUrl);
+  if (web === null || hostOf(web)?.toLowerCase() !== "github.com") return null;
+  return `${web}.git`;
+}
+
 export function hostOf(webUrl: string): string | null {
   try {
     return new URL(webUrl).hostname;

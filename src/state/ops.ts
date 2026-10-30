@@ -13,7 +13,7 @@ import * as mergeIpc from "../ipc/merge";
 import type { MergeMode, MergeOutcome, OpKind, TodoItem } from "../ipc/merge";
 import { cancelOp } from "../ipc/progress";
 import * as remoteIpc from "../ipc/remote";
-import type { FetchArgs, PullArgs, PushArgs, PushResult } from "../ipc/remote";
+import type { FetchArgs, PullArgs, PushArgs, PushResult, Remote } from "../ipc/remote";
 import * as reflogIpc from "../ipc/reflog";
 import type { UndoAction, UndoInfo } from "../ipc/reflog";
 import * as stashIpc from "../ipc/stash";
@@ -22,7 +22,9 @@ import * as tagIpc from "../ipc/tag";
 import type { TagArgs } from "../ipc/tag";
 import type { RepoId } from "../ipc/types";
 import { pushSummary } from "../lib/pushTarget";
+import { githubHttpsUrlOf } from "../lib/remoteUrl";
 import { quotePath, quotePaths } from "../lib/shellQuote";
+import { openSshFix } from "../features/dialogs/open";
 import { cloneNameFromUrl } from "../features/dialogs/validate";
 import { confirm } from "./dialogs";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
@@ -185,13 +187,58 @@ export function resetQuietFetchThrottle(): void {
 }
 
 export const AUTH_REQUIRED_TITLE =
-  "Authentication required. GitHub login arrives in Phase 5; SSH remotes use your agent.";
+  "Authentication required. Sign in to GitHub for HTTPS remotes; SSH remotes use your agent.";
+export const SSH_AUTH_TITLE = "SSH key rejected by the remote";
+export const SSH_AUTH_HINT =
+  "GitBranch runs ssh without a terminal, so it cannot ask for a key passphrase. Fix SSH checks the agent and " +
+  "your keys, and can load a key for you.";
 export const PUSH_REJECTED_HINT = "Pull first, or push again with --force-with-lease.";
 
 /** git.auth_required: one explanatory toast instead of the raw error. */
 function authRequired(e: unknown): boolean {
   if (!isIpcError(e) || e.error.code !== "git.auth_required") return false;
   useUiStore.getState().pushToast({ kind: "error", title: AUTH_REQUIRED_TITLE });
+  return true;
+}
+
+/**
+ * git.ssh_auth: explain why ssh had no key and offer the Fix SSH dialog. `remote` null = every remote of the
+ * repo (fetch all); `repoId` "" = clone (no repository yet).
+ */
+function sshAuth(repoId: RepoId, remote: string | null): (e: unknown) => boolean {
+  return (e) => {
+    if (!isIpcError(e) || e.error.code !== "git.ssh_auth") return false;
+    const raw = e.error.detail ?? e.error.message;
+    const names = repoId === "" ? [] : remotesOf(useRemotesStore.getState(), repoId);
+    const only = remote ?? (names.length === 1 ? (names[0]?.name ?? null) : null);
+    useUiStore.getState().pushToast({
+      kind: "error",
+      title: SSH_AUTH_TITLE,
+      detail: `${SSH_AUTH_HINT}
+
+${raw}`,
+      action: {
+        label: "Fix SSH…",
+        run: () => openSshFix(repoId === "" ? null : repoId, only),
+      },
+    });
+    return true;
+  };
+}
+
+/** Points a github.com SSH remote (fetch and, when set, push URL) at its HTTPS URL. */
+export async function switchToHttps(repoId: RepoId, r: Remote): Promise<boolean> {
+  const ops = useOpsStore.getState();
+  const fetchUrl = githubHttpsUrlOf(r.fetchUrl);
+  if (fetchUrl === null || !(await ops.setRemoteUrl(repoId, r.name, fetchUrl, false))) return false;
+  const pushUrl = r.pushUrl === null ? null : githubHttpsUrlOf(r.pushUrl);
+  if (pushUrl !== null && !(await ops.setRemoteUrl(repoId, r.name, pushUrl, true))) return false;
+  useUiStore.getState().pushToast({
+    kind: "success",
+    title: `${r.name} now uses HTTPS`,
+    detail: `${fetchUrl}
+Run the operation again.`,
+  });
   return true;
 }
 
@@ -348,7 +395,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             path = (await cloneIpc.clone(args, opId)).path;
           },
           undefined,
-          cancelledAs(title, authRequired),
+          cancelledAs(title, (e) => authRequired(e) || sshAuth("" as RepoId, null)(e)),
         ),
       );
       if (path === null) {
@@ -371,7 +418,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             "Fetch failed",
             () => remoteIpc.fetch(repoId, args, opId),
             "Fetched",
-            cancelledAs(title, authRequired),
+            cancelledAs(title, (e) => authRequired(e) || sshAuth(repoId, args.remote)(e)),
           ),
       ),
 
@@ -416,7 +463,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             res.changed = (await remoteIpc.pull(repoId, args, opId)).changed;
           },
           undefined,
-          cancelledAs(title, authRequired),
+          cancelledAs(title, (e) => authRequired(e) || sshAuth(repoId, args.remote)(e)),
         );
         if (outcome === "ok") toast(res.changed === false ? "Already up to date" : "Pulled");
         return outcome !== "error";
@@ -431,7 +478,10 @@ export const useOpsStore = create<OpsState>((set, get) => {
             res.value = await remoteIpc.push(repoId, args, opId);
           },
           undefined,
-          cancelledAs(title, (e) => authRequired(e) || pushRejected(e)),
+          cancelledAs(
+            title,
+            (e) => authRequired(e) || sshAuth(repoId, args.remote)(e) || pushRejected(e),
+          ),
         );
         if (ok) {
           const summary = res.value === null ? "" : pushSummary(res.value.refs, args.remote);

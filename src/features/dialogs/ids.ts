@@ -20,5 +20,6 @@ export const DIALOG = {
   githubRepoPicker: "github.repoPicker",
   settings: "app.settings",
   about: "app.about",
+  sshFix: "ssh.fix",
   githubCreatePull: "github.createPull",
 } as const;
