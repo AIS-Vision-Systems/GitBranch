@@ -33,6 +33,8 @@ export interface GraphRowProps {
   wipAbove?: boolean;
   /** Stable object: the WIP connector crosses this stash row. */
   wipThrough?: { lane: number; color: number };
+  /** HEAD with commits above it: the WIP connector comes down this lane and bends into the node. */
+  wipJoin?: { lane: number; color: number };
   /** All of this row's chips are shown (the `+N` pill was clicked). */
   expanded?: boolean;
   /** Stable callback: expand this row's chips. */
@@ -60,6 +62,7 @@ export const GraphRow = memo(function GraphRow({
   isHead,
   wipAbove = false,
   wipThrough,
+  wipJoin,
   expanded = false,
   onExpand,
   onSelect,
@@ -170,6 +173,7 @@ export const GraphRow = memo(function GraphRow({
         wipAbove={wipAbove}
         isStash={isStash}
         {...(wipThrough !== undefined ? { wipThrough } : {})}
+        {...(wipJoin !== undefined ? { wipJoin } : {})}
         isMerge={isMerge}
         initials={initials(commit.authorName)}
         avatarIdx={avatarColor(commit.authorEmail)}
