@@ -23,10 +23,24 @@ use tauri::Manager;
 /// a single `Username for '...'` / `Password for '...'` argument that identifies the call (the
 /// strict host check happens later, in `askpass::answer`; other hosts just get exit 1).
 /// Anything else is the normal `gitbranch [<path>]` start.
+///
+/// `GITBRANCH_ASKPASS=ssh-add` is the second mode: `ssh-add` runs this exe as `SSH_ASKPASS` with
+/// one prompt argument (see `ssh_add_answer`).
 pub fn is_askpass_invocation(env_flag: Option<&str>, args: &[String]) -> bool {
-    env_flag == Some("1")
-        && args.len() == 1
-        && (args[0].starts_with("Username for '") || args[0].starts_with("Password for '"))
+    match env_flag {
+        Some("1") => {
+            args.len() == 1
+                && (args[0].starts_with("Username for '") || args[0].starts_with("Password for '"))
+        }
+        Some("ssh-add") => args.len() == 1,
+        _ => false,
+    }
+}
+
+/// Answer for an `ssh-add` prompt: the passphrase for `Enter passphrase for ...`, nothing for any
+/// other prompt (notably `Bad passphrase, try again`, so a wrong passphrase ends the retry loop).
+fn ssh_add_answer(prompt: &str, passphrase: Option<String>) -> Option<String> {
+    if prompt.starts_with("Enter passphrase for ") { passphrase } else { None }
 }
 
 /// Askpass mode: prints the answer for git's prompt and returns exit code 0, or returns 1 with no
@@ -34,7 +48,12 @@ pub fn is_askpass_invocation(env_flag: Option<&str>, args: &[String]) -> bool {
 pub fn askpass_main(args: &[String]) -> i32 {
     use std::io::Write;
     let prompt = args.join(" ");
-    match github_api::askpass::answer(&prompt, &github_api::token::KeyringStore) {
+    let answer = if std::env::var("GITBRANCH_ASKPASS").as_deref() == Ok("ssh-add") {
+        ssh_add_answer(&prompt, std::env::var("GITBRANCH_SSH_PASSPHRASE").ok())
+    } else {
+        github_api::askpass::answer(&prompt, &github_api::token::KeyringStore)
+    };
+    match answer {
         Some(answer) => {
             let mut out = std::io::stdout().lock();
             i32::from(writeln!(out, "{answer}").and_then(|()| out.flush()).is_err())
@@ -144,6 +163,11 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_settings,
             commands::difftool::open_difftool,
+            commands::ssh::ssh_report,
+            commands::ssh::ssh_enable_windows_agent,
+            commands::ssh::ssh_use_windows_openssh,
+            commands::ssh::ssh_add_key,
+            commands::ssh::ssh_test_remote,
             commands::repo::pick_repo_dir,
             commands::repo::open_repo,
             commands::repo::list_recent,
@@ -251,7 +275,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{file_writer, is_askpass_invocation};
+    use super::{file_writer, is_askpass_invocation, ssh_add_answer};
 
     #[test]
     fn unwritable_log_dir_gives_none_without_panic() {
@@ -283,5 +307,25 @@ mod tests {
         assert!(!is_askpass_invocation(Some("0"), &prompt_only));
         assert!(!is_askpass_invocation(Some("1"), &args(&[])));
         assert!(!is_askpass_invocation(Some("1"), &args(&["Password for 'https://a.b': ", "x"])));
+    }
+
+    #[test]
+    fn ssh_add_mode_classification() {
+        let p = args(&["Enter passphrase for /home/u/.ssh/id_ed25519: "]);
+        assert!(is_askpass_invocation(Some("ssh-add"), &p));
+        assert!(is_askpass_invocation(
+            Some("ssh-add"),
+            &args(&["Bad passphrase, try again for x: "])
+        ));
+        assert!(!is_askpass_invocation(Some("ssh-add"), &args(&[])));
+        assert!(!is_askpass_invocation(Some("ssh-add"), &args(&["a", "b"])));
+        assert!(!is_askpass_invocation(Some("2"), &p));
+        assert_eq!(ssh_add_answer(&p[0], Some("pw".into())), Some("pw".into()));
+        assert_eq!(ssh_add_answer(&p[0], None), None);
+        assert_eq!(ssh_add_answer("Bad passphrase, try again for x: ", Some("pw".into())), None);
+        assert_eq!(
+            ssh_add_answer("Enter passphrase for key: ", Some("pw".into())),
+            Some("pw".into())
+        );
     }
 }

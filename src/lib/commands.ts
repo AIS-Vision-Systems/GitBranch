@@ -8,6 +8,7 @@ import {
   openPush,
   openRemotes,
   openSettings,
+  openSshFix,
   openStashPush,
 } from "../features/dialogs/open";
 import { openLogDir } from "../ipc/app";
@@ -40,6 +41,7 @@ export function buildCommands(): Command[] {
       title: "Check for updates",
       run: () => useUpdaterStore.getState().check({ manual: true }),
     },
+    { id: "ssh-fix", title: "Fix SSH…", run: () => openSshFix(null, null) },
     { id: "about", title: "About GitBranch", run: () => openAbout() },
     {
       id: "open-log-dir",
@@ -66,6 +68,10 @@ export function buildCommands(): Command[] {
   const current = repos.open.find((r) => r.repoId === repos.currentId);
   if (current === undefined) return cmds;
   const repoId = current.repoId;
+  const sshRemotes = remotesOf(useRemotesStore.getState(), repoId);
+  const sshRemote = (sshRemotes.find((r) => r.name === "origin") ?? sshRemotes[0])?.name ?? null;
+  const sshCmd = cmds.find((c) => c.id === "ssh-fix");
+  if (sshCmd !== undefined) sshCmd.run = () => openSshFix(repoId, sshRemote);
 
   const g = useGraphStore.getState().byRepo[repoId];
   const hasRemotes = remotesOf(useRemotesStore.getState(), repoId).length > 0;

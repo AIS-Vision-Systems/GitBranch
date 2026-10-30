@@ -18,6 +18,18 @@ export function Toasts() {
           >
             ×
           </button>
+          {t.action !== undefined && (
+            <button
+              type="button"
+              className={styles["action"]}
+              onClick={() => {
+                dismissToast(t.id);
+                t.action?.run();
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           {t.detail !== undefined && (
             <details className={styles["details"]}>
               <summary>Details</summary>

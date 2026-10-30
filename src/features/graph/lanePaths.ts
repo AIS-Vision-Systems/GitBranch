@@ -17,7 +17,7 @@ const K = 1 - 0.5523;
 const R = CURVE_R;
 
 /** Leaves the lane vertically, bends with radius R and arrives horizontally at the node. */
-function mergeInPath(fx: number, nx: number): string {
+export function mergeInPath(fx: number, nx: number): string {
   const dir = nx > fx ? 1 : -1;
   const y0 = CY - R;
   const ex = fx + dir * R;

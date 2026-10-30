@@ -417,6 +417,10 @@ the owner reviews and merges on GitHub, and deletes the branch there. The agent 
 the owner remain possible.
 Consequences: `main` only moves through reviewed PRs; CI runs on every change before it lands. The D-014 flow
 (local merge, `phase-N` tag, branch deletion by the agent) is superseded.
+Amendment (2026-10-30, owner): the rulesets require a code-owner approval and the owner, as the PR author, cannot
+approve their own PRs, so the agent merges them itself once every CI check passes:
+`gh pr merge <n> --merge --admin --delete-branch`, then `git switch main && git pull --ff-only`. Tags and releases
+still need the owner's explicit go-ahead each time.
 
 ## D-041 · accepted · 2026-10-26 — Node lane by chain ownership; stashes as rows
 Context: with the leftmost-waiting-lane rule, a merged branch whose tip was also the base of a later branch
@@ -473,3 +477,29 @@ images as links, autolinks, h4-h6 and stripped HTML comments; single newlines ar
 Consequences: one extra `cat-file`/file read per shown diff; one more GitHub list call (usually a 304) per tick.
 For unstaged diffs the context rows come from the raw work-tree file, so a clean filter that changes lines (Git
 LFS pointers) shows the real file around pointer hunks; accepted as rare.
+
+## D-044 · accepted · 2026-10-30 — SSH key rejections get their own error and an HTTPS way out
+Context: a user's push to a `git@github.com:` remote failed with the raw `Permission denied (publickey)` text. The
+line comes from ssh, without git's `fatal:` prefix, so it fell through to a generic `git.exit`. The app runs ssh
+without a terminal (`SSH_ASKPASS_REQUIRE=never`), so a key with a passphrase that is not in the agent cannot be
+used, and on Windows Git's bundled ssh does not see the Windows OpenSSH agent.
+Decision: (1) `git-core` classifies any stderr line containing `Permission denied (publickey` as
+`GitErrorKind::SshAuth` (`git.ssh_auth`), checked before the HTTPS auth patterns. (2) Fetch, pull, push and clone
+show "SSH key rejected by the remote" with the cause (`ssh-add`, `core.sshCommand` for the Windows agent) and the
+raw stderr. (3) When the operation's remote (or the only one, for fetch all) is a github.com SSH URL and the user
+is signed in, the toast gets a "Use HTTPS for <remote>" button that sets the fetch URL, and an SSH push URL if
+there is one, to `https://github.com/<owner>/<repo>.git`; the user then runs the operation again (no automatic
+retry). Toasts gained one optional action button for this.
+Consequences: the app still never ships its own ssh; switching is opt-in per remote.
+Amendment (2026-10-30, owner): the toast's action opens a **Fix SSH** dialog instead, and GitBranch asks the key
+passphrase itself. `git_core::ops::ssh` reports the Windows `ssh-agent` service state (`sc.exe`; labels are localized,
+so only the English values are matched), the effective `core.sshCommand`, the agent's keys and the keys in `~/.ssh`
+(encrypted or not, loaded or not). Buttons: enable the service (fixed PowerShell `Start-Process -Verb RunAs`, the only
+shell use; UAC declined = exit 1223 → `ssh.cancelled`), set `core.sshCommand` globally to the Windows client (after a
+confirm showing the command), load a key, test the remote with `git ls-remote`, or switch to HTTPS. On Windows the
+target agent is always the Windows service (keys added there survive reboots), elsewhere the inherited
+`SSH_AUTH_SOCK`. The passphrase goes webview → command → `ssh-add` env (`GITBRANCH_SSH_PASSPHRASE`, read by the app exe
+in `GITBRANCH_ASKPASS=ssh-add` mode, which answers only `Enter passphrase for` prompts so a wrong one ends ssh-add
+instead of looping); it is zeroized after the call and never stored, logged or put in argv. Verified: native Windows
+OpenSSH 9.5 and Git's 9.1 both honour `SSH_ASKPASS` with `SSH_ASKPASS_REQUIRE=force`.
+

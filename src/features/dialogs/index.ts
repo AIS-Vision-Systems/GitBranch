@@ -12,6 +12,7 @@ import { RepoPickerDialog, type RepoPickerDialogProps } from "../github/RepoPick
 import { CreatePullDialog, type CreatePullDialogProps } from "../github/CreatePullDialog";
 import { AboutDialog } from "./AboutDialog";
 import { SettingsDialog, type SettingsDialogProps } from "./SettingsDialog";
+import { SshFixDialog, type SshFixDialogProps } from "./SshFixDialog";
 import { DIALOG } from "./ids";
 import { MergeDialog, type MergeDialogProps } from "./MergeDialog";
 import { PullDialog, type PullDialogProps } from "./PullDialog";
@@ -87,6 +88,9 @@ export function registerPhase2Dialogs(): void {
   registerDialog(DIALOG.createRepo, (_p, onClose) => createElement(CreateRepoDialog, { onClose }));
   registerDialog(DIALOG.remotes, (p, onClose) =>
     createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),
+  );
+  registerDialog(DIALOG.sshFix, (p, onClose) =>
+    createElement(SshFixDialog, { ...(p as unknown as Props<SshFixDialogProps>), onClose }),
   );
   registerDialog(DIALOG.editRemote, (p, onClose) =>
     createElement(EditRemoteDialog, {

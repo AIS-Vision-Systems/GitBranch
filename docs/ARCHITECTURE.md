@@ -120,7 +120,10 @@ Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to t
 `tauri::ipc::Response` if JSON proves slow, > 50k rows). The frontend only draws: for each visible row, an SVG
 with one path per edge and one circle for the node. Refs are overlaid as chips on the row of their target oid.
 
-Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended on HEAD's lane with a dashed edge.
+Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended with a dashed connector to HEAD
+(`wipLane.ts`). With HEAD first (or only stashes above it) it sits on HEAD's lane; when other branches' commits are
+above HEAD it takes the first lane right of HEAD that is free from the top down to HEAD, and the connector runs down
+that lane and bends into HEAD's node, so the changes never read as the top row's branch.
 Stash rows: the Tauri cache inserts one synthetic `Commit { stash: true, parents: [base] }` per stash entry right
 above its base (`graph::with_stashes`, filtered logs excepted). The layout reserves a placeholder lane for the base
 when nothing waits for it, so the stash sits beside the base and joins it from the side; its lane is `dashed`
@@ -143,7 +146,13 @@ Perf test: 100k synthetic commits with random merges < 300 ms (release).
 - The same token feeds `git` over HTTPS through the askpass bridge (the app exe as `GIT_ASKPASS`, selected by `GITBRANCH_ASKPASS=1` + a prompt-shaped argument, D-024): when git asks "Username for https://github.com"
   answer `x-access-token`, for "Password" answer the token. Any other host: fail fast (exit 1); git asks credential helpers
   *before* askpass, and with `GIT_TERMINAL_PROMPT=0` an exit 1 ends in `AuthRequired`, which the UI reports.
-- SSH remotes are untouched (system `ssh`, agent, keys).
+- SSH remotes are untouched (system `ssh`, agent, keys). ssh's `Permission denied (publickey)` becomes
+  `git.ssh_auth`, whose toast opens the Fix SSH dialog (D-044). `git_core::ops::ssh` diagnoses the setup (Windows
+  `ssh-agent` service via `sc.exe`, effective `core.sshCommand`, `ssh-add -l`, keys in `~/.ssh` via `ssh-keygen`) and
+  fixes it: enable the service (UAC), point `core.sshCommand` at `System32\OpenSSH\ssh.exe`, load a key, test with
+  `git ls-remote`, or switch a github.com remote to HTTPS. A key passphrase is typed in the dialog and handed to
+  `ssh-add` through the app exe as `SSH_ASKPASS` (`GITBRANCH_ASKPASS=ssh-add`, `GITBRANCH_SSH_PASSPHRASE` in the
+  child env only); it is never stored, logged or put in argv.
 - API client (D-027): `github-api::http::Transport` is the only seam (`ReqwestTransport` with rustls in the app,
   `MockTransport` in tests); one `GitHub<T>::send()` path adds `Authorization: Bearer`, `Accept`, the API version,
   `If-None-Match` from a bounded ETag cache (304 serves the cached body), reads `x-ratelimit-*` into a status the

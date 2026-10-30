@@ -16,8 +16,8 @@ remote integration, worktrees. No link to GitKraken. Owner: Xavi (chat in Catala
 - Tokens only in the OS keyring; never log or echo them.
 - Tests use real `git` on temp fixture repos (`crates/git-core/tests/fixtures.rs`). Every git-core op has a test.
 - `git push --force` is forbidden; use `--force-with-lease`. Push after every commit (owner standing order, D-014).
-  Since 1.0.0 every change lands through a pull request (D-040): open it with `gh pr create`, never merge it, and
-  never release without the owner.
+  Since 1.0.0 every change lands through a pull request (D-040): open it with `gh pr create`, admin-merge it once
+  CI is green (`gh pr merge <n> --merge --admin --delete-branch`), and never tag or release without the owner.
 
 ## Commands (once Phase 0 lands)
 ```
@@ -41,6 +41,7 @@ pnpm tauri build                # phase end only
 - Update the PLAN checkbox in the same commit as the code.
 - Since 1.0.0 (D-040): one branch per change off `main` (`fix/<topic>`, `feat/<topic>`, or `phase/N` for a whole
   PLAN phase), every commit pushed right away (`git push -u origin <branch>` on the first one), and a pull request
-  opened with `gh pr create` when the change is verified. The owner reviews and merges on GitHub; never commit to
-  `main` directly and never merge a PR yourself. The pre-1.0 phase flow (local `--no-ff` merge, `phase-N` tag,
+  opened with `gh pr create` when the change is verified. When every CI check passes (`gh pr checks <n>`), merge it
+  with `gh pr merge <n> --merge --admin --delete-branch` (D-040 amendment: the owner cannot approve their own PRs);
+  never commit to `main` directly. The pre-1.0 phase flow (local `--no-ff` merge, `phase-N` tag,
   branch deletion) is history in D-014.

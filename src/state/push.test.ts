@@ -5,6 +5,7 @@ import type { RepoId, Refs } from "../ipc/types";
 vi.mock("../ipc/remote", () => ({
   push: vi.fn(),
   listRemotes: vi.fn(),
+  setRemoteUrl: vi.fn(),
 }));
 vi.mock("../ipc/commit", () => ({
   commit: vi.fn(),
@@ -15,10 +16,13 @@ vi.mock("../ipc/commit", () => ({
 import * as commitIpc from "../ipc/commit";
 import * as remoteIpc from "../ipc/remote";
 import { useCommitFormStore } from "./commitForm";
+import { useDialogsStore } from "./dialogs";
+import { DIALOG } from "../features/dialogs/ids";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
-import { AUTH_REQUIRED_TITLE, useOpsStore } from "./ops";
+import { AUTH_REQUIRED_TITLE, SSH_AUTH_TITLE, useOpsStore } from "./ops";
 import { useRemotesStore } from "./remotes";
 import { useUiStore } from "./ui";
+import type { Toast } from "./ui";
 
 const id = "r1" as RepoId;
 const push = vi.mocked(remoteIpc.push);
@@ -57,6 +61,7 @@ beforeEach(() => {
   useCommitFormStore.getState().reset();
   useGraphStore.setState({ byRepo: {} });
   useRemotesStore.setState({ byRepo: {} });
+  useDialogsStore.setState({ current: null, busy: false });
 });
 
 describe("ops.push", () => {
@@ -78,6 +83,39 @@ describe("ops.push", () => {
     push.mockRejectedValue(new IpcError({ code: "git.auth_required", message: "auth" }));
     expect(await useOpsStore.getState().push(id, args)).toBe(false);
     expect(toasts()[0]).toMatchObject({ kind: "error", title: AUTH_REQUIRED_TITLE });
+  });
+
+  describe("ssh key rejected", () => {
+    const sshError = new IpcError({
+      code: "git.ssh_auth",
+      message: "SSH authentication failed",
+      detail: "git@github.com: Permission denied (publickey).",
+    });
+    const sshOrigin = (): void =>
+      useRemotesStore.setState({
+        byRepo: {
+          [id]: [{ name: "origin", fetchUrl: "git@github.com:octo/repo.git", pushUrl: null }],
+        },
+      });
+    const last = (): Toast | undefined => useUiStore.getState().toasts.at(-1);
+
+    it("points to the Fix SSH dialog", async () => {
+      sshOrigin();
+      vi.mocked(remoteIpc.listRemotes).mockResolvedValue([]);
+      push.mockRejectedValue(sshError);
+      expect(await useOpsStore.getState().push(id, args)).toBe(false);
+      const t = last();
+      expect(t).toMatchObject({ kind: "error", title: SSH_AUTH_TITLE });
+      expect(t?.detail).toContain("Fix SSH");
+      expect(t?.detail).toContain("Permission denied (publickey)");
+      expect(t?.action?.label).toBe("Fix SSH…");
+      t?.action?.run();
+      expect(useDialogsStore.getState().current).toMatchObject({
+        kind: "custom",
+        id: DIALOG.sshFix,
+        props: { repoId: id, remote: "origin" },
+      });
+    });
   });
 
   it("does nothing while busy", async () => {

@@ -77,3 +77,7 @@ export const openCreatePull = (repoId: RepoId): void => open(DIALOG.githubCreate
 export const openSettings = (): void => open(DIALOG.settings, {});
 
 export const openAbout = (): void => open(DIALOG.about, {});
+
+/** Diagnose and fix the SSH setup; null repo/remote = no connection test. */
+export const openSshFix = (repoId: RepoId | null, remote: string | null): void =>
+  open(DIALOG.sshFix, { repoId, remote });

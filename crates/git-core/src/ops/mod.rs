@@ -18,6 +18,7 @@ pub mod pull_request;
 pub mod rebase;
 pub mod reflog;
 pub mod remote;
+pub mod ssh;
 pub mod stage;
 pub mod stash;
 pub mod state;

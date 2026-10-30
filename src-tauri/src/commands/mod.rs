@@ -19,6 +19,7 @@ pub mod reflog;
 pub mod remote;
 pub mod repo;
 pub mod settings;
+pub mod ssh;
 pub mod stage;
 pub mod stash;
 pub mod submodule;
