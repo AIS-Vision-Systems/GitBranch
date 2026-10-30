@@ -417,6 +417,10 @@ the owner reviews and merges on GitHub, and deletes the branch there. The agent 
 the owner remain possible.
 Consequences: `main` only moves through reviewed PRs; CI runs on every change before it lands. The D-014 flow
 (local merge, `phase-N` tag, branch deletion by the agent) is superseded.
+Amendment (2026-10-30, owner): the rulesets require a code-owner approval and the owner, as the PR author, cannot
+approve their own PRs, so the agent merges them itself once every CI check passes:
+`gh pr merge <n> --merge --admin --delete-branch`, then `git switch main && git pull --ff-only`. Tags and releases
+still need the owner's explicit go-ahead each time.
 
 ## D-041 · accepted · 2026-10-26 — Node lane by chain ownership; stashes as rows
 Context: with the leftmost-waiting-lane rule, a merged branch whose tip was also the base of a later branch
