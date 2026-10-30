@@ -190,6 +190,7 @@ pub fn run() {
             commands::remote::cancel_op,
             commands::clone::clone,
             commands::clone::list_remote_heads,
+            commands::init::init_repo,
             commands::submodule::list_submodules,
             commands::worktree::list_worktrees,
             commands::worktree::add_worktree,

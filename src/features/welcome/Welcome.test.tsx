@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useDialogsStore } from "../../state/dialogs";
 import { useReposStore } from "../../state/repos";
 import { Welcome } from "./Welcome";
 
@@ -38,6 +39,13 @@ describe("Welcome", () => {
     render(<Welcome />);
     await userEvent.click(screen.getByRole("button", { name: "Open repository…" }));
     expect(openViaDialog).toHaveBeenCalled();
+  });
+
+  it("create button opens the create dialog", async () => {
+    useDialogsStore.setState({ current: null });
+    render(<Welcome />);
+    await userEvent.click(screen.getByRole("button", { name: "Create…" }));
+    expect(useDialogsStore.getState().current).toMatchObject({ kind: "custom", id: "repo.create" });
   });
 
   it("shows the empty state", () => {

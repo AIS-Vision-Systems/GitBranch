@@ -2,7 +2,7 @@
 
 ## Repositories and tabs
 
-GitBranch works on repositories that already exist on disk and drives the `git` you have installed. The welcome screen opens a folder (`Ctrl+O`), reopens a recent one, or clones a repository (`Ctrl+Shift+C`, also from your GitHub account).
+GitBranch works on repositories that already exist on disk and drives the `git` you have installed. The welcome screen opens a folder (`Ctrl+O`), reopens a recent one, clones a repository (`Ctrl+Shift+C`, also from your GitHub account), or creates a new one with `git init` (**Create…**, `Ctrl+Shift+N`).
 
 - Every open repository is a **tab** in the top row. `Ctrl+T` or the `+` tab opens the welcome screen without closing the others; `Ctrl+W` closes the current tab; `Ctrl+PageUp` / `Ctrl+PageDown` switch tabs.
 - A **worktree** opens as its own tab, with its own working tree and HEAD.
@@ -70,7 +70,7 @@ Updates are checked at startup and once a day; the card offers "Update and resta
 | Toggle sidebar | `Ctrl+B` |
 | Undo / Redo | `Ctrl+Z` / `Ctrl+Y` |
 | Fetch / Pull / Push | `Ctrl+Shift+F` / `Ctrl+Shift+L` / `Ctrl+Shift+P` |
-| Clone | `Ctrl+Shift+C` |
+| Clone / Create repository | `Ctrl+Shift+C` / `Ctrl+Shift+N` |
 | Add worktree | `Ctrl+Shift+W` |
 | Settings | `Ctrl+,` |
 | Cancel a running operation | `Esc` |

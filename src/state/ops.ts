@@ -3,6 +3,8 @@ import * as branchIpc from "../ipc/branch";
 import { isIpcError } from "../ipc/core";
 import * as cloneIpc from "../ipc/clone";
 import type { CloneArgs } from "../ipc/clone";
+import * as initIpc from "../ipc/init";
+import type { InitRepoArgs, InitRepoResult } from "../ipc/init";
 import * as conflictIpc from "../ipc/conflict";
 import type { Side } from "../ipc/conflict";
 import * as githubIpc from "../ipc/github";
@@ -134,6 +136,8 @@ interface OpsState {
   openInEditor: (repoId: RepoId, path: string) => Promise<boolean>;
   undoLast: (repoId: RepoId, info: UndoInfo) => Promise<boolean>;
   clone: (args: CloneArgs) => Promise<string | null>;
+  /** `git init`; opens the new repo. Resolves the path, or null when nothing was created. */
+  initRepo: (args: InitRepoArgs) => Promise<string | null>;
   fetch: (repoId: RepoId, args: FetchArgs) => Promise<boolean>;
   /**
    * Silent background fetch + prune of all remotes: no progress bar, no toast. Skipped when the last
@@ -360,6 +364,30 @@ export const useOpsStore = create<OpsState>((set, get) => {
       const opened: string = path;
       if (await useReposStore.getState().openPath(opened)) toast(`Cloned ${name}`);
       return opened;
+    },
+
+    initRepo: async (args) => {
+      const name = cloneNameFromUrl(args.dest);
+      let result: InitRepoResult | null = null;
+      const ran = await run("Create repository failed", async () => {
+        result = await initIpc.initRepo(args);
+      });
+      if (result === null) {
+        if (!ran && get().busy) {
+          useUiStore.getState().pushToast({ kind: "error", title: "Another operation is running" });
+        }
+        return null;
+      }
+      const created: InitRepoResult = result;
+      if (await useReposStore.getState().openPath(created.path)) toast(`Created ${name}`);
+      if (created.commitError !== null) {
+        useUiStore.getState().pushToast({
+          kind: "error",
+          title: "Repository created, but the initial commit failed",
+          detail: `${created.commitError}\nSet user.name and user.email in Settings or in your git config, then commit again.`,
+        });
+      }
+      return created.path;
     },
 
     fetch: (repoId, args) =>

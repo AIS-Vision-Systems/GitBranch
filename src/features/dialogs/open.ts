@@ -61,6 +61,8 @@ export const openRemotes = (repoId: RepoId): void => open(DIALOG.remotes, { repo
 export const openClone = (init?: { url?: string; defaultBranch?: string }): void =>
   open(DIALOG.clone, { initialUrl: init?.url, initialDefaultBranch: init?.defaultBranch });
 
+export const openCreateRepo = (): void => open(DIALOG.createRepo, {});
+
 export const openAddWorktree = (repoId: RepoId, startPoint?: string, startLabel?: string): void =>
   open(DIALOG.addWorktree, { repoId, startPoint, startLabel });
 
