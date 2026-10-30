@@ -26,6 +26,7 @@ import { GraphRow } from "./GraphRow";
 import { laneCount } from "./lanePaths";
 import { commitMenu, refMenu, remoteTrackingName, stashMenu, wipMenu } from "./menus";
 import { WipRow } from "./WipRow";
+import { wipPlacement } from "./wipLane";
 import { worktreeMarksByOid, type WorktreeMark } from "./worktreeMarks";
 import styles from "./Graph.module.css";
 
@@ -97,22 +98,16 @@ export function GraphView({ repoId }: Props) {
   }, [loaded, prSelected, selectedOid, hasWip, commits, select]);
 
   const headRow = headOid !== null ? byOid.get(headOid) : undefined;
-  const wipRow = headRow !== undefined ? rows[headRow] : undefined;
-  // The WIP connector reaches HEAD when only stash rows sit above it; they get a through path.
-  const wipConnected = useMemo(() => {
-    if (headRow === undefined) return false;
-    for (let i = 0; i < headRow; i++) if (commits[i]?.stash !== true) return false;
-    return true;
-  }, [headRow, commits]);
-  const wipLane = wipRow?.lane;
-  const wipColor = wipRow?.color;
+  // The WIP connector runs down to HEAD: on HEAD's lane when HEAD is on top, otherwise on a free lane
+  // beside the rows above it, bending into HEAD's node.
+  const wip = useMemo(() => wipPlacement(rows, commits, headRow), [rows, commits, headRow]);
+  const wipThroughLane = hasWip ? wip.throughLane : null;
+  const wipColor = wip.color;
   const wipThrough = useMemo(
-    () =>
-      wipLane !== undefined && wipColor !== undefined
-        ? { lane: wipLane, color: wipColor }
-        : undefined,
-    [wipLane, wipColor],
+    () => (wipThroughLane !== null ? { lane: wipThroughLane, color: wipColor } : undefined),
+    [wipThroughLane, wipColor],
   );
+  const lanesShown = hasWip ? Math.max(lanes, wip.lane + 1) : lanes;
 
   // TanStack Virtual returns unmemoizable functions; React Compiler skips this component, which is fine.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -296,7 +291,7 @@ export function GraphView({ repoId }: Props) {
       >
         <div className={styles["header"]} aria-hidden="true">
           <span className={styles["refsHead"]}>Branch / Tag</span>
-          <span className={styles["graphHead"]} style={{ width: lanes * LANE_W }}>
+          <span className={styles["graphHead"]} style={{ width: lanesShown * LANE_W }}>
             Graph
           </span>
           <span className={styles["messageHead"]}>Commit message</span>
@@ -308,10 +303,10 @@ export function GraphView({ repoId }: Props) {
                 <WipRow
                   key={WIP_OID}
                   fileCount={fileCount}
-                  lane={wipRow?.lane ?? 0}
-                  color={wipRow?.color ?? 0}
-                  lanes={lanes}
-                  connected={wipConnected}
+                  lane={wip.lane}
+                  color={wip.color}
+                  lanes={lanesShown}
+                  connected={wip.connected}
                   top={v.start}
                   selected={selectedOid === WIP_OID}
                   hovered={hoverOid === WIP_OID}
@@ -333,19 +328,17 @@ export function GraphView({ repoId }: Props) {
                 commit={commit}
                 refs={refMap.get(row.oid) ?? NO_REFS}
                 worktrees={worktreeMarks.get(row.oid) ?? NO_MARKS}
-                lanes={lanes}
+                lanes={lanesShown}
                 top={v.start}
                 selected={selectedOid === row.oid}
                 hovered={hoverOid === row.oid}
                 isHead={row.oid === headOid}
-                wipAbove={hasWip && wipConnected && i === headRow}
-                {...(hasWip &&
-                wipConnected &&
-                commit.stash &&
-                headRow !== undefined &&
-                i < headRow &&
-                wipThrough !== undefined
+                wipAbove={hasWip && wip.connected && !wip.joinsFromSide && i === headRow}
+                {...(wipThrough !== undefined && headRow !== undefined && i < headRow
                   ? { wipThrough }
+                  : {})}
+                {...(wipThrough !== undefined && wip.joinsFromSide && i === headRow
+                  ? { wipJoin: wipThrough }
                   : {})}
                 expanded={expandedOid === row.oid}
                 onExpand={onExpand}

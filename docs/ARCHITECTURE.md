@@ -120,7 +120,10 @@ Complexity O(n · active_lanes). Done in Rust, returns a compact `Vec<Row>` to t
 `tauri::ipc::Response` if JSON proves slow, > 50k rows). The frontend only draws: for each visible row, an SVG
 with one path per edge and one circle for the node. Refs are overlaid as chips on the row of their target oid.
 
-Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended on HEAD's lane with a dashed edge.
+Virtual "WIP" row: when the working tree is dirty, a synthetic row is prepended with a dashed connector to HEAD
+(`wipLane.ts`). With HEAD first (or only stashes above it) it sits on HEAD's lane; when other branches' commits are
+above HEAD it takes the first lane right of HEAD that is free from the top down to HEAD, and the connector runs down
+that lane and bends into HEAD's node, so the changes never read as the top row's branch.
 Stash rows: the Tauri cache inserts one synthetic `Commit { stash: true, parents: [base] }` per stash entry right
 above its base (`graph::with_stashes`, filtered logs excepted). The layout reserves a placeholder lane for the base
 when nothing waits for it, so the stash sits beside the base and joins it from the side; its lane is `dashed`

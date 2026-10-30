@@ -1,7 +1,7 @@
 import { memo, useId } from "react";
 import type { Row } from "../../ipc/types";
 import { AVATAR_R, BAND_H, COL_GAP, LANE_W, NODE_R, ROW_H } from "./constants";
-import { colorIndex, laneX, lanePaths } from "./lanePaths";
+import { colorIndex, laneX, lanePaths, mergeInPath } from "./lanePaths";
 import styles from "./Graph.module.css";
 
 interface Props {
@@ -22,8 +22,10 @@ interface Props {
   avatarUrl?: string | null;
   /** Stash rows draw a small rounded square instead of an avatar. */
   isStash?: boolean;
-  /** The WIP connector passes through this (stash) row on this lane. */
+  /** The WIP connector passes through this row on this lane. */
   wipThrough?: { lane: number; color: number };
+  /** The WIP connector comes down this lane and bends into this (HEAD) row's node. */
+  wipJoin?: { lane: number; color: number };
 }
 
 export const LaneStrip = memo(function LaneStrip({
@@ -38,6 +40,7 @@ export const LaneStrip = memo(function LaneStrip({
   avatarUrl = null,
   isStash = false,
   wipThrough,
+  wipJoin,
 }: Props) {
   const clipId = `avclip-${useId().replace(/:/g, "")}`;
   const paths = lanePaths(row, row.hasIncoming || (isHead && wipAbove));
@@ -86,6 +89,17 @@ export const LaneStrip = memo(function LaneStrip({
             data-wip-through=""
             d={`M ${laneX(wipThrough.lane)} 0 L ${laneX(wipThrough.lane)} ${ROW_H}`}
             className={styles[`lane${colorIndex(wipThrough.color)}`]}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeDasharray="3 3"
+          />
+        )}
+        {wipJoin !== undefined && (
+          <path
+            data-wip-join=""
+            d={mergeInPath(laneX(wipJoin.lane), cx)}
+            className={styles[`lane${colorIndex(wipJoin.color)}`]}
             fill="none"
             stroke="currentColor"
             strokeWidth={2.5}

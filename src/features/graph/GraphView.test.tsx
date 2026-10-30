@@ -110,6 +110,32 @@ describe("GraphView", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
+  it("puts the WIP row beside other branches' commits and bends it into HEAD", () => {
+    seed(3, {
+      branch: null,
+      entries: [
+        {
+          path: "a.txt",
+          origPath: null,
+          staged: "unmodified",
+          unstaged: "modified",
+          conflicted: false,
+          submodule: false,
+        },
+      ],
+    });
+    const st = useGraphStore.getState().byRepo[id]!;
+    useGraphStore.setState({
+      byRepo: {
+        [id]: { ...st, refs: { head: { oid: "c2", branch: "feat", detached: false }, refs: [] } },
+      },
+    });
+    const { container } = render(<GraphView repoId={id} />);
+    // Two rows above HEAD carry the connector on the side lane, HEAD's row bends it in.
+    expect(container.querySelectorAll("path[data-wip-through]")).toHaveLength(2);
+    expect(container.querySelectorAll("path[data-wip-join]")).toHaveLength(1);
+  });
+
   it("shows a WIP row first when the tree is dirty and keyboard reaches it", () => {
     seed(3, {
       branch: null,
