@@ -5,7 +5,13 @@ import styles from "./Markdown.module.css";
 
 function inlineText(nodes: Inline[]): string {
   return nodes
-    .map((n) => (n.kind === "text" || n.kind === "code" ? n.text : inlineText(n.children)))
+    .map((n) =>
+      n.kind === "text" || n.kind === "code"
+        ? n.text
+        : n.kind === "br"
+          ? " "
+          : inlineText(n.children),
+    )
     .join("");
 }
 
@@ -25,6 +31,10 @@ function renderInline(nodes: Inline[]): ReactNode[] {
         return <code key={i}>{n.text}</code>;
       case "strong":
         return <strong key={i}>{renderInline(n.children)}</strong>;
+      case "del":
+        return <del key={i}>{renderInline(n.children)}</del>;
+      case "br":
+        return <br key={i} />;
       case "em":
         return <em key={i}>{renderInline(n.children)}</em>;
       case "link":
@@ -50,30 +60,31 @@ function renderInline(nodes: Inline[]): ReactNode[] {
 function renderBlock(b: Block, i: number): ReactNode {
   switch (b.kind) {
     case "heading": {
-      const id = slugify(inlineText(b.children));
-      const content = renderInline(b.children);
-      if (b.level === 1)
-        return (
-          <h1 key={i} id={id}>
-            {content}
-          </h1>
-        );
-      if (b.level === 2)
-        return (
-          <h2 key={i} id={id}>
-            {content}
-          </h2>
-        );
+      const Tag = `h${b.level}` as "h1";
       return (
-        <h3 key={i} id={id}>
-          {content}
-        </h3>
+        <Tag key={i} id={slugify(inlineText(b.children))}>
+          {renderInline(b.children)}
+        </Tag>
       );
     }
+    case "hr":
+      return <hr key={i} />;
+    case "quote":
+      return <blockquote key={i}>{b.children.map(renderBlock)}</blockquote>;
     case "paragraph":
       return <p key={i}>{renderInline(b.children)}</p>;
     case "list": {
-      const items = b.items.map((it, j) => <li key={j}>{renderInline(it)}</li>);
+      const items = b.items.map((it, j) => {
+        const task = b.tasks?.[j] ?? null;
+        const sub = b.subs?.[j] ?? null;
+        return (
+          <li key={j} className={task !== null ? styles["task"] : undefined}>
+            {task !== null && <input type="checkbox" checked={task} disabled readOnly />}
+            {renderInline(it)}
+            {sub !== null && renderBlock(sub, 0)}
+          </li>
+        );
+      });
       return b.ordered ? <ol key={i}>{items}</ol> : <ul key={i}>{items}</ul>;
     }
     case "code":
@@ -106,6 +117,19 @@ function renderBlock(b: Block, i: number): ReactNode {
   }
 }
 
-export function Markdown({ source }: { source: string }) {
-  return <div className={styles.markdown}>{parseMarkdown(source).map(renderBlock)}</div>;
+export function Markdown({
+  source,
+  breaks = false,
+  className,
+}: {
+  source: string;
+  /** Single newlines inside a paragraph become line breaks (GitHub comment style). */
+  breaks?: boolean;
+  className?: string | undefined;
+}) {
+  return (
+    <div className={className ? `${styles.markdown} ${className}` : styles.markdown}>
+      {parseMarkdown(source, { breaks }).map(renderBlock)}
+    </div>
+  );
 }

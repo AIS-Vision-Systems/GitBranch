@@ -5,6 +5,7 @@ import type { CheckRun, PullDetail, PullSummary } from "../../ipc/github";
 import type { RepoId } from "../../ipc/types";
 import { pullsOf, usePullsStore } from "../../state/pulls";
 import commit from "../commit/Commit.module.css";
+import { Markdown } from "../shell/Markdown";
 import styles from "./github.module.css";
 
 const COLLAPSED_RUNS = 8;
@@ -202,7 +203,7 @@ export function PullDetailView({ repoId }: { repoId: RepoId }) {
         {done !== null && <span className={styles["prMeta"]}>Checked out {done}</span>}
       </div>
       {d.body !== null && d.body.trim() !== "" ? (
-        <pre className={styles["prBody"]}>{d.body}</pre>
+        <Markdown source={d.body} breaks className={styles["prBody"]} />
       ) : (
         <p className={styles["prMeta"]}>No description</p>
       )}

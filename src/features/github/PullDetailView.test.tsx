@@ -71,4 +71,20 @@ describe("PullDetailView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Checkout" }));
     expect(checkout).toHaveBeenCalledWith(id, detail);
   });
+
+  it("renders the description as markdown and hides comments", () => {
+    usePullsStore.setState({
+      byRepo: {
+        [id]: {
+          ...EMPTY_PULLS,
+          selected: 5,
+          detail: { ...detail, body: "<!-- template -->\nSome **bold** text\nnext line" },
+        },
+      },
+    });
+    const { container } = render(<PullDetailView repoId={id} />);
+    expect(container.querySelector("strong")?.textContent).toBe("bold");
+    expect(container.querySelector("br")).not.toBeNull();
+    expect(container.textContent).not.toContain("template");
+  });
 });
