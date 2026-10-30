@@ -9,6 +9,7 @@ pub mod conflict;
 pub mod difftool;
 pub mod history;
 pub mod ignore;
+pub mod init;
 pub mod log_range;
 pub mod maintenance;
 pub mod merge;

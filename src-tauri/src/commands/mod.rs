@@ -13,6 +13,7 @@ pub mod github;
 pub mod graph;
 pub mod history;
 pub mod identity;
+pub mod init;
 pub mod merge;
 pub mod reflog;
 pub mod remote;

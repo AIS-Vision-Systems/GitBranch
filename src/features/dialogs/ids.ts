@@ -14,6 +14,7 @@ export const DIALOG = {
   remotes: "remote.list",
   editRemote: "remote.edit",
   clone: "repo.clone",
+  createRepo: "repo.create",
   addWorktree: "worktree.add",
   lockWorktree: "worktree.lock",
   githubLogin: "github.login",

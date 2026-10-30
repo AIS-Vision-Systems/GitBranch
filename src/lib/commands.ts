@@ -1,6 +1,7 @@
 import {
   openAbout,
   openClone,
+  openCreateRepo,
   openCreateBranch,
   openCreateTag,
   openPull,
@@ -28,6 +29,12 @@ export function buildCommands(): Command[] {
   const cmds: Command[] = [
     { id: "open", title: "Open repository", shortcut: "Ctrl+O", run: () => repos.openViaDialog() },
     { id: "clone", title: "Clone repository", shortcut: "Ctrl+Shift+C", run: () => openClone() },
+    {
+      id: "init",
+      title: "Create repository",
+      shortcut: "Ctrl+Shift+N",
+      run: () => openCreateRepo(),
+    },
     { id: "settings", title: "Open settings", shortcut: "Ctrl+,", run: () => openSettings() },
     {
       id: "check-updates",

@@ -29,7 +29,7 @@ import { Welcome } from "./features/welcome/Welcome";
 import { useDialogsStore } from "./state/dialogs";
 import { useOpsStore } from "./state/ops";
 import { startAutoFetch } from "./state/autoFetch";
-import { openAddWorktree, openClone } from "./features/dialogs/open";
+import { openAddWorktree, openClone, openCreateRepo } from "./features/dialogs/open";
 import { AccountMenu } from "./features/github/AccountMenu";
 import { Sidebar } from "./features/sidebar/Sidebar";
 import { sidebarWidth, useSidebarWidth } from "./features/sidebar/sidebarWidth";
@@ -227,7 +227,10 @@ export default function App() {
         mod && !e.shiftKey && !e.altKey && (e.key === "PageDown" || e.key === "PageUp");
       const closeTab = mod && !e.shiftKey && !e.altKey && k === "w" && currentId !== null;
       const shifted =
-        mod && e.shiftKey && !e.altKey && (k === "c" || (k === "w" && currentId !== null));
+        mod &&
+        e.shiftKey &&
+        !e.altKey &&
+        (k === "c" || k === "n" || (k === "w" && currentId !== null));
       if (!(tabKey || closeTab || shifted) || e.repeat) return;
       if (useDialogsStore.getState().current !== null) return;
       if (!tabKey && useOpsStore.getState().busy) return;
@@ -242,6 +245,7 @@ export default function App() {
       if (tabKey) useReposStore.getState().nextTab(e.key === "PageDown" ? 1 : -1);
       else if (closeTab && currentId !== null) void close(currentId);
       else if (k === "w" && currentId !== null) openAddWorktree(currentId);
+      else if (k === "n") openCreateRepo();
       else openClone();
     };
     window.addEventListener("keydown", onKey);

@@ -5,6 +5,7 @@ import { AddWorktreeDialog, type AddWorktreeDialogProps } from "./AddWorktreeDia
 import { LockWorktreeDialog, type LockWorktreeDialogProps } from "./LockWorktreeDialog";
 import { CloneDialog, type CloneDialogProps } from "./CloneDialog";
 import { CreateBranchDialog, type CreateBranchDialogProps } from "./CreateBranchDialog";
+import { CreateRepoDialog } from "./CreateRepoDialog";
 import { CreateTagDialog, type CreateTagDialogProps } from "./CreateTagDialog";
 import { LoginDialog, type LoginDialogProps } from "../github/LoginDialog";
 import { RepoPickerDialog, type RepoPickerDialogProps } from "../github/RepoPickerDialog";
@@ -84,6 +85,7 @@ export function registerPhase2Dialogs(): void {
   registerDialog(DIALOG.clone, (p, onClose) =>
     createElement(CloneDialog, { ...(p as unknown as Props<CloneDialogProps>), onClose }),
   );
+  registerDialog(DIALOG.createRepo, (_p, onClose) => createElement(CreateRepoDialog, { onClose }));
   registerDialog(DIALOG.remotes, (p, onClose) =>
     createElement(RemotesDialog, { ...(p as unknown as Props<RemotesDialogProps>), onClose }),
   );

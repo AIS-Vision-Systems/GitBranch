@@ -29,6 +29,7 @@ import { tabName } from "../../lib/tabOrder";
 import { reportError, useUiStore } from "../../state/ui";
 import {
   openClone,
+  openCreateRepo,
   openCreateBranch,
   openPull,
   openPush,
@@ -279,6 +280,13 @@ export function Ribbon({ repoId }: Props) {
             label: "Clone…",
             shortcut: "Ctrl+Shift+C",
             onSelect: () => openClone(),
+          },
+          {
+            kind: "item",
+            id: "init",
+            label: "Create repository…",
+            shortcut: "Ctrl+Shift+N",
+            onSelect: () => openCreateRepo(),
           },
           { kind: "item", id: "remotes", label: "Remotes…", onSelect: () => openRemotes(repoId) },
           {
