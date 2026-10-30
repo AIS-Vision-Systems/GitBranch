@@ -13,7 +13,7 @@ import * as mergeIpc from "../ipc/merge";
 import type { MergeMode, MergeOutcome, OpKind, TodoItem } from "../ipc/merge";
 import { cancelOp } from "../ipc/progress";
 import * as remoteIpc from "../ipc/remote";
-import type { FetchArgs, PullArgs, PushArgs, PushResult } from "../ipc/remote";
+import type { FetchArgs, PullArgs, PushArgs, PushResult, Remote } from "../ipc/remote";
 import * as reflogIpc from "../ipc/reflog";
 import type { UndoAction, UndoInfo } from "../ipc/reflog";
 import * as stashIpc from "../ipc/stash";
@@ -22,9 +22,11 @@ import * as tagIpc from "../ipc/tag";
 import type { TagArgs } from "../ipc/tag";
 import type { RepoId } from "../ipc/types";
 import { pushSummary } from "../lib/pushTarget";
+import { githubHttpsUrlOf } from "../lib/remoteUrl";
 import { quotePath, quotePaths } from "../lib/shellQuote";
 import { cloneNameFromUrl } from "../features/dialogs/validate";
 import { confirm } from "./dialogs";
+import { useGithubStore } from "./github";
 import { EMPTY_GRAPH, useGraphStore } from "./graph";
 import { useReposStore } from "./repos";
 import { remotesOf, useRemotesStore } from "./remotes";
@@ -185,7 +187,12 @@ export function resetQuietFetchThrottle(): void {
 }
 
 export const AUTH_REQUIRED_TITLE =
-  "Authentication required. GitHub login arrives in Phase 5; SSH remotes use your agent.";
+  "Authentication required. Sign in to GitHub for HTTPS remotes; SSH remotes use your agent.";
+export const SSH_AUTH_TITLE = "SSH key rejected by the remote";
+export const SSH_AUTH_HINT =
+  "GitBranch runs ssh without a terminal, so it cannot ask for a key passphrase: load the key into your SSH agent " +
+  "(ssh-add). On Windows, Git's own ssh does not see the Windows OpenSSH agent; " +
+  "git config --global core.sshCommand C:/Windows/System32/OpenSSH/ssh.exe makes git use it.";
 export const PUSH_REJECTED_HINT = "Pull first, or push again with --force-with-lease.";
 
 /** git.auth_required: one explanatory toast instead of the raw error. */
@@ -193,6 +200,62 @@ function authRequired(e: unknown): boolean {
   if (!isIpcError(e) || e.error.code !== "git.auth_required") return false;
   useUiStore.getState().pushToast({ kind: "error", title: AUTH_REQUIRED_TITLE });
   return true;
+}
+
+/**
+ * git.ssh_auth: explain why ssh had no key and, for a github.com SSH remote while signed in, offer to
+ * switch it to HTTPS so the app's token is used. `remote` null = every remote of the repo (fetch all).
+ */
+function sshAuth(repoId: RepoId, remote: string | null): (e: unknown) => boolean {
+  return (e) => {
+    if (!isIpcError(e) || e.error.code !== "git.ssh_auth") return false;
+    const remotes = remotesOf(useRemotesStore.getState(), repoId).filter(
+      (r) => (remote === null || r.name === remote) && githubHttpsUrlOf(r.fetchUrl) !== null,
+    );
+    const target = remotes.length === 1 ? remotes[0] : undefined;
+    const account = useGithubStore.getState().account;
+    const signedIn = account !== null && account !== undefined;
+    const raw = e.error.detail ?? e.error.message;
+    const alt =
+      target === undefined
+        ? ""
+        : signedIn
+          ? `
+Or switch ${target.name} to HTTPS to use your GitHub sign-in.`
+          : `
+Or sign in to GitHub and switch ${target.name} to HTTPS.`;
+    useUiStore.getState().pushToast({
+      kind: "error",
+      title: SSH_AUTH_TITLE,
+      detail: `${SSH_AUTH_HINT}${alt}
+
+${raw}`,
+      ...(target !== undefined && signedIn
+        ? {
+            action: {
+              label: `Use HTTPS for ${target.name}`,
+              run: () => void switchToHttps(repoId, target),
+            },
+          }
+        : {}),
+    });
+    return true;
+  };
+}
+
+/** Points a github.com SSH remote (fetch and, when set, push URL) at its HTTPS URL. */
+async function switchToHttps(repoId: RepoId, r: Remote): Promise<void> {
+  const ops = useOpsStore.getState();
+  const fetchUrl = githubHttpsUrlOf(r.fetchUrl);
+  if (fetchUrl === null || !(await ops.setRemoteUrl(repoId, r.name, fetchUrl, false))) return;
+  const pushUrl = r.pushUrl === null ? null : githubHttpsUrlOf(r.pushUrl);
+  if (pushUrl !== null && !(await ops.setRemoteUrl(repoId, r.name, pushUrl, true))) return;
+  useUiStore.getState().pushToast({
+    kind: "success",
+    title: `${r.name} now uses HTTPS`,
+    detail: `${fetchUrl}
+Run the operation again.`,
+  });
 }
 
 function pushRejected(e: unknown): boolean {
@@ -348,7 +411,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             path = (await cloneIpc.clone(args, opId)).path;
           },
           undefined,
-          cancelledAs(title, authRequired),
+          cancelledAs(title, (e) => authRequired(e) || sshAuth("" as RepoId, null)(e)),
         ),
       );
       if (path === null) {
@@ -371,7 +434,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             "Fetch failed",
             () => remoteIpc.fetch(repoId, args, opId),
             "Fetched",
-            cancelledAs(title, authRequired),
+            cancelledAs(title, (e) => authRequired(e) || sshAuth(repoId, args.remote)(e)),
           ),
       ),
 
@@ -416,7 +479,7 @@ export const useOpsStore = create<OpsState>((set, get) => {
             res.changed = (await remoteIpc.pull(repoId, args, opId)).changed;
           },
           undefined,
-          cancelledAs(title, authRequired),
+          cancelledAs(title, (e) => authRequired(e) || sshAuth(repoId, args.remote)(e)),
         );
         if (outcome === "ok") toast(res.changed === false ? "Already up to date" : "Pulled");
         return outcome !== "error";
@@ -431,7 +494,10 @@ export const useOpsStore = create<OpsState>((set, get) => {
             res.value = await remoteIpc.push(repoId, args, opId);
           },
           undefined,
-          cancelledAs(title, (e) => authRequired(e) || pushRejected(e)),
+          cancelledAs(
+            title,
+            (e) => authRequired(e) || sshAuth(repoId, args.remote)(e) || pushRejected(e),
+          ),
         );
         if (ok) {
           const summary = res.value === null ? "" : pushSummary(res.value.refs, args.remote);

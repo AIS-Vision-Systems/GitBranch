@@ -473,3 +473,18 @@ images as links, autolinks, h4-h6 and stripped HTML comments; single newlines ar
 Consequences: one extra `cat-file`/file read per shown diff; one more GitHub list call (usually a 304) per tick.
 For unstaged diffs the context rows come from the raw work-tree file, so a clean filter that changes lines (Git
 LFS pointers) shows the real file around pointer hunks; accepted as rare.
+
+## D-044 · accepted · 2026-10-30 — SSH key rejections get their own error and an HTTPS way out
+Context: a user's push to a `git@github.com:` remote failed with the raw `Permission denied (publickey)` text. The
+line comes from ssh, without git's `fatal:` prefix, so it fell through to a generic `git.exit`. The app runs ssh
+without a terminal (`SSH_ASKPASS_REQUIRE=never`), so a key with a passphrase that is not in the agent cannot be
+used, and on Windows Git's bundled ssh does not see the Windows OpenSSH agent.
+Decision: (1) `git-core` classifies any stderr line containing `Permission denied (publickey` as
+`GitErrorKind::SshAuth` (`git.ssh_auth`), checked before the HTTPS auth patterns. (2) Fetch, pull, push and clone
+show "SSH key rejected by the remote" with the cause (`ssh-add`, `core.sshCommand` for the Windows agent) and the
+raw stderr. (3) When the operation's remote (or the only one, for fetch all) is a github.com SSH URL and the user
+is signed in, the toast gets a "Use HTTPS for <remote>" button that sets the fetch URL, and an SSH push URL if
+there is one, to `https://github.com/<owner>/<repo>.git`; the user then runs the operation again (no automatic
+retry). Toasts gained one optional action button for this.
+Consequences: the app still never prompts for passphrases or ships its own ssh; switching is opt-in per remote.
+

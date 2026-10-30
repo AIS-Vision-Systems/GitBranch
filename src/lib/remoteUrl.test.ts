@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostOf, webUrlOf } from "./remoteUrl";
+import { githubHttpsUrlOf, hostOf, webUrlOf } from "./remoteUrl";
 
 describe("webUrlOf", () => {
   it.each([
@@ -27,5 +27,18 @@ describe("webUrlOf", () => {
   it("webUrlOf rejects a host containing a space", () => {
     expect(webUrlOf("https://bad host/o/r")).toBeNull();
     expect(webUrlOf("ssh://git@bad host/o/r")).toBeNull();
+  });
+});
+
+describe("githubHttpsUrlOf", () => {
+  it.each([
+    ["git@github.com:o/r.git", "https://github.com/o/r.git"],
+    ["git@github.com:o/r", "https://github.com/o/r.git"],
+    ["ssh://git@github.com/o/r.git", "https://github.com/o/r.git"],
+    ["https://github.com/o/r.git", null],
+    ["git@gitlab.com:o/r.git", null],
+    ["/local/path", null],
+  ])("%s -> %s", (input, expected) => {
+    expect(githubHttpsUrlOf(input)).toBe(expected);
   });
 });

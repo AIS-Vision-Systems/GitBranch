@@ -10,7 +10,14 @@ export interface Toast {
   kind: "error" | "info" | "success";
   title: string;
   detail?: string;
+  /** One button on the toast; clicking it runs `run` and dismisses the toast. */
+  action?: ToastAction;
   createdAt: number;
+}
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
 }
 
 const MAX_TOASTS = 5;

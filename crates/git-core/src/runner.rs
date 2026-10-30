@@ -49,6 +49,9 @@ pub enum GitErrorKind {
     Conflict,
     /// The remote asked for credentials and none were available.
     AuthRequired,
+    /// ssh found no key the server accepts (`Permission denied (publickey)`): the agent has no
+    /// key, the key needs a passphrase nobody can type, or it is not on the account.
+    SshAuth,
     /// A revision, ref, path or remote object does not exist.
     NotFound,
     /// The remote rejected a ref update (non-fast-forward, stale lease, hook).
@@ -81,6 +84,7 @@ impl GitError {
             GitErrorKind::NotARepo => "git.not_a_repo",
             GitErrorKind::Conflict => "git.conflict",
             GitErrorKind::AuthRequired => "git.auth_required",
+            GitErrorKind::SshAuth => "git.ssh_auth",
             GitErrorKind::NotFound => "git.not_found",
             GitErrorKind::Rejected => "git.rejected",
             GitErrorKind::Spawn => "git.spawn",
@@ -96,6 +100,7 @@ impl GitError {
             GitErrorKind::NotARepo => "not a git repository".to_string(),
             GitErrorKind::Conflict => format!("git {cmd} stopped with conflicts"),
             GitErrorKind::AuthRequired => "authentication required".to_string(),
+            GitErrorKind::SshAuth => "SSH authentication failed".to_string(),
             GitErrorKind::NotFound => format!("git {cmd}: not found"),
             GitErrorKind::Rejected => format!("git {cmd}: the remote rejected the update"),
             GitErrorKind::Spawn => "could not start git".to_string(),
@@ -117,7 +122,6 @@ impl GitError {
             "could not read Username",
             "could not read Password",
             "terminal prompts disabled",
-            "Permission denied (publickey",
             "Invalid username or password",
             "authentication required",
         ];
@@ -145,10 +149,14 @@ impl GitError {
         let has = |needles: &[&str]| git_lines().any(|l| needles.iter().any(|n| l.contains(n)));
         let conflict =
             stdout.lines().chain(stderr.lines()).any(|l| CONFLICT.iter().any(|n| l.contains(n)));
+        // ssh's own line (`git@github.com: Permission denied (publickey).`) has no git prefix.
+        let ssh_auth = stderr.lines().any(|l| l.contains("Permission denied (publickey"));
         if has(NOT_A_REPO) {
             GitErrorKind::NotARepo
         } else if conflict {
             GitErrorKind::Conflict
+        } else if ssh_auth {
+            GitErrorKind::SshAuth
         } else if has(AUTH) {
             GitErrorKind::AuthRequired
         } else if rejected {
@@ -786,6 +794,14 @@ mod tests {
                 "fatal: ambiguous argument 'nope': unknown revision or path not in the working tree."
             ),
             GitErrorKind::NotFound
+        );
+        assert_eq!(
+            k("git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists."),
+            GitErrorKind::SshAuth
         );
         assert_eq!(k("error: something else"), GitErrorKind::ExitCode(128));
         // Hook chatter is not git's own diagnostics.

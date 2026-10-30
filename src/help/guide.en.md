@@ -41,7 +41,7 @@ Unified or split view, a **Wrap** toggle, and a change ruler at the right edge (
 - **Branch** creates a branch at HEAD and checks it out.
 - **Stash** saves the working tree; **Pop** restores the most recent one. The Stashes popover lists, applies and drops them.
 - **Remotes** adds, renames and removes remotes. Fetch, pull and push have shortcuts (`Ctrl+Shift+F` / `Ctrl+Shift+L` / `Ctrl+Shift+P`). Push uses `--force-with-lease` only; a plain force push does not exist in GitBranch.
-- Git over HTTPS gets the GitHub token from the app, so private repositories work without prompts once you are signed in. SSH remotes use your system agent.
+- Git over HTTPS gets the GitHub token from the app, so private repositories work without prompts once you are signed in. SSH remotes use your system agent: GitBranch cannot type a key passphrase, so load the key with `ssh-add` first. If GitHub rejects the key, the error offers to switch a github.com remote to HTTPS while you are signed in.
 
 ## Conflicts
 
