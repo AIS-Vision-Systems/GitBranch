@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0 — 2026-10-30
+
+SSH problems are explained and fixed from the app, new repositories can be created, pull requests refresh on their
+own and diffs show the whole file.
+
+- 2026-10-30: A push, pull, fetch or clone that ssh refuses with `Permission denied (publickey)` now says "SSH key
+  rejected by the remote" and offers **Fix SSH…** (also in the command palette), instead of the raw git output
+  (D-044). The dialog checks the SSH setup and shows only the missing steps: on Windows, enable the `ssh-agent`
+  service (Windows asks for administrator permission) and make git use the Windows SSH client; load a key, asking
+  its passphrase in the app (handed to `ssh-add`, never stored or logged; on Windows the agent keeps the key across
+  reboots); test the connection; or switch a github.com remote to HTTPS to use the GitHub sign-in.
+- 2026-10-30: **Create…** on the welcome screen (also in the actions menu, the palette and `Ctrl+Shift+N`) creates a
+  new local repository: parent folder, name, initial branch (`main` by default) and an optional README with an
+  initial commit. The new repository opens in a tab.
+- 2026-10-30: The working-tree row no longer looks like part of another branch: when commits of other branches are
+  above HEAD, it sits on a free lane beside them and its dashed connector bends into HEAD's node.
+- 2026-10-30: The pull request list refreshes quietly with the auto-fetch, and a selected pull request's detail with
+  it (D-043). Pull request descriptions are rendered as Markdown.
+- 2026-10-30: The diff shows the whole file around the changes and opens at the first change; a "Whole file" toggle
+  returns to hunks only (D-043).
+- 2026-10-30: When git is not on PATH and no path is configured, GitBranch looks in the standard Git for Windows
+  install locations, and a missing git explains how to fix it (install Git or set "Git executable path").
+
 ## 1.2.0 — 2026-10-28
 
 The repository on screen keeps itself up to date, and a status bar at the bottom of the window hosts the progress
